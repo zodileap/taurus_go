@@ -83,6 +83,39 @@ func ToSnakeCase(str string) string {
 	return result.String()
 }
 
+// ToUpperFirst 函数将字符串转换为大写字母开头的字符串。
+//
+// Params:
+// - s: 字符串
+// - sep: 分隔符，如果为空，则不分割
+// - num: 需要转换的首字母大写的数量，如果为-1，则全部转换,如果为0，则不转换
+func ToUpperFirst(s string, sep string, num int) string {
+	if num == 0 {
+		return s
+	}
+
+	var split []string
+	n := 0
+	var ns []string = make([]string, 0)
+	if s != "" {
+		split = strings.Split(s, sep)
+	} else {
+		split = []string{s}
+	}
+	for _, v := range split {
+		if v == "" {
+			continue
+		}
+		if num == -1 || (num > 0 && n < num) {
+			ns = append(ns, strings.ToUpper(v[:1])+v[1:])
+			n += 1
+		} else {
+			ns = append(ns, v)
+		}
+	}
+	return strings.Join(ns, sep)
+}
+
 func IsFormatString(s string) bool {
 	return strings.Contains(s, "%")
 }
