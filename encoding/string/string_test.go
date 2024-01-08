@@ -81,7 +81,7 @@ func TestIsUUIDValid(t *testing.T) {
 	}
 
 	for _, uuid := range testUUIDs {
-		if isUUIDValid(uuid) {
+		if err := IsUUID(uuid); err != nil {
 			t.Errorf("isUUIDValid(%s) = true, want false", uuid)
 		}
 	}
