@@ -23,16 +23,20 @@ func MustParse(t *Template, err error) *Template {
 	return t
 }
 
-type Template struct {
-	*template.Template
-	FuncMap template.FuncMap
-}
+type (
+	Template struct {
+		*template.Template
+		FuncMap template.FuncMap
+	}
+
+	FuncMap = template.FuncMap
+)
 
 // Funcs 把funcMap中的函数添加到模版中
-func (t *Template) Funcs(funcMap template.FuncMap) *Template {
+func (t *Template) Funcs(funcMap FuncMap) *Template {
 	t.Template.Funcs(funcMap)
 	if t.FuncMap == nil {
-		t.FuncMap = template.FuncMap{}
+		t.FuncMap = make(template.FuncMap)
 	}
 	for name, f := range funcMap {
 		if _, ok := t.FuncMap[name]; !ok {
