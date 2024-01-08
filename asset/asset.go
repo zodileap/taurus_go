@@ -24,7 +24,7 @@ type Assets struct {
 //
 // Example:
 //
-// var assets asset.Assets
+//	var assets asset.Assets
 //
 //	assets.Add("file.txt", []byte("Hellow, World!"))
 //	assets.Add("../file_2.go", []byte(`
@@ -37,7 +37,7 @@ type Assets struct {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestAdd
 func (a *Assets) Add(path string, b []byte) {
 	if a.Files == nil {
 		a.Files = make(map[string][]byte)
@@ -51,23 +51,28 @@ func (a *Assets) Add(path string, b []byte) {
 //
 //   - path: 文件夹路径。
 //
+// Returns:
+//
+//	0: 成功。
+//
 // Example:
 //
-// var assets asset.Assets
-// assets.AddDir("dir")
-// assets.AddDir("./dir2")
-// err := assets.Write()
+//	var assets asset.Assets
+//	assets.AddDir("dir")
+//	assets.AddDir("./dir2")
+//	err := assets.Write()
 //
 //	if err != nil {
-//		fmt.Print(err)
+//	 fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
-func (a *Assets) AddDir(path string) {
+// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestAddDir
+func (a *Assets) AddDir(path string) error {
 	if a.Dirs == nil {
 		a.Dirs = make(map[string]struct{})
 	}
 	a.Dirs[path] = struct{}{}
+	return nil
 }
 
 // Write 写入全部的Dirs和Files,如果文件已经存在，则会覆盖。
@@ -83,7 +88,7 @@ func (a *Assets) AddDir(path string) {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestWrite
 //
 // ErrCodes:
 //   - Err_0200010001
@@ -122,7 +127,7 @@ func (a Assets) Write() error {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestFormat
 //
 // ErrCodes:
 //   - Err_0200010002

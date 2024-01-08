@@ -20,7 +20,7 @@ import (
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestCopy
 //
 // ErrCodes:
 //   - Err_0200010004
@@ -63,13 +63,10 @@ func CopyFile(src string, dst string) error {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestCopyDir
 //
 // ErrCodes:
 //   - Err_0200010001
-//   - Err_0200010004
-//   - Err_0200010005
-//   - Err_0200010006
 //   - Err_0200010007
 //   - Err_0200010008
 func CopyDir(src string, dst string) error {
