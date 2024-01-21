@@ -1,0 +1,79 @@
+{{ define "entity/delete" }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ template "import/load" $importPkgs }}
+
+// {{ $entity }}Delete is the delete action for the {{ $entity }}.
+type {{ $entity }}Delete struct {
+	*internal.Config
+	tracker    entity.Tracker
+	e          *{{ $entity }}
+	predicates []func(*entitysql.Predicate)
+}
+
+// New{{ $entity }}Delete creates a new {{ $entity }}Delete.
+func New{{ $entity }}Delete(c *internal.Config, e *{{ $entity }}, t entity.Tracker) *{{ $entity }}Delete {
+	return &{{ $entity }}Delete{
+		Config: c,
+		tracker: t,
+		e: e,
+	}
+}
+
+func (o *{{ $entity }}Delete) Where(predicates ...func(*entitysql.Predicate)) *{{ $entity }}Delete {
+	o.predicates = append(o.predicates, predicates...)
+	return o
+}
+
+func (o *{{ $entity }}Delete) delete(ctx context.Context) error {
+	return o.sqlDelete(ctx)
+}
+
+func (o *{{ $entity }}Delete) sqlDelete(ctx context.Context) error {
+	var (
+		spec, err = o.deleteSpec()
+		affected  = int64(0)
+	)
+	if err != nil {
+		return err
+	}
+	spec.Affected = &affected
+	if err := entitysql.NewDelete(ctx, o.Driver, spec); err != nil {
+		return err
+	}
+	return internal.SetEntityState(o.e.Mutation, entity.Detached)
+}
+
+func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
+	spec := entitysql.NewDeleteSpec(Entity)
+	if ps := o.predicates; len(ps) > 0 {
+		spec.Predicate = func(p *entitysql.Predicate) {
+			for _, f := range ps {
+				f(p)
+			}
+		}
+	}
+	{{- range $i, $f := $.Entity.Fields }}
+		{{- if gt $f.Primary 0 }}
+		{{ toLower $f.Name }} := &Pred{{ $f.Name }}{}
+		{{- if gt $f.Primary 1 }}
+		o.predicates = append(o.predicates,entitysql.OpAnd, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
+		{{- else }}
+		o.predicates = append(o.predicates, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
+		{{- end }}
+		{{- end }}
+	{{- end }}
+	if ps := o.predicates; len(ps) > 0 {
+		spec.Predicate = func(p *entitysql.Predicate) {
+			for _, f := range ps {
+				f(p)
+			}
+		}
+	}
+	return spec, nil
+}
+{{ end }}

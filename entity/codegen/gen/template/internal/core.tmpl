@@ -1,0 +1,72 @@
+{{ define "internal/core" }}
+{{ $header := dict "Package" "internal" }}
+{{ template "header" $header }}
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/yohobala/taurus_go/entity"
+	"github.com/yohobala/taurus_go/entity/entitysql"
+)
+
+type Config struct {
+	Tag    string
+	Driver dialect.Driver
+}
+
+// NewConfig creates a new Config.
+func NewConfig(tag string) (*Config, error) {
+	c := &Config{
+		Tag:    tag,
+		Driver: nil,
+	}
+	err := c.initDriver()
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// SetEntityState attempts to set the desired entity state
+// if the conditions are not met.
+func SetEntityState(m *entity.Mutation, state entity.EntityState) error {
+	current := m.State()
+	switch state {
+	case entity.Added:
+		if current == entity.Detached {
+			m.SetState(state)
+		}else{
+			return entity.Err_0100030003.Sprintf("Added", "Detached")
+		}
+	case entity.Modified:
+		if current == entity.Unchanged {
+			m.SetState(state)
+		}else{
+			return entity.Err_0100030003.Sprintf("Modified", "Unchanged")
+		}
+	case entity.Deleted:
+		if current == entity.Unchanged || current == entity.Modified || current == entity.Added {
+			if current == entity.Unchanged || current == entity.Modified {
+				m.SetState(state)
+			}else{
+				m.SetState(entity.Detached)
+			}
+		}else{
+			return entity.Err_0100030003.Sprintf("Deleted", "Unchanged 、 Modified or Added")
+		}
+	}
+	return nil
+}
+
+func (c *Config) initDriver() error {
+	driver, err := entity.GetConnection(c.Tag)
+	if err != nil {
+		return err
+	}
+	c.Driver = driver
+	return nil
+}
+
+
+{{ end }}

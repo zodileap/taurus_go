@@ -1,0 +1,96 @@
+{{- define "sql/table" }}
+/*
+    Server Type: PostgreSQL
+    Catalogs: {{ $.Database.Name }}
+    Schema: public
+*/
+{{ range $key, $entity := $.Database.Entities }}
+{{ $schema := `"public"` }}
+{{ $schemaV := `'public'` }}
+{{ $table := joinStrings   `"` $entity.AttrName  `"`}}
+{{ $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- range $i,$seq := $entity.Sequences }}
+-- ********
+-- Sequence {{ $seq.Name }}
+-- ********
+DO $$
+BEGIN
+    CREATE  SEQUENCE IF NOT EXISTS {{ $schema }}."{{ $seq.Name }}" 
+    INCREMENT {{ $seq.Increament }}
+    MINVALUE  {{ $seq.Min }}
+    MAXVALUE {{ $seq.Max }}
+    START {{ $seq.Start }}
+    CACHE {{ $seq.Cache }};
+END
+$$;
+{{ end }}
+-- ********
+-- Table {{ $table }}
+-- ********
+DO $$
+DECLARE
+    column_rec RECORD;
+    v_constraint_name TEXT;
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = {{ $schemaV }} AND tablename = {{ $tableV }}) THEN
+        -- Check for any extra columns, and delete them if there are any.
+        -- 检查是否有多余的列，如果有则删除。
+        FOR column_rec IN SELECT tbl.column_name, tbl.data_type FROM information_schema.columns tbl WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} LOOP
+            IF column_rec.column_name NOT IN ({{ joinFieldAttrNames $entity.Fields }}) THEN
+                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP COLUMN IF EXISTS ' || quote_ident(column_rec.column_name) || ' CASCADE;';
+            END IF;
+        END LOOP;
+        -- Check for missing columns, and add them if any are missing.
+        -- 检查是否缺少列，如果缺少则添加
+        {{- range $i,$field := $entity.Fields }}
+        {{- $fieldName := $field.AttrName }}
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} AND column_name = '{{ $fieldName }}' ) THEN
+            ALTER TABLE {{ $schema }}.{{ $table }} ADD COLUMN {{ template "init_table_field" $field }};
+        END IF;
+        {{- end }}
+        -- Search for the name of any existing primary key constraints. 
+        -- If found, delete them first, then add new primary key constraints.
+        -- 查找现有的主键约束名称，如果找到了先删除它， 添加新的主键约束。
+        SELECT conname INTO v_constraint_name
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        WHERE nsp.nspname = {{ $schemaV }}
+            AND rel.relname = {{ $tableV }}
+            AND con.contype = 'p';
+        IF v_constraint_name IS NOT NULL THEN
+            EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name);
+        END IF;
+        ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
+    ELSE
+        -- If the table does not exist, then create the table.
+        -- 如果表不存在，则创建表。
+        CREATE TABLE {{ $schema }}.{{ $table }} (
+            {{- range $i,$field := $entity.Fields }}
+            {{ template "init_table_field" $field }}
+            {{- if ne $i (sub (len $entity.Fields) 1) -}}
+                ,
+            {{- end }}
+            {{- end }}
+        );
+        -- Field Comment.
+        -- 字段备注。
+        {{- range $i,$field := $entity.Fields }}
+        {{ if $field.Comment }}COMMENT ON COLUMN {{ $schema }}.{{ $table }}.{{ printf "%q" $field.AttrName }} IS  '{{  $field.Comment }}';{{ end }}
+        {{- end -}}
+        
+        -- Primary Key.
+        -- 主键。
+        ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies $entity.Fields }});
+    END IF;
+END
+$$;
+{{ end }}
+{{ end }}
+
+{{- define "init_table_field" }}
+{{- $fieldName := printf "%q" $.AttrName }}
+        {{- $fieldName }} {{ $.AttrType }}
+        {{- if $.Required }} NOT NULL {{- end }}
+        {{- if $.Default }} DEFAULT {{ $.DefaultValue }} {{- end }}
+{{- end }}

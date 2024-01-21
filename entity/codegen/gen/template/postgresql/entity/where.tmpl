@@ -1,0 +1,32 @@
+{{ define "entity/where" }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ template "import/load" $importPkgs }}
+
+{{- range $field :=  .Entity.Fields }}
+{{ $info := dict "Field" $field }}
+{{ template "entity/where_field" $info }}
+{{- end }}
+
+{{ end }}
+
+
+
+{{ define "entity/where_field" }}
+{{ $fieldName := joinStrings "Pred" .Field.Name }}
+{{ $attrName := .Field.AttrName }}
+
+type {{ $fieldName }} struct {
+}
+
+func (f *{{ $fieldName }}) EQ({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.EQ(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
+	}
+}
+
+{{ end }}

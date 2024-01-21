@@ -1,0 +1,37 @@
+{{ define "entity/fields"  }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ template "import/load" $importPkgs }}
+{{- range $i,$field := $.Entity.Fields }}
+import "{{ $field.StoragerPkg }}"
+{{- end }}
+
+
+{{- range $i,$field := $.Entity.Fields }}
+type {{ $field.Name }}Type struct {
+	{{ $field.StoragerType }}
+	mutator *entity.Mutation
+}
+
+func new{{ $field.Name }}Type(m *entity.Mutation) *{{ $field.Name }}Type {
+	t := &{{ $field.Name }}Type{}
+	t.mutator = m
+	return t
+}
+
+func (t *{{ $field.Name }}Type) Set(v {{ $field.ValueType }}) {
+	t.{{ $field.StoragerOrigType }}.Set(v)
+	internal.SetEntityState(t.mutator, entity.Modified)
+	t.mutator.SetFields( Field{{ $field.Name }}.Name.String())
+}
+
+func (t *{{ $field.Name }}Type) Get() *{{ $field.ValueType }} {
+	return t.{{ $field.StoragerOrigType }}.Get()
+}
+{{- end }}
+
+{{ end }}

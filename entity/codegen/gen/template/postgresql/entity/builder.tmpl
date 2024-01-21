@@ -1,0 +1,75 @@
+{{ define "entity/builder" }}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+{{ $BuilderName := joinStrings .Entity.Name "Builder" }}
+{{ $EntityName := .Entity.Name }}
+
+type {{ $BuilderName }} struct {
+    *internal.Config
+    tracker entity.Tracker
+	{{- range $field :=  .Entity.Fields }}
+	{{ $field.Name }}   Pred{{ $field.Name }}
+	{{- end }}
+}
+
+func New{{ $BuilderName }}(c *internal.Config, t entity.Tracker) *{{ $BuilderName }} {
+	return &{{ $BuilderName }}{
+		Config:  c,
+		tracker: t,
+	}
+}
+
+// New creates a new UserEntity，and add it to the tracker.
+// Required parameters are fields that have no default value but are required, 
+// and options are fields that can be left empty by calling WithFieldName.
+func (b *{{ $BuilderName }}) New({{ joinRequiredFields .Entity.Fields false }} options ...func(*{{$EntityName }})) (*{{$EntityName}} , error) {
+	e := New(b.Config, b.tracker)
+	b.tracker.Add(e)
+	return e.create({{ joinRequiredFields .Entity.Fields true }} options...)
+}
+
+func (b *{{ $BuilderName }}) Remove(e *{{ $EntityName }}) error {
+	if e.Mutation == nil {
+		return nil
+	}
+	return e.remove()
+}
+
+// First returns the first UserEntity.
+func (s *{{ $BuilderName }}) First(ctx context.Context) (*{{ $EntityName }}, error) {
+	query := s.initQuery()
+	return query.First(ctx)
+}
+
+func (s *{{ $BuilderName }}) ToList(ctx context.Context) ([]*{{ $EntityName }}, error) {
+	query := s.initQuery()
+	return query.ToList(ctx)
+}
+
+func (s *{{ $BuilderName }}) Where(conditions ...func(*entitysql.Predicate)) *{{ $EntityName }}Query {
+	query := s.initQuery()
+	return query.Where(conditions...)
+}
+
+{{- range $field :=  .Entity.Fields }}
+{{ $info := dict "Field" $field "EntityName" $EntityName "Entity" $.Entity.Name "BuilderName" $BuilderName }}
+{{ template "with_field" $info }}
+{{- end }}
+
+
+func (s *{{ $BuilderName }}) initQuery() *{{ .Entity.Name }}Query {
+	return New{{ .Entity.Name }}Query(s.Config,s.tracker)
+}
+{{ end }}
+
+{{ define "with_field"}}
+{{ if not .Field.Required }}
+// With{{ .Field.Name }} sets the "{{ toLower .Field.AttrName }}" field of the {{ .Entity }}.
+func (s *{{ .BuilderName }}) With{{ .Field.Name }}({{ toLower  .Field.Name }} {{ .Field.ValueType }}) func(*{{ .EntityName }}) {
+	return func(e *{{ .EntityName }}) {
+		e.{{ .Field.Name }}.Set({{ toLower  .Field.Name }} )
+	}
+}
+{{ end }}
+{{ end }}

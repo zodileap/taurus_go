@@ -1,0 +1,73 @@
+{{ define "database" }}
+{{ $header := dict "Package" .Config.Package }}
+{{ template "header" $header }}
+{{ $db := $.Database.Name}}
+{{ $lowerDb := toLower $db }} 
+{{ $package := .Config.Package}}
+{{ $builder := "Builder" }}
+
+
+
+import ( 
+	"database/sql"
+	"fmt"
+
+	"github.com/yohobala/taurus_go/entity"
+
+	"{{.Config.Package}}/internal"
+	
+	{{- range $key, $entityName := $.Database.EntityMap }}
+		{{ $entity := index $.Database.Entities $entityName }}
+		"{{ $package }}/{{ toLower $entity.AttrName }}"
+	{{- end }}
+)
+
+const {{ $db }}Tag = {{ printf "%q" $.Database.Tag}}
+
+// {{ $db }}  is an struct of the database
+type {{ $db }} struct {
+    *internal.Config
+	tracker entity.Tracker
+    {{- range $key, $entityName := $.Database.EntityMap }}
+		{{ $entity := index $.Database.Entities $entityName }}
+        {{ $key }}s *{{ $entity.AttrName }}.{{ $entityName }}{{ $builder}}
+    {{- end }}
+}
+
+// New{{ $db }} creates a new {{ $db }} instance.
+func New{{ $db }}() (*{{ $db }}, error) {
+    config, err := internal.NewConfig({{ $db }}Tag)
+	if err != nil {
+		return nil, err
+	}
+	{{ $lowerDb }} := &{{ $db }}{
+		Config: config,
+		tracker: &entity.Tracking{},
+	}
+	{{ $lowerDb }}.init()
+	return {{ $lowerDb }},nil
+}
+
+// Close closes the database.
+func (d *{{ $db }}) Close() error {
+	return d.Driver.Close()
+}
+
+// Save saves all changes to the database.
+func (d *{{ $db }}) Save() error {
+	for _, m := range d.tracker.Mutators() {
+		if err := m.Exec(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *{{ $db }}) init() {
+    {{- range $key, $entityName := $.Database.EntityMap }}
+		{{- $entity := index $.Database.Entities $entityName }}
+        d.{{ $key }}s = {{ $entity.AttrName }}.New{{ $entity.Name }}{{ $builder}}(d.Config,d.tracker)
+    {{- end }}
+}
+
+{{ end }}

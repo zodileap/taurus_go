@@ -1,0 +1,94 @@
+{{ define "entity/update" }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ template "import/load" $importPkgs }}
+
+// {{ $entity }}Update is the update action for the {{ $entity }}.
+type {{ $entity }}Update struct {
+	*internal.Config
+	ctx *entitysql.QueryContext
+	tracker entity.Tracker
+	e   *UserEntity
+	predicates []func(*entitysql.Predicate)
+}
+
+// New{{ $entity }}Update creates a new {{ $entity }}Update.
+func New{{ $entity }}Update(c *internal.Config, e *{{ $entity }},t entity.Tracker) *{{ $entity }}Update {
+	return &{{ $entity }}Update{
+		Config: c,
+		ctx:    &entitysql.QueryContext{},
+		e:      e,
+		tracker: t,
+	}
+}
+
+func (o *{{ $entity }}Update) Where(predicates ...func(*entitysql.Predicate)) *{{ $entity }}Update {
+	o.predicates = append(o.predicates, predicates...)
+	return o
+}
+
+func (o *{{ $entity }}Update) update(ctx context.Context) (*{{ $entity }}, error) {
+	return o.sqlUpdate(ctx)
+}
+
+func (o *{{ $entity }}Update) sqlUpdate(ctx context.Context) (*{{ $entity }}, error) {
+	var (
+		spec, err = o.updateSpec()
+		res       = o.e
+	)
+	if err != nil {
+		return nil, err
+	}
+	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
+		return scan(res, fields, rows)
+	}
+	if err := entitysql.NewUpdate(ctx, o.Driver, spec); err != nil {
+		return nil, err
+	}
+	setUnchanged(o.tracker, res)
+	return res, nil
+}
+
+func (o *{{ $entity }}Update) updateSpec() (*entitysql.UpdateSpec, error) {
+	spec := entitysql.NewUpdateSpec(Entity, o.ctx.Fields)
+	fields := o.e.Mutation.Fields()
+	if len(fields) == 0 {
+		return nil, entity.Err_0100030002.Sprintf(o.e.Name)
+	}
+	for _, f := range fields {
+		switch f {
+		{{- range $i, $f := $.Entity.Fields }}
+		case Field{{ $f.Name }}.Name.String():
+			spec.Sets = append(spec.Sets, &entitysql.FieldSpec{
+				Column: Field{{ $f.Name }}.Name.String(),
+				Value:  o.e.{{ $f.Name }}.Value(),
+			})
+		{{- end }}
+		}
+	}
+	{{- range $i, $f := $.Entity.Fields }}
+		{{- if gt $f.Primary 0 }}
+		{{ toLower $f.Name }} := &Pred{{ $f.Name }}{}
+		{{- if gt $f.Primary 1 }}
+		o.predicates = append(o.predicates,entitysql.OpAnd, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
+		{{- else }}
+		o.predicates = append(o.predicates, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
+		{{- end }}
+		{{- end }}
+	{{- end }}
+	if ps := o.predicates; len(ps) > 0 {
+		spec.Predicate = func(p *entitysql.Predicate) {
+			for _, f := range ps {
+				f(p)
+			}
+		}
+	}
+	return spec, nil
+}
+
+
+{{ end }}

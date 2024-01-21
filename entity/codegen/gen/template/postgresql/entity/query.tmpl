@@ -1,0 +1,116 @@
+{{ define "entity/query" }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ template "import/load" $importPkgs }}
+
+// {{ $entity }}Query is the query action for the {{ $entity }}.
+type {{ $entity }}Query struct {
+	*internal.Config
+	tracker    entity.Tracker
+	ctx *entitysql.QueryContext
+	predicates []func(*entitysql.Predicate)
+}
+
+// New{{ $entity }}Query creates a new {{ $entity }}Query.
+func New{{ $entity }}Query(c *internal.Config,t entity.Tracker) *{{ $entity }}Query {
+	return &{{ $entity }}Query{
+		Config: c,
+		ctx:    &entitysql.QueryContext{},
+		tracker: t,
+	}
+}
+
+func (o *{{ $entity }}Query) Where(predicates ...func(*entitysql.Predicate)) *{{ $entity }}Query {
+	o.predicates = append(o.predicates, predicates...)
+	return o
+}
+
+// Limit sets the limit of the query.
+func (o *{{ $entity }}Query) Limit(limit int) *{{ $entity }}Query {
+	o.ctx.Limit = &limit
+	return o
+}
+
+// First returns the first result of the query.
+func (o *{{ $entity }}Query) First(ctx context.Context) (*{{ $entity }}, error) {
+	result, err := o.Single(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// ToList returns the list of results of the query.
+func (o *{{ $entity }}Query) ToList(ctx context.Context) ([]*{{ $entity }}, error) {
+	return o.sqlAll(ctx)
+}
+
+// Single returns the single result of the query.
+func (o *{{ $entity }}Query) Single(ctx context.Context) (*{{ $entity }}, error) {
+	limit := 1
+	o.ctx.Limit = &limit
+	return o.sqlSingle(ctx)
+}
+
+func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ $entity }}, error) {
+	var (
+		spec   = o.querySpec()
+		res  = New(o.Config,o.tracker)
+	)
+	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
+		return scan(res, fields, rows)
+	}
+	if err := entitysql.NewQuery(ctx, o.Driver, spec); err != nil {
+		return nil, err
+	}
+	setUnchanged(o.tracker, res)
+	return res, nil
+}
+
+func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ $entity }}, error) {
+	var (
+		spec = o.querySpec()
+		res  = []*{{ $entity }}{}
+	)
+	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
+		e := New(o.Config,o.tracker)
+		if err := scan(e, fields, rows); err != nil {
+			return err
+		} else {
+			res = append(res, e)
+			return nil
+		}
+	}
+	if err := entitysql.NewQuery(ctx, o.Driver, spec); err != nil {
+		return nil, err
+	}
+	for _, e := range res {
+		setUnchanged(o.tracker, e)
+	}
+	return res, nil
+}
+
+func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
+	s := entitysql.NewQuerySpec(Entity, rows)
+	if o.ctx.Limit != nil {
+		s.Limit = *o.ctx.Limit
+	}
+	if fields := o.ctx.Fields; len(fields) > 0 {
+		s.Entity.Rows = make([]entitysql.FieldName, 0, len(fields))
+		s.Entity.Rows = append(s.Entity.Rows, fields...)
+	}
+	if ps := o.predicates; len(ps) > 0 {
+		s.Predicate = func(p *entitysql.Predicate) {
+			for _, f := range ps {
+				f(p)
+			}
+		}
+	}
+	return s
+}
+
+{{ end }}

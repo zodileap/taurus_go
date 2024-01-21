@@ -1,0 +1,35 @@
+{{ define "entity/meta" }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr}}
+{{ template "header" $header }}
+
+import (
+    "github.com/yohobala/taurus_go/entity/entitysql"
+)
+
+
+const (
+    Entity = "{{ $entityAttr }}"
+)
+
+var (
+    {{- range $field := $.Entity.Fields }}
+    Field{{ $field.Name }}  = entitysql.Field{
+        Name: "{{ $field.AttrName }}",
+        Primary: {{ $field.Primary }},
+        Default: {{ $field.Default }},
+        Required: {{ $field.Required }},
+    }
+    {{- end }} 
+)
+
+var (
+    rows = []entitysql.FieldName{
+        {{- range $field := $.Entity.Fields }}
+        Field{{ $field.Name }}.Name,
+        {{- end }}
+    }
+)
+
+{{ end }}

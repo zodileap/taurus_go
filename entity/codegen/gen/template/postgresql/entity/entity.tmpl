@@ -1,0 +1,102 @@
+{{ define "entity/entity" }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ template "import/load" $importPkgs }}
+
+type {{ $entity }} struct {
+    *internal.Config
+    *entity.Mutation
+	tracker     entity.Tracker
+    {{- range $i,$field := $.Entity.Fields }}
+        {{ $field.Name }} *{{ $field.Name }}Type
+    {{- end }}
+}
+
+
+
+// New creates a new {{ $entity }}, but does not add tracking.
+func New(c *internal.Config,t entity.Tracker) *{{ $entity }} {
+	e := &{{ $entity }}{
+		Config: c,
+		tracker: t,
+	}
+	b := entity.NewMutation(entity.Unchanged)
+	e.Mutation = b
+	{{- range $i,$field := $.Entity.Fields }}
+		e.{{ $field.Name }} = new{{ $field.Name }}Type(b)
+	{{- end }}
+	return e
+}
+
+
+
+// String implements the fmt.Stringer interface.
+func (e *{{ $entity }}) String() string {
+    return fmt.Sprintf("{ {{ joinFieldsString .Entity.Fields }} }",
+    {{- range $i,$field := $.Entity.Fields }}
+        e.{{ $field.Name }},
+    {{- end}}
+    )
+}
+
+// Exec executes all the mutations for the {{ $entity }}.
+func (e *{{ $entity }}) Exec() error {
+	switch e.State() {
+	case entity.Added:
+		n := New{{ $entity }}Create(e.Config, e, e.tracker)
+		_, err := n.create(context.Background())
+		return err
+	case entity.Modified:
+		n := New{{ $entity }}Update(e.Config, e, e.tracker)
+		_, err := n.update(context.Background())
+		return err
+	case entity.Deleted:
+		n := New{{ $entity }}Delete(e.Config, e, e.tracker)
+		return n.delete(context.Background())
+	}
+	return nil
+}
+
+func (e *{{ $entity }}) remove() error {
+	return internal.SetEntityState(e.Mutation, entity.Deleted)
+}
+
+// create creates a new {{ $entity }} and adds tracking.
+func (e *{{ $entity }}) create({{ joinRequiredFields .Entity.Fields false  }} options ...func(*{{ $entity }})) (*{{ $entity }}, error) {
+	e.Mutation.SetState(entity.Added)
+    {{- $requiredFields := getRequiredFields .Entity.Fields -}}
+    {{- range $field := $requiredFields }}
+        e.{{ $field.Name }}.Set({{ toSnakeCase $field.AttrName }})
+    {{- end }}
+	for _, option := range options {
+		option(e)
+	}
+	return e, nil
+}
+
+func scan(e *{{ $entity }}, fields []entitysql.FieldName, rows dialect.Rows) error {
+	args := make([]interface{}, len(fields))
+	for i := range fields {
+		switch fields[i] {
+		{{- range $field := $.Entity.Fields }}
+        case Field{{ $field.Name }}.Name:
+            args[i] = e.{{ $field.Name }}
+        {{- end }}
+		}
+	}
+	if err := rows.Scan(args...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func setUnchanged(t entity.Tracker, m entity.Mutator) {
+	m.SetState(entity.Unchanged)
+	t.Add(m)
+}
+
+{{ end }}
