@@ -22,12 +22,12 @@ type ErrCode struct {
 
 func (e ErrCode) Error() string {
 	if e.reason == "" {
-		return fmt.Sprintf("code: %s, msg: %s", e.code, e.msg)
+		return fmt.Sprintf("code:%s,msg:%s", e.code, e.msg)
 	}
 	if e.msg == "" {
 		e.msg = e.format
 	}
-	return fmt.Sprintf("code: %s, msg: %s, reason: %s", e.code, e.msg, e.reason)
+	return fmt.Sprintf("code:%s,msg: %s,reason:%s", e.code, e.msg, e.reason)
 }
 
 func (e ErrCode) Sprintf(msg ...any) ErrCode {
@@ -35,8 +35,12 @@ func (e ErrCode) Sprintf(msg ...any) ErrCode {
 	return e
 }
 
+func (e ErrCode) Code() string {
+	return e.code
+}
+
 func ValidFormat(str string) bool {
-	pattern := `^Err_[0-9]{10}$`
+	pattern := `^Err_[0-8]{9}[1-9x]$`
 	matched, err := regexp.MatchString(pattern, str)
 	if err != nil {
 		return false
