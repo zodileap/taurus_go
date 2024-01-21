@@ -5,14 +5,16 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	terr "github.com/yohobala/taurus_go/err"
 )
 
 type TestCase[I any, ER any] struct {
-	Name           string
-	MockReturns    TestCaseMockReturns
-	Input          I
-	ExpectedResult ER
-	ExpectedErr    error
+	Name        string
+	MockReturns TestCaseMockReturns
+	Input       I
+	ExpectedRes ER
+	ExpectedErr error
 }
 
 type TestCaseMockReturns = map[string]TestCaseMockReturn
@@ -28,6 +30,15 @@ type TestAPIResult struct {
 }
 
 func ValidErr(err error, expectedErr error, t *testing.T) {
+	te, ok := err.(*terr.ErrCode)
+	te2, ok2 := expectedErr.(*terr.ErrCode)
+	if ok && ok2 {
+		if te.Code() != te2.Code() {
+			t.Errorf("错误信息不一致，\n期望值: %v,\n实际值: %v", expectedErr, err)
+		}
+		return
+	}
+
 	if err != expectedErr {
 		if err == nil ||
 			expectedErr == nil ||
@@ -39,7 +50,7 @@ func ValidErr(err error, expectedErr error, t *testing.T) {
 
 }
 
-func ValidExpectedResult(result interface{}, expectedResult interface{}, t *testing.T) {
+func ValidRes(result interface{}, expectedResult interface{}, t *testing.T) {
 
 	if diff := cmp.Diff(expectedResult, result); diff != "" {
 
