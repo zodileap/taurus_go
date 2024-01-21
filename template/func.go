@@ -2,31 +2,26 @@ package template
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 	"text/template"
 
 	stringutil "github.com/yohobala/taurus_go/encoding/string"
-	"github.com/yohobala/taurus_go/entity/codegen/load"
 )
 
 var (
 	// Funcs are the predefined template
 	// functions used by the codegen.
 	Funcs = template.FuncMap{
-		"base":               filepath.Base,
-		"dict":               dict,
-		"toLower":            toLower,
-		"toFirstCap":         toFirstCap,
-		"toSnakeCase":        stringutil.ToSnakeCase,
-		"stringReplace":      strings.Replace,
-		"stringHasPrefix":    strings.HasPrefix,
-		"sub":                sub,
-		"joinStrings":        joinStrings,
-		"joinFieldAttrNames": joinFieldAttrNames,
-		"joinFieldPrimaies":  joinFieldPrimaies,
+		"base":            filepath.Base,
+		"dict":            dict,
+		"toLower":         toLower,
+		"toFirstCap":      toFirstCap,
+		"toSnakeCase":     stringutil.ToSnakeCase,
+		"stringReplace":   strings.Replace,
+		"stringHasPrefix": strings.HasPrefix,
+		"sub":             sub,
+		"joinStrings":     joinStrings,
 	}
 	acronyms = make(map[string]struct{})
 )
@@ -66,30 +61,4 @@ func sub(a, b int) int {
 // joinStrings 把字符串列表连接起来。
 func joinStrings(ss ...string) string {
 	return strings.Join(ss, "")
-}
-
-// joinFieldAttrNames 把字段的AttrName连接起来。
-func joinFieldAttrNames(fs []*load.Field) string {
-	var ss []string
-	for _, f := range fs {
-		ss = append(ss, fmt.Sprintf(`'%s'`, f.AttrName))
-	}
-	return strings.Join(ss, ",")
-}
-
-func joinFieldPrimaies(fs []*load.Field) string {
-	var fields []*load.Field
-	for _, f := range fs {
-		if f.Primary > 0 {
-			fields = append(fields, f)
-		}
-	}
-	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].Primary < fields[j].Primary
-	})
-	var ss []string
-	for _, f := range fields {
-		ss = append(ss, fmt.Sprintf(`"%s"`, f.AttrName))
-	}
-	return strings.Join(ss, ",")
 }
