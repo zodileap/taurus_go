@@ -56,5 +56,10 @@ func ValidRes(result interface{}, expectedResult interface{}, t *testing.T) {
 
 		t.Errorf("结果不一致\n期望值: %v,\n实际值: %v", expectedResult, result)
 	}
+}
 
+func Must(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
