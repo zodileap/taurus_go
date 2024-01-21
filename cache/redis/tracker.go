@@ -12,21 +12,21 @@ type Tracker interface {
 	Exec(*redis.Pipeliner, *[]cmdRes) error
 }
 
-type baseTracker struct {
+type tracking struct {
 	name string
 }
 
-func newBaseTracker(name string) baseTracker {
-	return baseTracker{
+func newTracking(name string) tracking {
+	return tracking{
 		name: name,
 	}
 }
 
-func (b *baseTracker) GetName() string {
+func (b *tracking) GetName() string {
 	return b.name
 }
 
-func (b *baseTracker) SetName(name string) {
+func (b *tracking) SetName(name string) {
 	b.name = name
 }
 

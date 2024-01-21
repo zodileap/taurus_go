@@ -560,7 +560,7 @@ func (h *Hash) DelAllR(key string) (int64, error) {
 
 type (
 	HashTracker struct {
-		baseTracker
+		tracking
 		mutation []*HashMutation
 	}
 
@@ -585,8 +585,8 @@ type (
 
 func NewHashTracker(name string) *HashTracker {
 	return &HashTracker{
-		baseTracker: newBaseTracker(name),
-		mutation:    make([]*HashMutation, 0),
+		tracking: newTracking(name),
+		mutation: make([]*HashMutation, 0),
 	}
 }
 

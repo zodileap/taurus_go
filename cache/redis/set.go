@@ -292,7 +292,7 @@ func (s *Set) DelAllR(key string) (int64, error) {
 type (
 	// setTracker 用于追踪所有对set类型的操作。
 	setTracker struct {
-		baseTracker
+		tracking
 		mutation []*setMutation
 	}
 
@@ -312,10 +312,10 @@ type (
 
 // newSetTracker 新建一个setTracker
 func newSetTracker(name string) *setTracker {
-	b := newBaseTracker(name)
+	b := newTracking(name)
 	return &setTracker{
-		baseTracker: b,
-		mutation:    make([]*setMutation, 0),
+		tracking: b,
+		mutation: make([]*setMutation, 0),
 	}
 }
 

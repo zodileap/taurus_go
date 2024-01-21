@@ -195,7 +195,7 @@ func (s *String) DelR(key string) error {
 
 type (
 	StringTracker struct {
-		baseTracker
+		tracking
 		mutation []*StringMutation
 	}
 
@@ -212,10 +212,10 @@ type (
 )
 
 func NewStringTracker(name string) *StringTracker {
-	b := newBaseTracker(name)
+	b := newTracking(name)
 	return &StringTracker{
-		baseTracker: b,
-		mutation:    make([]*StringMutation, 0),
+		tracking: b,
+		mutation: make([]*StringMutation, 0),
 	}
 }
 
