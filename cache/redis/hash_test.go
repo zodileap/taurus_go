@@ -496,7 +496,7 @@ func TestHashGetMR(t *testing.T) {
 			if err != nil {
 				t.Errorf(err.Error())
 			}
-			r, err := h.GetMR(tc.Input.Key, tc.Input.Field)
+			r, err := h.GetMR(tc.Input.Key, tc.Input.Field...)
 			tlog.Print(r)
 			unit.ValidErr(err, tc.ExpectedErr, t)
 			unit.ValidRes(r, tc.ExpectedRes, t)
