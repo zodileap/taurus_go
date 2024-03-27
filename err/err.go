@@ -22,12 +22,12 @@ type ErrCode struct {
 
 func (e ErrCode) Error() string {
 	if e.reason == "" {
-		return fmt.Sprintf("code:%s,msg:%s", e.code, e.msg)
+		return fmt.Sprintf("code:%s,\nmsg:%s", e.code, e.msg)
 	}
 	if e.msg == "" {
 		e.msg = e.format
 	}
-	return fmt.Sprintf("code:%s,msg: %s,reason:%s", e.code, e.msg, e.reason)
+	return fmt.Sprintf("code:%s,\nmsg: %s,\nreason:%s", e.code, e.msg, e.reason)
 }
 
 func (e ErrCode) Sprintf(msg ...any) ErrCode {
