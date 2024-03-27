@@ -12,6 +12,7 @@ func main() {
 	cmd := &cobra.Command{Use: "github.com/yohobala/taurus_go/entity/cmd"}
 	cmd.AddCommand(
 		internal.GenerateCmd(),
+		internal.NewCmd(),
 	)
 	_ = cmd.Execute()
 }

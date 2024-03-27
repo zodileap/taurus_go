@@ -9,7 +9,11 @@ import (
 	"github.com/yohobala/taurus_go/entity/codegen/gen"
 )
 
-// GenerateCmd 运行“tentity generate”命令
+// GenerateCmd 生成Schema的资源文件，通过运行`github.com/yohobala/taurus_go/entity/cmd generate`调用。
+//
+// Returns:
+//
+//	0: "github.com/spf13/cobra"的Command对象。
 func GenerateCmd() *cobra.Command {
 	var (
 		templates []string
@@ -17,7 +21,7 @@ func GenerateCmd() *cobra.Command {
 		cmd       = &cobra.Command{
 			Use:     "generate [flags] path",
 			Short:   "generate go code for the entity directory",
-			Example: "github.com/yohobala/taurus_go/entity/cmd generate ./entity",
+			Example: "go run -mod=mod github.com/yohobala/taurus_go/entity/cmd generate ./entity",
 			// 要求至少有一个参数
 			Args: cobra.ExactArgs(1),
 			Run: func(cmd *cobra.Command, path []string) {

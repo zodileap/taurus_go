@@ -8,19 +8,35 @@ import (
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
+// Builder 用于构建SQL查询的字符串构建器。
 type Builder struct {
-	// 用于构建查询的字符串构建器。
+	// sb 用于构建查询的字符串构建器。
 	sb *strings.Builder
-	// 使用的数据库驱动
+	// dialect 使用的数据库驱动
 	dialect dialect.DbDriver // configured dialect.
-	// 查询的参数
+	// args 查询的参数
 	args []any
-	// 查询树中总共出现的参数数量，在复杂的查询中，可能会出现多个相同的参数。
+	// total 查询树中总共出现的参数数量，在复杂的查询中，可能会出现多个相同的参数。
 	// 所以数量可能会大于len(args)。
 	total int
-	// 限定符作为标识符（如表名）的前缀。
+	// qualifier 限定符作为标识符（如表名）的前缀。
 	qualifier string
 }
+
+type (
+	// Identifier 标识符的类型。
+	Identifier string
+)
+
+// String 返回标识符的字符串表示形式。
+func (i Identifier) String() string {
+	return string(i)
+}
+
+const (
+	// IdentDefault 默认值的标识符。
+	IdentDefault Identifier = "DEFAULT"
+)
 
 // Querier 封装了entity中不同构建器所实现的基本查询方法.
 // 假设有两个实现了 Querier 接口的对象，它们的 Query 方法分别返回以下内容：
@@ -37,10 +53,11 @@ type Querier interface {
 // raw 插入不需要要转义的原始字符串。
 type raw struct{ s string }
 
-func Raw(s string) Querier { return &raw{s} }
-
 // Query 返回原始字符串，不需要参数。
 func (r *raw) Query() (string, []any) { return r.s, nil }
+
+// Raw 返回一个不需要转义的原始字符串
+func Raw(s string) Querier { return &raw{s} }
 
 // state 封装了所有用于设置和获取更新状态的所有方法。
 type state interface {
@@ -50,7 +67,11 @@ type state interface {
 	SetTotal(int)
 }
 
-// String 把生成器中的查询语句转换为字符串。
+// String 把生成器中的查询语句转换为字符串。。
+//
+// Returns:
+//
+//	0: 查询语句。
 func (b *Builder) String() string {
 	if b.sb == nil {
 		return ""
@@ -58,6 +79,11 @@ func (b *Builder) String() string {
 	return b.sb.String()
 }
 
+// Len 返回生成器中查询语句的长度。
+//
+// Returns:
+//
+//	0: 查询语句的长度。
 func (b *Builder) Len() int {
 	if b.sb == nil {
 		return 0
@@ -65,6 +91,7 @@ func (b *Builder) Len() int {
 	return b.sb.Len()
 }
 
+// Reset 重置生成器中的查询语句。
 func (b *Builder) Reset() {
 	if b.sb != nil {
 		b.sb.Reset()
@@ -72,28 +99,52 @@ func (b *Builder) Reset() {
 }
 
 // SetDialect 设置生成器使用的数据库驱动。满足state接口。
+//
+// Params:
+//
+//   - dialect: 数据库驱动。
 func (b *Builder) SetDialect(dialect dialect.DbDriver) {
 	b.dialect = dialect
 }
 
 // Dialect 返回生成器使用的数据库驱动。满足state接口。
+//
+// Returns:
+//
+//	0: 数据库驱动。
 func (b Builder) Dialect() dialect.DbDriver {
 	return b.dialect
 }
 
 // Total 返回查询树中总共出现的参数数量。满足state接口。
+// 用于在查询、表达式中传递参数数量。
+//
+// Returns:
+//
+//	0: 参数数量。
 func (b Builder) Total() int {
 	return b.total
 }
 
 // SetTotal 设置查询树中总共出现的参数数量。满足state接口。
-// 用于在查询、表达式中传递参数数量。
+//
+// Params:
+//
+//   - total: 参数数量。
 func (b *Builder) SetTotal(total int) {
 	b.total = total
 }
 
 // Quote 根据配置的dialect，选择不同的字符引用SQL标识符。默认为"`"（通常用于MySQL)。
 // 用于区分关键字，特殊字符等。
+//
+// Params:
+//
+//   - ident: 标识符。
+//
+// Returns:
+//
+//	0: 引用的标识符。
 func (b *Builder) Quote(ident string) string {
 	quote := "`"
 	switch {
@@ -111,6 +162,14 @@ func (b *Builder) Quote(ident string) string {
 }
 
 // Ident 添加标识符到查询中。标识符可以是表名、列名、别名等。
+//
+// Params:
+//
+//   - s: 标识符。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Ident(s string) *Builder {
 	switch {
 	// 忽略空字符串。
@@ -131,6 +190,14 @@ func (b *Builder) Ident(s string) *Builder {
 }
 
 // IdentComma 添加标识符到查询中，用逗号分隔
+//
+// Params:
+//
+//   - s: 标识符。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) IdentComma(s ...string) *Builder {
 	for i := range s {
 		if i > 0 {
@@ -161,8 +228,19 @@ type (
 )
 
 // Arg 添加一个参数到生成器中。
+//
+// Params:
+//
+//   - a: 参数。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Arg(a any) *Builder {
 	switch v := a.(type) {
+	case Identifier:
+		b.WriteString(v.String())
+		return b
 	case nil:
 		b.WriteString("NULL")
 		return b
@@ -192,6 +270,14 @@ func (b *Builder) Arg(a any) *Builder {
 }
 
 // Argf 添加多个参数到生成器中。
+//
+// Params:
+//
+//   - args: 参数。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Args(args ...any) *Builder {
 	for i := range args {
 		if i > 0 {
@@ -206,6 +292,15 @@ func (b *Builder) Args(args ...any) *Builder {
 //
 //	Argf("JSON(?)", b).
 //	Argf("ST_GeomFromText(?)", geom)
+//
+// Params:
+//
+//   - format: 格式。
+//   - a: 参数。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Argf(format string, a any) *Builder {
 	switch a := a.(type) {
 	case nil:
@@ -225,6 +320,14 @@ func (b *Builder) Argf(format string, a any) *Builder {
 }
 
 // Wrap 获取一个回调函数，把它包装在括号中，并添加到查询中。
+//
+// Params:
+//
+//   - f: 回调函数。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Wrap(f func(*Builder)) *Builder {
 	nb := &Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}}
 	nb.WriteByte('(')
@@ -237,6 +340,14 @@ func (b *Builder) Wrap(f func(*Builder)) *Builder {
 }
 
 // WriteByte 添加一个字节到查询中。
+//
+// Params:
+//
+//   - c: 字节。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) WriteByte(c byte) *Builder {
 	if b.sb == nil {
 		b.sb = &strings.Builder{}
@@ -246,6 +357,14 @@ func (b *Builder) WriteByte(c byte) *Builder {
 }
 
 // WriteString 添加一个字符串到查询中。
+//
+// Params:
+//
+//   - s: 字符串。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) WriteString(s string) *Builder {
 	if b.sb == nil {
 		b.sb = &strings.Builder{}
@@ -255,6 +374,14 @@ func (b *Builder) WriteString(s string) *Builder {
 }
 
 // WriteSchema 添加一个模式到查询中。
+//
+// Params:
+//
+//   - schema: 模式。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) WriteSchema(schema string) *Builder {
 	if schema != "" {
 		b.Ident(schema).WriteByte('.')
@@ -262,6 +389,15 @@ func (b *Builder) WriteSchema(schema string) *Builder {
 	return b
 }
 
+// WriteOp 添加一个操作符到查询中。
+//
+// Params:
+//
+//   - op: 操作符。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) WriteOp(op Op) *Builder {
 	switch {
 	case op >= OpEQ && op <= OpLike || op >= OpAdd && op <= OpMod:
@@ -275,23 +411,48 @@ func (b *Builder) WriteOp(op Op) *Builder {
 }
 
 // Comma 添加一个逗号到查询中。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Comma() *Builder {
 	b.WriteString(", ")
 	return b
 }
 
 // Blank 添加一个空格到查询中。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Blank() *Builder {
 	b.WriteString(" ")
 	return b
 }
 
 // Join 添加多个查询到生成器中。
+//
+// Params:
+//
+//   - qs: 查询。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) Join(qs ...Querier) *Builder {
 	return b.join(qs, "")
 }
 
 // join 添加多个查询到生成器中，用分隔符分隔。
+//
+// Params:
+//
+//   - qs: 查询。
+//   - sep: 分隔符。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b *Builder) join(qs []Querier, sep string) *Builder {
 	for i, q := range qs {
 		if i > 0 {
@@ -311,6 +472,10 @@ func (b *Builder) join(qs []Querier, sep string) *Builder {
 }
 
 // clone 克隆查询构建器。
+//
+// Returns:
+//
+//	0: sql生成器。
 func (b Builder) clone() Builder {
 	c := Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}}
 	if len(b.args) > 0 {
@@ -322,17 +487,55 @@ func (b Builder) clone() Builder {
 	return c
 }
 
+// new 复制一个新的查询构建器。
+//
+// Returns:
+//
+//	0: sql生成器。
+func (b Builder) new() Builder {
+	return Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}}
+}
+
+// WriteQuery 添加一个查询语句到生成器中。
+//
+// Params:
+//
+//   - q: 查询语句。
+//
+// Returns:
+//
+//	0: sql生成器。
+func (b *Builder) WriteQuery(q string) *Builder {
+	b.WriteString(q)
+	return b
+}
+
 // postgres 检查是否是PostgreSQL。
+//
+// Returns:
+//
+//	0: 是否是PostgreSQL。
 func (b *Builder) postgres() bool {
 	return b.dialect == dialect.PostgreSQL
 }
 
 // mysql 检查是否是MySQL。
+//
+// Returns:
+//
+//	0: 是否是MySQL。
 func (b *Builder) mysql() bool {
 	return b.dialect == dialect.MySQL
 }
 
 // isIdent 检查字符串是否包含标识符。标识符：["]、[`]
+//
+// Params:
+//   - s: 需要检查的字符串。
+//
+// Returns:
+//
+//	0: 是否包含标识符。
 func (b *Builder) isIdent(s string) bool {
 	switch {
 	case b.postgres():
@@ -343,6 +546,11 @@ func (b *Builder) isIdent(s string) bool {
 }
 
 // joinReturning 添加RETURNING子句到查询中，MySQL不支持。
+//
+// Params:
+//
+//   - b: sql生成器。
+//   - columns: 字段列表。
 func joinReturning(b *Builder, columns []FieldName) {
 	if len(columns) == 0 || (!b.postgres()) {
 		return
@@ -358,16 +566,37 @@ func joinReturning(b *Builder, columns []FieldName) {
 }
 
 // isAlias 检查字符串是否包含别名。别名：[ AS ]、[ as ]
+//
+// Params:
+//   - s: 需要检查的字符串。
+//
+// Returns:
+//
+//	0: 是否包含别名。
 func isAlias(s string) bool {
 	return strings.Contains(s, " AS ") || strings.Contains(s, " as ")
 }
 
 // isFunc 检查字符串是否包含函数。函数：[(]、[)]
+//
+// Params:
+//   - s: 需要检查的字符串。
+//
+// Returns:
+//
+//	0: 是否包含函数。
 func isFunc(s string) bool {
 	return strings.Contains(s, "(") && strings.Contains(s, ")")
 }
 
 // isModifier 检查字符串是否包含修饰符。修饰符：[DISTINCT]、[ALL]、[WITH ROLLUP]
+//
+// Params:
+//   - s: 需要检查的字符串。
+//
+// Returns:
+//
+//	0: 是否包含修饰符。
 func isModifier(s string) bool {
 	for _, m := range [...]string{"DISTINCT", "ALL", "WITH ROLLUP"} {
 		if strings.HasPrefix(s, m) {

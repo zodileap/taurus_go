@@ -3,6 +3,8 @@ package gen
 import (
 	"bytes"
 	"fmt"
+	"go/token"
+	"go/types"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,42 +18,54 @@ import (
 )
 
 type (
+	// Builder 用于生成资源文件的构建器。
 	Builder struct {
 		*Config
 		// Databases 包含了从entity package中加载的所有database。
 		Databases []*load.Database
 		// Nodes是Schema中的database info的集合。
-		Nodes []*Info
+		Nodes []*DatabaseInfo
 	}
 
+	// Generator 代码生成器接口。
 	Generator interface {
-		// Generate 为提供的table生成代码
+		// Generate 为提供的Builder生成代码
 		Generate(*Builder) error
 	}
 
+	// GenerateFunc 符合Generator接口的函数。
 	GenerateFunc func(*Builder) error
 
+	// Hook 代码生成的钩子。
 	Hook func(Generator) Generator
 
+	// tableError 生成代码时的错误。
 	tableError struct {
 		msg string
 	}
 )
 
-// NewBuilder 根据提供的Entity信息，生成数据库的表。
+// NewBuilder 根据提供的Schema，初始化一个生成器。
 //
-// 参数：
+// Params:
+//
 //   - c: 代码生成的配置。
 //   - entities: 从entity package中加载的所有entity。
+//
+// Returns:
+//
+//	0: 生成器。
+//	1: 错误信息。
 func NewBuilder(c *Config, databases ...*load.Database) (s *Builder, err error) {
 	defer catch(&err)
 	s = &Builder{Config: c, Databases: databases}
 	for i := range databases {
 		s.addNode(databases[i])
 	}
-	return
+	return s, nil
 }
 
+// Gen 调用符合Generator接口的函数生成代码。
 func (b *Builder) Gen() error {
 	var gen Generator = GenerateFunc(generate)
 	for i := len(b.Hooks) - 1; i >= 0; i-- {
@@ -60,6 +74,16 @@ func (b *Builder) Gen() error {
 	return gen.Generate(b)
 }
 
+// templates 返回模版和外部模版。
+//
+// Params:
+//
+//   - dbType: 数据库类型。
+//
+// Returns:
+//
+//	0: 模版。
+//	1: 外部模版。
 func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []InstanceTemplate) {
 	initTemplates(b, dbType)
 	var (
@@ -92,7 +116,6 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 						return name[:lastSlashIndex+1] + t.Dir() + "_" + name[lastSlashIndex+1:] + ext
 					},
 				})
-
 				templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
 			}
 		}
@@ -100,19 +123,52 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 	return templates, external
 }
 
+// addNode 添加一个数据库节点到Builder中。
+//
+// Params:
+//
+//   - database: 数据库。
 func (b *Builder) addNode(database *load.Database) {
-	t, err := NewInfo(b.Config, database)
+	t, err := NewDatabaseInfo(b.Config, database)
 	check(err, "create info %s", database.Name)
 	b.Nodes = append(b.Nodes, t)
 }
 
+// Generate 生成代码。
+//
+// Params:
+//
+//   - f: 生成函数。
 func (f GenerateFunc) Generate(t *Builder) error {
 	return f(t)
 }
 
+// Error 返回错误信息。
+// 实现了error接口。
 func (t tableError) Error() string { return fmt.Sprintf("taurus_go/entity: %s", t.msg) }
 
-// 默认的代码生成器实现。
+// ValidSchemaName 确定一个名字是否会与任何预定义的名字冲突。
+//
+// Params:
+//
+//   - name: 名字。
+func ValidSchemaName(name string) error {
+	// Schema package is lower-cased (see Type.Package).
+	pkg := strings.ToLower(name)
+	if token.Lookup(pkg).IsKeyword() {
+		return fmt.Errorf("schema lowercase name conflicts with Go keyword %q", pkg)
+	}
+	if types.Universe.Lookup(pkg) != nil {
+		return fmt.Errorf("schema lowercase name conflicts with Go predeclared identifier %q", pkg)
+	}
+	return nil
+}
+
+// generate 默认的代码生成器实现。
+//
+// Params:
+//
+//   - t: 生成器。
 func generate(t *Builder) error {
 	var (
 		assets asset.Assets
@@ -121,7 +177,7 @@ func generate(t *Builder) error {
 	// 为每个节点生成代码：
 	for _, n := range t.Nodes {
 		templates, extend := t.templates(n.Database.Type)
-		for _, tmpl := range append(Templates, extend...) {
+		for _, tmpl := range append(DatabaseTemplates, extend...) {
 			if dir := filepath.Dir(tmpl.Format(n)); dir != "." {
 				assets.AddDir(filepath.Join(t.Config.Target, dir))
 			}
@@ -198,6 +254,12 @@ func catch(err *error) {
 }
 
 // check 如果err不是nil在抛出panic。
+//
+// Params:
+//
+//   - err: 错误。
+//   - msg: 错误信息。
+//   - args: 错误信息的参数。
 func check(err error, msg string, args ...any) {
 	if err != nil {
 		args = append(args, err)
@@ -205,7 +267,12 @@ func check(err error, msg string, args ...any) {
 	}
 }
 
-// 清理在 entity 中已被删除但相关文件仍存在于文件系统中的节点（Node）的生成文件。
+// cleanOldNodes 清理在 entity 中已被删除但相关文件仍存在于文件系统中的节点（Node）的生成文件。
+//
+// Params:
+//
+//   - assets: 资源文件。
+//   - target: 目标目录。
 func cleanOldNodes(assets asset.Assets, target string) {
 	// 读取目标目录
 	d, err := os.ReadDir(target)
@@ -216,12 +283,12 @@ func cleanOldNodes(assets asset.Assets, target string) {
 	// 如果一个文件以 _query.go 结尾，它可能是一个节点相关的文件。
 	// 函数通过文件名推断出节点的类型（Type），
 	// 并检查是否这个节点对应的目录仍存在于 assets.Dirs 中。如果不存在，这意味着节点可能已被删除。
-	var deleted []*Info
+	var deleted []*DatabaseInfo
 	for _, f := range d {
 		if !strings.HasSuffix(f.Name(), "_query.go") {
 			continue
 		}
-		typ := &Info{Database: &load.Database{Name: strings.TrimSuffix(f.Name(), ".go")}}
+		typ := &DatabaseInfo{Database: &load.Database{Name: strings.TrimSuffix(f.Name(), ".go")}}
 		// 获取文件路径，并判断是否存在于assets.Dirs。
 		path := filepath.Join(target, typ.Dir())
 		if _, ok := assets.Dirs[path]; ok {
@@ -236,7 +303,7 @@ func cleanOldNodes(assets asset.Assets, target string) {
 	}
 	// 确认节点是否被删除。
 	for _, typ := range deleted {
-		for _, t := range Templates {
+		for _, t := range DatabaseTemplates {
 			err := os.Remove(filepath.Join(target, t.Format(typ)))
 			if err != nil && !os.IsNotExist(err) {
 				log.Printf("remove old file %s: %s\n", filepath.Join(target, t.Format(typ)), err)

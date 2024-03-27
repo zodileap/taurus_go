@@ -8,7 +8,6 @@ import (
     "github.com/yohobala/taurus_go/entity/entitysql"
 )
 
-
 const (
     Entity = "{{ $entityAttr }}"
 )
@@ -25,7 +24,7 @@ var (
 )
 
 var (
-    rows = []entitysql.FieldName{
+    columns = []entitysql.FieldName{
         {{- range $field := $.Entity.Fields }}
         Field{{ $field.Name }}.Name,
         {{- end }}

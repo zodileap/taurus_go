@@ -7,7 +7,7 @@ import (
 )
 
 type (
-	// 数据库类型。如"postgres"。
+	// DbDriver 数据库类型。如"postgres"。
 	DbDriver string
 	// Rows 包装了sql.Rows，以避免locks copy。
 	// sql.Rows 对象包含对数据库连接的引用以及用于迭代结果集的内部状态。
@@ -21,6 +21,7 @@ const (
 	MySQL      DbDriver = "mysql"
 )
 
+// ExecQuerier 执行查询的接口。
 type ExecQuerier interface {
 	// Exec 执行不返回记录的查询。例如，SQL中INSERT或UPDATE。
 	// 它将结果扫描到指针v中，对于SQL驱动程序，它是sql.Rows,
@@ -32,6 +33,7 @@ type ExecQuerier interface {
 	Query(ctx context.Context, query string, args []any, v *Rows) error
 }
 
+// Driver 数据库驱动接口。
 type Driver interface {
 	ExecQuerier
 	// Tx 启动并返回一个新事务。
@@ -43,9 +45,12 @@ type Driver interface {
 	Dialect() DbDriver
 }
 
+// Tx 数据库事务接口。
 type Tx interface {
 	ExecQuerier
 	driver.Tx
+	// Dialect 返回数据库的驱动
+	Dialect() DbDriver
 }
 
 // RowScanner 封装了sql.Row的标准方法，用于扫描数据库行。

@@ -57,10 +57,10 @@ func main() {
 func Marshal(di entity.DbInterface,name string, de EntityMap) (b []byte, err error) {
 	config := di.Config()
 	if config.Tag == "" {
-		return nil, fmt.Errorf("taurus_go/entity %q: missing pool name.", reflect.TypeOf(di).Elem().Name())
+		return nil, fmt.Errorf("taurus_go/entity %q: Database config missing Tag name.", reflect.TypeOf(di).Elem().Name())
 	}
 	if config.Type == "" || (config.Type != dialect.PostgreSQL) {
-		return nil, fmt.Errorf("taurus_go/entity %q: missing database type '%s', please make sure the entity.DbConfig.Type is correct.", reflect.TypeOf(di).Elem().Name(),config.Type)
+		return nil, fmt.Errorf("taurus_go/entity %q:Database config missing Type '%s', please make sure the entity.DbConfig.Type is correct.", reflect.TypeOf(di).Elem().Name(),config.Type)
 	}
 	if config.Name == "" {
 		config.Name = name

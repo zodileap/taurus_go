@@ -7,6 +7,7 @@
 
 type {{ $BuilderName }} struct {
     *internal.Config
+	*mutations
     tracker entity.Tracker
 	{{- range $field :=  .Entity.Fields }}
 	{{ $field.Name }}   Pred{{ $field.Name }}
@@ -17,6 +18,7 @@ func New{{ $BuilderName }}(c *internal.Config, t entity.Tracker) *{{ $BuilderNam
 	return &{{ $BuilderName }}{
 		Config:  c,
 		tracker: t,
+		mutations: newMutations(),
 	}
 }
 
@@ -24,19 +26,18 @@ func New{{ $BuilderName }}(c *internal.Config, t entity.Tracker) *{{ $BuilderNam
 // Required parameters are fields that have no default value but are required, 
 // and options are fields that can be left empty by calling WithFieldName.
 func (b *{{ $BuilderName }}) New({{ joinRequiredFields .Entity.Fields false }} options ...func(*{{$EntityName }})) (*{{$EntityName}} , error) {
-	e := New(b.Config, b.tracker)
-	b.tracker.Add(e)
+	e := New(b.Config, b.mutations)
 	return e.create({{ joinRequiredFields .Entity.Fields true }} options...)
 }
 
 func (b *{{ $BuilderName }}) Remove(e *{{ $EntityName }}) error {
-	if e.Mutation == nil {
+	if e.config.Mutation == nil {
 		return nil
 	}
 	return e.remove()
 }
 
-// First returns the first UserEntity.
+// First returns the first {{ .Entity.Name }}.
 func (s *{{ $BuilderName }}) First(ctx context.Context) (*{{ $EntityName }}, error) {
 	query := s.initQuery()
 	return query.First(ctx)
@@ -57,19 +58,169 @@ func (s *{{ $BuilderName }}) Where(conditions ...func(*entitysql.Predicate)) *{{
 {{ template "with_field" $info }}
 {{- end }}
 
+// Exec executes all the mutations for the {{ .Entity.Name }}.
+func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
+	if len(s.mutations.Addeds) > 0 {
+		e := s.mutations.Get(entity.Added)
+		n := New{{ .Entity.Name }}Create(s.Config, e...)
+		if err := n.create(ctx, tx); err != nil {
+			return err
+		}
+	}
+	if len(s.mutations.Modifieds) > 0 {
+		e := s.mutations.Get(entity.Modified)
+		n := New{{ .Entity.Name }}Update(s.Config, e...)
+		if err := n.update(ctx, tx); err != nil {
+			return err
+		}
+	}
+	if len(s.mutations.Deleteds) > 0 {
+		e := s.mutations.Get(entity.Deleted)
+		n := New{{ .Entity.Name }}Delete(s.Config, e...)
+		if err := n.delete(ctx, tx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (s *{{ $BuilderName }}) initQuery() *{{ .Entity.Name }}Query {
-	return New{{ .Entity.Name }}Query(s.Config,s.tracker)
+	return New{{ .Entity.Name }}Query(s.Config,s.tracker, s.mutations)
+}
+
+type mutations struct {
+	Detacheds  map[string]*{{ .Entity.Name }}
+	Unchangeds map[string]*{{ .Entity.Name }}
+	Deleteds   map[string]*{{ .Entity.Name }}
+	Modifieds  map[string]*{{ .Entity.Name }}
+	Addeds     map[string]*{{ .Entity.Name }}
+}
+
+func newMutations() *mutations {
+	return &mutations{
+		Detacheds:  make(map[string]*{{ .Entity.Name }}),
+		Unchangeds: make(map[string]*{{ .Entity.Name }}),
+		Deleteds:   make(map[string]*{{ .Entity.Name }}),
+		Modifieds:  make(map[string]*{{ .Entity.Name }}),
+		Addeds:     make(map[string]*{{ .Entity.Name }}),
+	}
+}
+
+func (ms *mutations) Get(state entity.EntityState) []*{{ .Entity.Name }} {
+	switch state {
+	case entity.Detached:
+		s := make([]*{{ .Entity.Name }}, 0, len(ms.Detacheds))
+		for _, m := range ms.Detacheds {
+			s = append(s, m)
+		}
+		return s
+	case entity.Unchanged:
+		s := make([]*{{ .Entity.Name }}, 0, len(ms.Unchangeds))
+		for _, m := range ms.Unchangeds {
+			s = append(s, m)
+		}
+		return s
+	case entity.Deleted:
+		s := make([]*{{ .Entity.Name }}, 0, len(ms.Deleteds))
+		for _, m := range ms.Deleteds {
+			s = append(s, m)
+		}
+		return s
+	case entity.Modified:
+		s := make([]*{{ .Entity.Name }}, 0, len(ms.Modifieds))
+		for _, m := range ms.Modifieds {
+			s = append(s, m)
+		}
+		return s
+	case entity.Added:
+		s := make([]*{{ .Entity.Name }}, 0, len(ms.Addeds))
+		for _, m := range ms.Addeds {
+			s = append(s, m)
+		}
+		return s
+	}
+	return nil
+}
+
+// SetEntityState
+func (ms *mutations) SetEntityState(e *{{ .Entity.Name }}, state entity.EntityState) error {
+	m := e.config.Mutation
+	ms.set(e, state)
+	if err := internal.SetEntityState(m, state); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ChangeEntityState attempts to set the desired entity state,
+// but will not do so if the conditions are not met.
+func (ms *mutations) ChangeEntityState(m *entity.Mutation, state entity.EntityState) {
+	e := ms.getEntity(m)
+	ms.set(e, state)
+	if err := internal.SetEntityState(m, state); err != nil {
+		return
+	}
+}
+
+func (ms *mutations) getEntity(m *entity.Mutation) *{{ .Entity.Name }} {
+	key := m.Key()
+	switch m.State() {
+	case entity.Detached:
+		return ms.Detacheds[key]
+	case entity.Unchanged:
+		return ms.Unchangeds[key]
+	case entity.Deleted:
+		return ms.Deleteds[key]
+	case entity.Modified:
+		return ms.Modifieds[key]
+	case entity.Added:
+		return ms.Addeds[key]
+	}
+	return nil
+}
+
+// Set 设置实体的状态。
+func (ms *mutations) set(e *{{ .Entity.Name }}, state entity.EntityState) {
+	m := e.config.Mutation
+	key := m.Key()
+	switch m.State() {
+	case entity.Detached:
+		delete(ms.Detacheds, key)
+	case entity.Unchanged:
+		delete(ms.Unchangeds, key)
+	case entity.Deleted:
+		delete(ms.Deleteds, key)
+	case entity.Modified:
+		delete(ms.Modifieds, key)
+	case entity.Added:
+		delete(ms.Addeds, key)
+	}
+	if state >= 0 {
+		switch state {
+		case entity.Detached:
+			ms.Detacheds[key] = e
+		case entity.Unchanged:
+			ms.Unchangeds[key] = e
+		case entity.Deleted:
+			ms.Deleteds[key] = e
+		case entity.Modified:
+			ms.Modifieds[key] = e
+		case entity.Added:
+			ms.Addeds[key] = e
+		}
+	}
 }
 {{ end }}
 
 {{ define "with_field"}}
-{{ if not .Field.Required }}
+{{ if not .Field.Locked }}
+{{ if or ( not .Field.Required ) ( and .Field.Required  .Field.Default )  }}
 // With{{ .Field.Name }} sets the "{{ toLower .Field.AttrName }}" field of the {{ .Entity }}.
 func (s *{{ .BuilderName }}) With{{ .Field.Name }}({{ toLower  .Field.Name }} {{ .Field.ValueType }}) func(*{{ .EntityName }}) {
 	return func(e *{{ .EntityName }}) {
 		e.{{ .Field.Name }}.Set({{ toLower  .Field.Name }} )
 	}
 }
+{{ end }}
 {{ end }}
 {{ end }}

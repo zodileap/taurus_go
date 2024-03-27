@@ -10,10 +10,16 @@ import (
 	"time"
 )
 
+// errNilPtr 新建一个错误，表示目标指针为空。
 var errNilPtr = errors.New("destination pointer is nil")
 
-// convertAssign is the same as convertAssignRows, but without the optional
-// rows argument.
+// convertAssign 将 src 中的值复制到 dest，如果可能的话进行转换。
+// 如果复制会导致信息丢失，则会返回错误。
+//
+// Params:
+//
+//   - dest: 目标值。
+//   - src: 源值。
 func convertAssign(dest, src any) error {
 	return convertAssignRows(dest, src)
 }
@@ -21,7 +27,11 @@ func convertAssign(dest, src any) error {
 // convertAssignRows 将 src 中的值复制到 dest，如果可能的话进行转换。
 // 如果复制会导致信息丢失，则会返回错误。
 // dest 应该是指针类型，否则会返回错误。
-
+//
+// Params:
+//
+//   - dest: 目标值。
+//   - src: 源值。
 func convertAssignRows(dest, src any) error {
 	// 类型断言和赋值来实现.
 	switch s := src.(type) {
@@ -256,6 +266,7 @@ func convertAssignRows(dest, src any) error {
 	return fmt.Errorf("unsupported Scan, storing driver.Value type %T into type %T", src, dest)
 }
 
+// strconvErr 返回 strconv.ParseInt 或 strconv.ParseUint 的错误。
 func strconvErr(err error) error {
 	if ne, ok := err.(*strconv.NumError); ok {
 		return ne.Err

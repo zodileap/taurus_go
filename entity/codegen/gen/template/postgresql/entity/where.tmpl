@@ -23,10 +23,90 @@
 type {{ $fieldName }} struct {
 }
 
+// EQ returns a function that sets the predicate to check if the field is equal to the given value.
+// Operator "="
 func (f *{{ $fieldName }}) EQ({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.EQ(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
 	}
 }
+
+// NEQ returns a function that sets the predicate to check if the field is not equal to the given value.
+// Operator "<>"
+func (f *{{ $fieldName }}) NEQ({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.NEQ(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
+	}
+}
+
+func (f *{{ $fieldName }}) GT({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.GT(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
+	}
+}
+
+func (f *{{ $fieldName }}) GTE({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.GTE(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
+	}
+}
+
+func (f *{{ $fieldName }}) LT({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.LT(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
+	}
+}
+
+func (f *{{ $fieldName }}) LTE({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.LTE(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
+	}
+}
+
+func (f *{{ $fieldName }}) In({{ $attrName }}s ...{{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		v := make([]any, len({{ $attrName }}s))
+		for i := range v {
+			v[i] = {{ $attrName }}s[i]
+		}
+		p.In(Field{{ .Field.Name }}.Name.String(), v...)
+	}
+}
+
+func (f *{{ $fieldName }}) NotIn({{ $attrName }}s ...{{ .Field.ValueType }}) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		v := make([]any, len({{ $attrName }}s))
+		for i := range v {
+			v[i] = {{ $attrName }}s[i]
+		}
+		p.NotIn(Field{{ .Field.Name }}.Name.String(), v...)
+	}
+}
+
+func (f *{{ $fieldName }}) Like({{ $attrName }} string) func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.Like(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
+	}
+}
+
+{{ if not .Field.Required }}
+
+func (f *{{ $fieldName }}) IsNull() func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.IsNull(Field{{ .Field.Name }}.Name.String())
+	}
+}
+
+func (f *{{ $fieldName }}) NotNull() func(*entitysql.Predicate) {
+	return func(p *entitysql.Predicate) {
+		p.NotNull(Field{{ .Field.Name }}.Name.String())
+	}
+}
+
+{{ end }}
+
+{{ if eq .Field.ValueType "time.Time" }}
+
+{{ end }}
 
 {{ end }}

@@ -1,0 +1,56 @@
+{{ define "schema/package" }}
+package {{ . }}
+
+import (
+	"github.com/yohobala/taurus_go/entity"
+	"github.com/yohobala/taurus_go/entity/dialect"
+)
+{{ end }}
+
+{{ define "database" }}
+type {{ toFirstCap . }} struct {
+    entity.Database
+}
+
+func (d {{ toFirstCap .}}) Config() entity.DbConfig {
+    return entity.DbConfig{
+        Tag: "{{.}}",
+		Type: dialect.PostgreSQL,
+    }
+}
+{{ end }}
+
+
+{{ define "schema" }}
+package schema
+
+import (
+	"github.com/yohobala/taurus_go/entity"
+	"github.com/yohobala/taurus_go/entity/dialect"
+)
+{{ end }}
+
+{{ define "generate"}}
+package {{ . }}
+
+//go:generate go run github.com/yohobala/taurus_go/entity/cmd generate ./schema
+{{ end }}
+
+{{ define "entity" }}
+
+type {{ toFirstCap . }}Entity struct {
+    entity.Entity
+}
+
+func (e {{ toFirstCap . }}Entity) Config() entity.EntityConfig {
+	return entity.EntityConfig{
+		AttrName: "{{ toSnakeCase . }}",
+	}
+}
+
+func (e {{ toFirstCap . }}Entity) Fields() []entity.FieldBuilder {
+	return []entity.FieldBuilder{
+	}
+}
+
+{{ end }}

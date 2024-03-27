@@ -12,83 +12,141 @@ type {{ $entity }}Update struct {
 	*internal.Config
 	ctx *entitysql.QueryContext
 	tracker entity.Tracker
-	e   *UserEntity
-	predicates []func(*entitysql.Predicate)
+	es  []*{{ $entity }}
+	predicates [][]func(*entitysql.Predicate)
+	sets       []map[string]entitysql.CaseSpec
+	total      int
+	batchIndex []int
 }
 
 // New{{ $entity }}Update creates a new {{ $entity }}Update.
-func New{{ $entity }}Update(c *internal.Config, e *{{ $entity }},t entity.Tracker) *{{ $entity }}Update {
+func New{{ $entity }}Update(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Update {
 	return &{{ $entity }}Update{
 		Config: c,
 		ctx:    &entitysql.QueryContext{},
-		e:      e,
-		tracker: t,
+		es:         es,
+		predicates: [][]func(*entitysql.Predicate){},
+		batchIndex: []int{0},
 	}
 }
 
-func (o *{{ $entity }}Update) Where(predicates ...func(*entitysql.Predicate)) *{{ $entity }}Update {
-	o.predicates = append(o.predicates, predicates...)
-	return o
+func (o *{{ $entity }}Update) update(ctx context.Context,tx dialect.Tx) (error) {
+	return o.sqlUpdate(ctx,tx)
 }
 
-func (o *{{ $entity }}Update) update(ctx context.Context) (*{{ $entity }}, error) {
-	return o.sqlUpdate(ctx)
-}
-
-func (o *{{ $entity }}Update) sqlUpdate(ctx context.Context) (*{{ $entity }}, error) {
+func (o *{{ $entity }}Update) sqlUpdate(ctx context.Context,tx dialect.Tx) (error) {
 	var (
 		spec, err = o.updateSpec()
-		res       = o.e
+		res       = o.es
+		cursor    = 0
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
-		return scan(res, fields, rows)
+		e := res[cursor]
+		cursor++
+		if err := scan(e, fields, rows); err != nil {
+			return err
+		} else {
+			res = append(res, e)
+			return e.setUnchanged()
+		}
 	}
-	if err := entitysql.NewUpdate(ctx, o.Driver, spec); err != nil {
-		return nil, err
-	}
-	setUnchanged(o.tracker, res)
-	return res, nil
+	return entitysql.NewUpdate(ctx, tx, spec)
 }
 
 func (o *{{ $entity }}Update) updateSpec() (*entitysql.UpdateSpec, error) {
-	spec := entitysql.NewUpdateSpec(Entity, o.ctx.Fields)
-	fields := o.e.Mutation.Fields()
-	if len(fields) == 0 {
-		return nil, entity.Err_0100030002.Sprintf(o.e.Name)
+	spec := entitysql.NewUpdateSpec(Entity, columns)
+	if len(o.predicates) != len(o.sets) {
+		return nil, entity.Err_0100030005
 	}
-	for _, f := range fields {
-		switch f {
-		{{- range $i, $f := $.Entity.Fields }}
-		case Field{{ $f.Name }}.Name.String():
-			spec.Sets = append(spec.Sets, &entitysql.FieldSpec{
-				Column: Field{{ $f.Name }}.Name.String(),
-				Value:  o.e.{{ $f.Name }}.Value(),
-			})
-		{{- end }}
-		}
+	if err := o.setEntity(spec); err != nil {
+		return nil, err
 	}
-	{{- range $i, $f := $.Entity.Fields }}
-		{{- if gt $f.Primary 0 }}
-		{{ toLower $f.Name }} := &Pred{{ $f.Name }}{}
-		{{- if gt $f.Primary 1 }}
-		o.predicates = append(o.predicates,entitysql.OpAnd, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
-		{{- else }}
-		o.predicates = append(o.predicates, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
-		{{- end }}
-		{{- end }}
-	{{- end }}
-	if ps := o.predicates; len(ps) > 0 {
-		spec.Predicate = func(p *entitysql.Predicate) {
-			for _, f := range ps {
-				f(p)
-			}
-		}
-	}
+	o.mergeArgs(spec)
 	return spec, nil
 }
 
+// setEntity 用于在updateSpec中设置[]*{{ $entity }}的配置，
+// 一般来说这个setEntity里的entity都是通过状态追踪，自动添加的。
+func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
+	{{- $found := false }}
+	{{- $predField := "" }}
+	{{- range $i, $f := $.Entity.Fields }}
+		{{- if eq $f.Primary 1 }}
+		{{- $found = true }}
+		{{- $predField = $f.Name }}
+		pred{{ $f.Name }} := &Pred{{ $f.Name }}{}
+		{{- end }}
+	{{- end }}
+	{{- if not $found }}
+	{{ $firstField := index $.Entity.Fields 0 }}
+	{{ $predField = $firstField.Name }}
+	pred{{ $firstField.Name }} := &Pred{{ $firstField.Name }}{}
+	{{ end }}
+	num := 0
+	for i, e := range o.es {
+		fields := e.config.Mutation.Fields()
+		if len(fields) == 0 {
+			return entity.Err_0100030002.Sprintf(e.config.Tag)
+		}
+		o.predicates = append(o.predicates, []func(*entitysql.Predicate){})
+		o.sets = append(o.sets, map[string]entitysql.CaseSpec{})
+		// 因为判断过predicates和set长度，所以这里默认等长
+		index := len(o.predicates) - 1
+		if i > 0 {
+			o.predicates[index] = append(o.predicates[index], entitysql.Or, pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()))
+		} else {
+			o.predicates[index] = append(o.predicates[index], pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()))
+		}
+		num++
+		for _, f := range fields {
+			switch f {
+			{{- range $i, $f := $.Entity.Fields }}
+			case Field{{ $f.Name }}.Name.String():
+				o.sets[index][Field{{ $f.Name }}.Name.String()] = entitysql.CaseSpec{
+					Value: e.{{ $f.Name }}.Value(),
+					When:  pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()),
+				}
+				num++
+			{{- end }}
+			}
+		}
+		if (o.total+num)/entity.BatchSize > len(o.batchIndex) {
+			o.batchIndex = append(o.batchIndex, len(o.predicates))
+		}else{
+			o.batchIndex[len(o.batchIndex)-1] = len(o.predicates)
+		}
+		o.total += num
+	}
+	return nil
+}
 
+func (o *{{ $entity }}Update) mergeArgs(spec *entitysql.UpdateSpec) {
+	for i, end := range o.batchIndex {
+		var begin int
+		if i == 0 {
+			begin = 0
+		} else {
+			begin = o.batchIndex[i-1]
+		}
+		pred := []func(*entitysql.Predicate){}
+		set := map[string][]entitysql.CaseSpec{}
+		for _, ps := range o.predicates[begin:end] {
+			pred = append(pred, ps...)
+		}
+		for _, ss := range o.sets[begin:end] {
+			for k, v := range ss {
+				set[k] = append(set[k], v)
+			}
+		}
+		spec.Predicate = append(spec.Predicate, func(p *entitysql.Predicate) {
+			for _, f := range pred {
+				f(p)
+			}
+		})
+		spec.Sets = append(spec.Sets, set)
+	}
+}
 {{ end }}

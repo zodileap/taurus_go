@@ -24,21 +24,35 @@ import (
 )
 
 type (
-	// Config 用于从entity package中加载的所有database和entity的配置。
+	// Config 用于从Schema中加载的所有database和entity的配置。
 	Config struct {
-		// 加载的entity的路径。
+		// Path 加载的Schema的路径。
 		Path string
-		// 加载的entity中拥有匿名字段[entity.Entity]的结构体的名称。
-		Entities   []string
+		// Entities 加载的Schema中拥有匿名字段[entity.Entity]的结构体的名称。
+		Entities []string
+		// BuildFlags 传递给go build的标志。
 		BuildFlags []string
-		// 加载的entity中拥有匿名字段[entity.Database]的结构体的名称。
+		// Dbs 加载的Schema中拥有匿名字段[entity.Database]的结构体的名称。
 		Dbs []DbConfig
 	}
 
+	// DbConfig 是一个包含了Schema的database的信息。
 	DbConfig struct {
+		// Name 数据库名称。
 		Name string
-		// 存储这个database所拥有的
+		// Entities 存储这个database所拥有的。
 		Entities EntityMap
+	}
+
+	// BuilderInfo 是一个用于生成代码的构建器，
+	// 包含了Schema的Go package路径和符合条件的database信息。
+	BuilderInfo struct {
+		// PkgPath 是加载的Schema包的Go package路径，之后会传给gen.Config。
+		PkgPath string
+		// Module 加载的entity package的模块信息。
+		Module *packages.Module
+		// Databases Schema符合条件的所有Databases。
+		Databases []*Database
 	}
 
 	// EntityMap entity的key和类型。
@@ -56,35 +70,34 @@ type (
 	// }
 	// 而Config.Entities中的内容为：["UserEntity"]
 	EntityMap map[string]string
-
-	// BuilderInfo 是一个用于生成代码的构建器，
-	// 包含了entity package的路径和符合条件的database信息。
-	BuilderInfo struct {
-		// PkgPath 是加载的entity包的Go package路径，之后会传给gen.Config。
-		PkgPath string
-		// 加载的entity package的模块信息。
-		Module *packages.Module
-		// entity package的路径符合条件的所有Databases。
-		Databases []*Database
-	}
 )
 
 var (
-	// 保存了[entity.Interface]的[reflect.Type]。
+	// entityInterface保存了[entity.Interface]的[reflect.Type]。
 	entityInterface = reflect.TypeOf(struct{ entity.EntityInterface }{}).Field(0).Type
 	// 保存了[entity.DbInterface]的[reflect.Type]。
 	dbInterface = reflect.TypeOf(struct{ entity.DbInterface }{}).Field(0).Type
 )
 
-// 加载entity package，并且利用这些信息生成一个Builder。
+// Load 加载Schema，并且利用这些信息生成一个Builder。
+//
+// Returns:
+//
+//	0: 生成代码的构建器。
+//	1: 错误信息。
+//
+// ErrCodes:
+//
+//   - Err_0100020004
+//   - Err_0100020005
 func (c *Config) Load() (*BuilderInfo, error) {
 	// 获取传入路径下的entity信息。
 	builder, err := c.load()
 	if err != nil {
-		return nil, fmt.Errorf("taurus_go/entity: parse entity dir: %w", err)
+		return nil, entity.Err_0100020004.Sprintf(err)
 	}
 	if len(c.Entities) == 0 {
-		return nil, fmt.Errorf("taurus_go/entity: no entity found in: %s", c.Path)
+		return nil, entity.Err_0100020005.Sprintf(c.Path)
 	}
 	// 执行模版。
 	var b bytes.Buffer
@@ -93,19 +106,19 @@ func (c *Config) Load() (*BuilderInfo, error) {
 		Package: builder.PkgPath,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("taurus_go/entity: execute template: %w", err)
+		return nil, entity.Err_0100020003.Sprintf(err)
 	}
 	// 格式化生成的代码，并创建目录和文件，最后写入到文件中。
 	buf, err := format.Source(b.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("taurus_go/entity: format template: %w", err)
+		return nil, entity.Err_0100020006.Sprintf(err)
 	}
 	if err := os.MkdirAll(".gen", os.ModePerm); err != nil {
-		return nil, err
+		return nil, entity.Err_0100020007.Sprintf(err)
 	}
 	target := fmt.Sprintf(".gen/%s.go", filename(builder.PkgPath))
 	if err := os.WriteFile(target, buf, 0644); err != nil {
-		return nil, fmt.Errorf("taurus_go/entity: write file %s: %w", target, err)
+		return nil, entity.Err_0100020008.Sprintf(target, err)
 	}
 	// 清理加载文件。
 	defer os.RemoveAll(".gen")
@@ -117,15 +130,26 @@ func (c *Config) Load() (*BuilderInfo, error) {
 	for _, line := range strings.Split(out, "\n") {
 		database, err := Unmarshal([]byte(line))
 		if err != nil {
-			return nil, fmt.Errorf("taurus_go/entity: unmarshal entity %s: %w", line, err)
+			return nil, entity.Err_0100020009.Sprintf(line, err)
 		}
 		builder.Databases = append(builder.Databases, database)
 	}
 	return builder, nil
 }
 
-// 加载传入的路径中符合要求的Entity、database的信息，
+// load 加载传入的路径中符合要求的Entity、database的信息，
 // 通过这些信息创建一个Builder。
+//
+// Returns:
+//
+//	0: 生成代码的构建器。
+//	1: 错误信息。
+//
+// ErrCodes:
+//
+//   - Err_0100020010
+//   - Err_0100020011
+//   - Err_0100020012
 func (c *Config) load() (*BuilderInfo, error) {
 	// 加载指定路径的go包
 	// pkgs是一个包的切片，切片的元素数量取决于传入的路径里包含的包的数量
@@ -136,14 +160,14 @@ func (c *Config) load() (*BuilderInfo, error) {
 		Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedModule,
 	}, c.Path, entityInterface.PkgPath())
 	if err != nil {
-		return nil, fmt.Errorf("loading package: %w", err)
+		return nil, entity.Err_0100020010.Sprintf(err)
 	}
 	if len(pkgs) < 2 {
 		// 检查数量少于2是否是因为 "Go-related"引起的错误
 		if err := cmd.List(c.Path, c.BuildFlags); err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("missing package information for: %s", c.Path)
+		return nil, entity.Err_0100020011.Sprintf(c.Path)
 	}
 	entPkg, loadPkg := pkgs[0], pkgs[1]
 	if len(loadPkg.Errors) != 0 {
@@ -175,12 +199,12 @@ func (c *Config) load() (*BuilderInfo, error) {
 		// 这里尝试将类型的声明（k.Obj.Decl）断言为 *ast.TypeSpec 类型，这是 Go 语言抽象语法树（AST）中表示类型声明的结构。
 		spec, ok := k.Obj.Decl.(*ast.TypeSpec)
 		if !ok {
-			return nil, fmt.Errorf("invalid declaration %T for %s", k.Obj.Decl, k.Name)
+			return nil, entity.Err_0100020012.Sprintf(k.Obj.Decl, k.Name)
 		}
 		// 这里检查声明的类型（spec.Type）是否是结构体类型。
 		structType, ok := spec.Type.(*ast.StructType)
 		if !ok {
-			return nil, fmt.Errorf("invalid spec type %T for %s", spec.Type, k.Name)
+			return nil, entity.Err_0100020013.Sprintf(spec.Type, k.Name)
 		}
 
 		if types.Implements(typ.Type(), iface) {
@@ -198,9 +222,8 @@ func (c *Config) load() (*BuilderInfo, error) {
 						if ident, ok := field.Type.(*ast.Ident); ok {
 							entities[fieldName.Name] = ident.Name
 						} else {
-							return nil, fmt.Errorf("taurus_go/entity invalid field type %T for %s", field.Type, k.Name)
+							return nil, entity.Err_0100020014.Sprintf(field.Type, k.Name)
 						}
-
 					}
 				}
 			}
@@ -218,11 +241,15 @@ func (c *Config) load() (*BuilderInfo, error) {
 	if len(c.Dbs) == 0 {
 		c.Dbs = dbs
 	}
-
 	sort.Strings(c.Entities)
 	return &BuilderInfo{PkgPath: loadPkg.PkgPath, Module: loadPkg.Module}, nil
 }
 
+// loadError 用于处理加载错误。
+//
+// Params:
+//
+//   - perr: 加载错误。
 func (c *Config) loadError(perr packages.Error) (err error) {
 	if strings.Contains(perr.Msg, "import cycle not allowed") {
 		if cause := c.cycleCause(); cause != "" {
@@ -237,7 +264,11 @@ func (c *Config) loadError(perr packages.Error) (err error) {
 	return err
 }
 
-// 检测在给定的 Go 代码包中是否存在可能导致循环依赖的本地类型声明。
+// cycleCause 检测在给定的 Go 代码包中是否存在可能导致循环依赖的本地类型声明。
+//
+// Returns:
+//
+//	0: 可能导致循环依赖的本地类型声明。
 func (c *Config) cycleCause() (cause string) {
 	// 解析代码目录。
 	dir, err := parser.ParseDir(token.NewFileSet(), c.Path, nil, 0)
@@ -328,6 +359,15 @@ func (c *Config) cycleCause() (cause string) {
 	return
 }
 
+// filename 生成一个唯一的文件名。
+//
+// Params:
+//
+//   - pkg: Go package路径。
+//
+// Returns:
+//
+//	0: 文件名。
 func filename(pkg string) string {
 	name := strings.ReplaceAll(pkg, "/", "_")
 	return fmt.Sprintf("gen_%s_%d", name, time.Now().Unix())

@@ -10,40 +10,42 @@
 // {{ $entity }}Create is the create action for the {{ $entity }}.
 type {{ $entity }}Create struct {
 	*internal.Config
-	tracker entity.Tracker
-	e *{{ $entity }}
+	es []*{{ $entity }}
 }
 
 // New{{ $entity }}Create creates a new {{ $entity }}Create.
-func New{{ $entity }}Create(c *internal.Config, e *{{ $entity }},t entity.Tracker) *{{ $entity }}Create {
+func New{{ $entity }}Create(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Create {
 	return &{{ $entity }}Create{
 		Config: c,
-		e:      e,
-		tracker: t,
+		es:      es,
 	}
 }
 
 
-func (o *{{ $entity }}Create) create(ctx context.Context) (*{{ $entity }}, error) {
-	return o.sqlCreate(ctx)
+func (o *{{ $entity }}Create) create(ctx context.Context, tx dialect.Tx) (error) {
+	return o.sqlCreate(ctx, tx)
 }
 
-func (o *{{ $entity }}Create) sqlCreate(ctx context.Context) (*{{ $entity }}, error) {
+func (o *{{ $entity }}Create) sqlCreate(ctx context.Context, tx dialect.Tx) (error) {
 	var (
 		spec, err = o.createSpec()
-		res         = o.e
+		res         = o.es
+		cursor    = 0
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
-		return scan(res, fields, rows)
+		e := res[cursor]
+		cursor++
+		if err := scan(e, fields, rows); err != nil {
+			return err
+		} else {
+			res = append(res, e)
+			return e.setUnchanged()
+		}
 	}
-	if err := entitysql.NewCreate(ctx, o.Driver, spec); err != nil {
-		return nil, err
-	}
-	setUnchanged(o.tracker, res)
-	return res, nil
+	return entitysql.NewCreate(ctx, tx, spec)
 }
 
 func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
@@ -54,23 +56,35 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 		{{- end }}
 		{{- end }}
 	}
-	spec := entitysql.NewCreateSpec(Entity, returning)
-	spec.Fields = make([]*entitysql.FieldSpec, 0, len(rows))
-	for i := range rows {
-		switch rows[i] {
-        {{- range $i, $field := $.Entity.Fields }}
-        {{- if and $field.Required  ( not $field.Default ) }}
-        case Field{{ $field.Name }}.Name:
-            if err := spec.CheckRequired(Field{{ $field.Name }}.Name, o.e.{{ $field.Name }}); err != nil {
-                return nil, err
-            }
-            spec.Fields = append(spec.Fields, &entitysql.FieldSpec{
-                Column: Field{{ $field.Name }}.Name.String(),
-                Value:  o.e.{{ $field.Name }}.Value(),
-            })
-        {{- end }}
-        {{- end }}
+	spec := entitysql.NewCreateSpec(Entity, columns)
+	spec.Fields = make([][]*entitysql.FieldSpec, 0, len(o.es))
+	for _, e := range o.es {
+		fields := make([]*entitysql.FieldSpec, 0, len(columns))
+		for j := range columns {
+			switch columns[j] {
+				{{- range $i, $field := $.Entity.Fields }}
+				{{- if $field.Required }} 
+				{{- if not $field.Default }}
+				case Field{{ $field.Name }}.Name:
+					if err := spec.CheckRequired(Field{{ $field.Name }}.Name, e.{{ $field.Name }}); err != nil {
+						return nil, err
+					}
+					fields = append(fields, &entitysql.FieldSpec{
+						Column: Field{{ $field.Name }}.Name.String(),
+						Value:  e.{{ $field.Name }}.Value(),
+					})
+				{{- end }}
+				{{- else }}
+				case Field{{ $field.Name }}.Name:
+					fields = append(fields, &entitysql.FieldSpec{
+						Column: Field{{ $field.Name }}.Name.String(),
+						Value:  e.{{ $field.Name }}.Value(),
+					})
+				{{- end }}
+				{{- end }}
+			} 
 		}
+		spec.Fields = append(spec.Fields, fields)
 	}
 	spec.Returning = returning
 	return spec, nil

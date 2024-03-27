@@ -9,7 +9,7 @@ import (
 )
 
 type (
-	// InstanceTemplate 根据数据库结构生成一个模版
+	// InstanceTemplate 模版实例
 	InstanceTemplate = template.FileTemplate[any]
 
 	// GenericTemplate 是生成代码中给每个InstanceTemplate使用的通用部分
@@ -21,18 +21,19 @@ type (
 )
 
 var (
-	// Templates 保存database将要生成的文件的模版信息
-	Templates = []InstanceTemplate{
+	// DatabaseTemplates 保存database将要生成的文件的模版信息
+	DatabaseTemplates []InstanceTemplate = []InstanceTemplate{
 		{
 			Name:   "database",
 			Format: pkgf("%s.go"),
 		},
 		{
 			Name:   "sql/table",
-			Format: pkgf("sql/%s_table.sql"),
+			Format: pkgf("sql/%s.sql"),
 		},
 	}
-	EntityTemplates = []InstanceTemplate{
+	// EntityTemplates entity的相关模版
+	EntityTemplates []InstanceTemplate = []InstanceTemplate{
 		{
 			Name:   "entity/builder",
 			Format: pkgf("%s/builder.go"),
@@ -72,13 +73,15 @@ var (
 			Format: pkgf("%s/where.go"),
 		},
 	}
-	InstanceTemplates = []GenericTemplate{
+	// InstanceTemplates 内部使用的模版
+	InstanceTemplates []GenericTemplate = []GenericTemplate{
 		{
 			Name:   "internal/core",
 			Format: "internal/core.go",
 		},
 	}
-	SqlTemplates = []GenericTemplate{}
+	// SqlTemplates sql文件的模版
+	SqlTemplates []GenericTemplate = []GenericTemplate{}
 	templates    *template.Template
 	//go:embed template/*
 	templateDir embed.FS
@@ -87,9 +90,14 @@ var (
 	importPkg        = map[string]string{}
 )
 
-// 初始化模版
+// initTemplates 初始化模版。
+//
+// Params:
+//
+//   - builder: 生成资源文件的构建器。
+//   - dbType: 数据库类型。
 func initTemplates(builder *Builder, dbType dialect.DbDriver) {
-	// 解析模板
+	// 根据数据库类型选择模版
 	if dbType == dialect.PostgreSQL {
 		templates = template.MustParse(template.NewTemplate("templates").
 			Funcs(funcMap).
@@ -111,6 +119,15 @@ func initTemplates(builder *Builder, dbType dialect.DbDriver) {
 
 }
 
+// pkgf 返回一个格式化的路径
+//
+// Params:
+//
+//   - s: 格式化字符串。
+//
+// Returns:
+//
+//	0: 实现了TemplatePathFormat接口的字符串。
 func pkgf(s string) func(t template.TemplatePathFormat) string {
 	return func(t template.TemplatePathFormat) string {
 		return fmt.Sprintf(s, t.Dir())

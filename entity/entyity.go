@@ -6,6 +6,9 @@ import (
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
+// 单条语句，参数的最大数量，以PostgreSQL为标准。
+const BatchSize int = 65535
+
 // 和数据库连接相关定义。
 type ConnectionConfig struct {
 	// 数据库驱动
@@ -150,6 +153,8 @@ type (
 		Default bool `json:"default,omitempty"`
 		// DefaultValue 字段默认值的字符串形式。
 		DefaultValue string `json:"default_value,omitempty"`
+		// Locked 字段是否被锁定，如果为true,则不能被修改。
+		Locked bool `json:"locked,omitempty"`
 		// Sequence 字段的序列，
 		// 不是所有的字段类型都可以设置序列，内置的类型中只有Int(Int16,Int32,Int64)
 		// 才有Sequence()方法，自定义字段要看是否实现了设置序列的相关方法。

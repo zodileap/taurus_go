@@ -8,6 +8,18 @@ import (
 )
 
 // PrepareEnv 检查是否有runtime.go,如果存在检查导入部分，避免循环导入
+// 如果不存在则创建runtime.go文件
+// 如果存在导入部分则在文件开头添加 "// +build tools\n"
+// 这样在生成代码时，runtime.go文件不会被编译到最终的二进制文件中
+//
+// Params:
+//
+//   - c: 代码生成的配置。
+//
+// Returns:
+//
+//	0: 无操作函数。
+//	1: 错误信息。
 func PrepareEnv(c *Config) (undo func() error, err error) {
 	var (
 		// 无操作函数

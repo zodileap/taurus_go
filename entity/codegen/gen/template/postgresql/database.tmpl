@@ -1,7 +1,7 @@
 {{ define "database" }}
 {{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
-{{ $db := $.Database.Name}}
+{{ $db := toFirstCap $.Database.Name}}
 {{ $lowerDb := toLower $db }} 
 {{ $package := .Config.Package}}
 {{ $builder := "Builder" }}
@@ -17,7 +17,7 @@ import (
 	"{{.Config.Package}}/internal"
 	
 	{{- range $key, $entityName := $.Database.EntityMap }}
-		{{ $entity := index $.Database.Entities $entityName }}
+		{{- $entity := index $.Database.Entities $entityName }}
 		"{{ $package }}/{{ toLower $entity.AttrName }}"
 	{{- end }}
 )
@@ -54,19 +54,29 @@ func (d *{{ $db }}) Close() error {
 }
 
 // Save saves all changes to the database.
-func (d *{{ $db }}) Save() error {
-	for _, m := range d.tracker.Mutators() {
-		if err := m.Exec(); err != nil {
-			return err
-		}
+func (d *{{ $db }}) Save(ctx context.Context) error {
+	tx, err := d.Config.MayTx(ctx)
+	if err != nil {
+		return err
 	}
-	return nil
+	if err := func() error {
+		for _, m := range d.tracker.Mutators() {
+			if err := m.Exec(ctx, tx); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return entitysql.Rollback(tx, err)
+	}
+	return tx.Commit()
 }
 
 func (d *{{ $db }}) init() {
     {{- range $key, $entityName := $.Database.EntityMap }}
 		{{- $entity := index $.Database.Entities $entityName }}
         d.{{ $key }}s = {{ $entity.AttrName }}.New{{ $entity.Name }}{{ $builder}}(d.Config,d.tracker)
+		d.tracker.Add(d.{{ $key }}s)
     {{- end }}
 }
 

@@ -8,26 +8,32 @@
 {{ template "import/load" $importPkgs }}
 
 type {{ $entity }} struct {
-    *internal.Config
-    *entity.Mutation
-	tracker     entity.Tracker
+    config      *{{ $entity }}Config
     {{- range $i,$field := $.Entity.Fields }}
         {{ $field.Name }} *{{ $field.Name }}Type
     {{- end }}
 }
 
+type {{ $entity }}Config struct {
+	*mutations
+	*entity.Mutation
+	*internal.Config
+}
 
 
 // New creates a new {{ $entity }}, but does not add tracking.
-func New(c *internal.Config,t entity.Tracker) *{{ $entity }} {
+func New(c *internal.Config, ms *mutations) *{{ $entity }} {
+	b := entity.NewMutation(entity.Detached)
 	e := &{{ $entity }}{
-		Config: c,
-		tracker: t,
+		config: &{{ $entity }}Config{
+			Mutation:  b,
+			Config:    c,
+			mutations: ms,
+		},
 	}
-	b := entity.NewMutation(entity.Unchanged)
-	e.Mutation = b
+	e.setState(entity.Detached)
 	{{- range $i,$field := $.Entity.Fields }}
-		e.{{ $field.Name }} = new{{ $field.Name }}Type(b)
+		e.{{ $field.Name }} = new{{ $field.Name }}Type(e.config)
 	{{- end }}
 	return e
 }
@@ -43,31 +49,18 @@ func (e *{{ $entity }}) String() string {
     )
 }
 
-// Exec executes all the mutations for the {{ $entity }}.
-func (e *{{ $entity }}) Exec() error {
-	switch e.State() {
-	case entity.Added:
-		n := New{{ $entity }}Create(e.Config, e, e.tracker)
-		_, err := n.create(context.Background())
-		return err
-	case entity.Modified:
-		n := New{{ $entity }}Update(e.Config, e, e.tracker)
-		_, err := n.update(context.Background())
-		return err
-	case entity.Deleted:
-		n := New{{ $entity }}Delete(e.Config, e, e.tracker)
-		return n.delete(context.Background())
-	}
-	return nil
+// State returns the state of the {{ $entity }}.
+func (e *{{ $entity }}) State() entity.EntityState {
+	return e.config.State()
 }
 
 func (e *{{ $entity }}) remove() error {
-	return internal.SetEntityState(e.Mutation, entity.Deleted)
+	return e.setState(entity.Deleted)
 }
 
 // create creates a new {{ $entity }} and adds tracking.
 func (e *{{ $entity }}) create({{ joinRequiredFields .Entity.Fields false  }} options ...func(*{{ $entity }})) (*{{ $entity }}, error) {
-	e.Mutation.SetState(entity.Added)
+	e.setState(entity.Added)
     {{- $requiredFields := getRequiredFields .Entity.Fields -}}
     {{- range $field := $requiredFields }}
         e.{{ $field.Name }}.Set({{ toSnakeCase $field.AttrName }})
@@ -76,6 +69,14 @@ func (e *{{ $entity }}) create({{ joinRequiredFields .Entity.Fields false  }} op
 		option(e)
 	}
 	return e, nil
+}
+
+func (e *{{ $entity }}) setUnchanged() error {
+	return e.setState(entity.Unchanged)
+}
+
+func (e *{{ $entity }}) setState(state entity.EntityState) error {
+	return e.config.mutations.SetEntityState(e, state)
 }
 
 func scan(e *{{ $entity }}, fields []entitysql.FieldName, rows dialect.Rows) error {
@@ -93,10 +94,4 @@ func scan(e *{{ $entity }}, fields []entitysql.FieldName, rows dialect.Rows) err
 	}
 	return nil
 }
-
-func setUnchanged(t entity.Tracker, m entity.Mutator) {
-	m.SetState(entity.Unchanged)
-	t.Add(m)
-}
-
 {{ end }}

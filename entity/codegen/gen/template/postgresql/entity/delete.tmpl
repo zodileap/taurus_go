@@ -10,17 +10,15 @@
 // {{ $entity }}Delete is the delete action for the {{ $entity }}.
 type {{ $entity }}Delete struct {
 	*internal.Config
-	tracker    entity.Tracker
-	e          *{{ $entity }}
+	es         []*{{ $entity }}
 	predicates []func(*entitysql.Predicate)
 }
 
 // New{{ $entity }}Delete creates a new {{ $entity }}Delete.
-func New{{ $entity }}Delete(c *internal.Config, e *{{ $entity }}, t entity.Tracker) *{{ $entity }}Delete {
+func New{{ $entity }}Delete(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Delete {
 	return &{{ $entity }}Delete{
 		Config: c,
-		tracker: t,
-		e: e,
+		es: es,
 	}
 }
 
@@ -29,11 +27,11 @@ func (o *{{ $entity }}Delete) Where(predicates ...func(*entitysql.Predicate)) *{
 	return o
 }
 
-func (o *{{ $entity }}Delete) delete(ctx context.Context) error {
-	return o.sqlDelete(ctx)
+func (o *{{ $entity }}Delete) delete(ctx context.Context,tx dialect.Tx) error {
+	return o.sqlDelete(ctx,tx)
 }
 
-func (o *{{ $entity }}Delete) sqlDelete(ctx context.Context) error {
+func (o *{{ $entity }}Delete) sqlDelete(ctx context.Context,tx dialect.Tx) error {
 	var (
 		spec, err = o.deleteSpec()
 		affected  = int64(0)
@@ -42,10 +40,15 @@ func (o *{{ $entity }}Delete) sqlDelete(ctx context.Context) error {
 		return err
 	}
 	spec.Affected = &affected
-	if err := entitysql.NewDelete(ctx, o.Driver, spec); err != nil {
+	if err := entitysql.NewDelete(ctx, tx, spec); err != nil {
 		return err
 	}
-	return internal.SetEntityState(o.e.Mutation, entity.Detached)
+	for _, e := range o.es {
+		if err := e.setState(entity.Detached); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
@@ -58,13 +61,19 @@ func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 		}
 	}
 	{{- range $i, $f := $.Entity.Fields }}
-		{{- if gt $f.Primary 0 }}
-		{{ toLower $f.Name }} := &Pred{{ $f.Name }}{}
-		{{- if gt $f.Primary 1 }}
-		o.predicates = append(o.predicates,entitysql.OpAnd, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
-		{{- else }}
-		o.predicates = append(o.predicates, {{ toLower $f.Name }}.EQ(*o.e.{{ $f.Name }}.Get()))
-		{{- end }}
+		{{- if eq $f.Primary 1 }}
+		pred{{ $f.Name }} := &Pred{{ $f.Name }}{}
+		if o.predicates == nil {
+			o.predicates = make([]func(*entitysql.Predicate), 0, len(o.es))
+		}
+		for i, e := range o.es {
+			if e.{{ $f.Name }}.Get() != nil {
+				if i >= 1 {
+					o.predicates = append(o.predicates, entitysql.Or)
+				}
+				o.predicates = append(o.predicates, pred{{ $f.Name }}.EQ(*e.{{ $f.Name }}.Get()))
+			}
+		}
 		{{- end }}
 	{{- end }}
 	if ps := o.predicates; len(ps) > 0 {

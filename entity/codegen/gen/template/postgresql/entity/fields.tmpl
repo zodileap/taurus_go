@@ -14,19 +14,19 @@ import "{{ $field.StoragerPkg }}"
 {{- range $i,$field := $.Entity.Fields }}
 type {{ $field.Name }}Type struct {
 	{{ $field.StoragerType }}
-	mutator *entity.Mutation
+	config *{{ $entity }}Config
 }
 
-func new{{ $field.Name }}Type(m *entity.Mutation) *{{ $field.Name }}Type {
+func new{{ $field.Name }}Type(c *{{ $entity }}Config) *{{ $field.Name }}Type {
 	t := &{{ $field.Name }}Type{}
-	t.mutator = m
+	t.config = c
 	return t
 }
 
 func (t *{{ $field.Name }}Type) Set(v {{ $field.ValueType }}) {
 	t.{{ $field.StoragerOrigType }}.Set(v)
-	internal.SetEntityState(t.mutator, entity.Modified)
-	t.mutator.SetFields( Field{{ $field.Name }}.Name.String())
+	t.config.mutations.ChangeEntityState(t.config.Mutation, entity.Modified)
+	t.config.Mutation.SetFields(Field{{ $field.Name }}.Name.String())
 }
 
 func (t *{{ $field.Name }}Type) Get() *{{ $field.ValueType }} {
