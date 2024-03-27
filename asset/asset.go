@@ -76,6 +76,7 @@ func (a *Assets) AddDir(path string) error {
 }
 
 // Write 写入全部的Dirs和Files,如果文件已经存在，则会覆盖。
+// 执行后会清空Dirs和Files。
 //
 // Example:
 //
@@ -104,6 +105,7 @@ func (a Assets) Write() error {
 			return Err_0200010002.Sprintf(path, err)
 		}
 	}
+	a.Clear()
 	return nil
 }
 
@@ -147,4 +149,20 @@ func (a Assets) Format() error {
 
 	}
 	return nil
+}
+
+// Clear 清空`Assets`中的Dirs和Files。
+//
+// Example:
+//
+//	var assets asset.Assets
+//	assets.Add("file.txt", []byte("Hellow, World!"))
+//	assets.AddDir("dir")
+//	assets.Clear()
+//	fmt.Print(assets)
+//
+// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestClear
+func (a *Assets) Clear() {
+	a.Dirs = nil
+	a.Files = nil
 }
