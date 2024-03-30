@@ -1,8 +1,10 @@
 package stringutil
 
 import (
+	"crypto/rand"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -13,7 +15,24 @@ func MoveElementToEndAndRemovePrevious[T any](arr []T, elementIndex int) ([]T, e
 	arr = append(arr[elementIndex+1:], element)
 
 	return arr, nil
+}
 
+// GenerateKey 生成一个唯一的字符串key。
+// 类似于"github.com/google/uuid"，
+// 但不具备像UUID那样的强大的唯一性保证和标准格式。
+func GenerateKey() (string, error) {
+	// 当前时间的纳秒作为一部分
+	currentTime := time.Now().UnixNano()
+
+	// 生成一些随机字节作为key的一部分
+	randomBytes := make([]byte, 16)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", err
+	}
+
+	// 将时间和随机字节转换为字符串
+	key := fmt.Sprintf("%x-%x", currentTime, randomBytes)
+	return key, nil
 }
 
 // 无重复字符的最长子串
