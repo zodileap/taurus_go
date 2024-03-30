@@ -90,6 +90,9 @@ type (
 		// 但是对于entity的结构体名字，还是使用定义的结构体名称，不使用AttrName，
 		// 防止和别的database和entity名字冲突。
 		AttrName string
+		// Comment entity的注释。
+		// 在生成的sql中会用于生成表的注释。
+		Comment string
 	}
 )
 

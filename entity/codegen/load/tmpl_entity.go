@@ -32,6 +32,8 @@ type (
 		Name string `json:"name,omitempty"`
 		// AttrName entity的属性名称
 		AttrName string `json:"attr_name,omitempty"`
+		// Comment entity的注释
+		Comment string `json:"comment,omitempty"`
 		// Config entity配置
 		Config entity.EntityConfig `json:"config,omitempty"`
 		// Fields entity的字段
@@ -105,7 +107,8 @@ func MarshalEntity(ei entity.EntityInterface) (ent *Entity, err error) {
 		Name: indirect(reflect.TypeOf(ei)).Name(),
 		// 利用反射获取entity的名称
 		AttrName:   entityName,
-		Config:     ei.Config(),
+		Comment:    config.Comment,
+		Config:     config,
 		ImportPkgs: ImportPkgs,
 	}
 	ImportPkgs = []string{}

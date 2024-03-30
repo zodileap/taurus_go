@@ -30,6 +30,9 @@ type {{ $db }} struct {
 	tracker entity.Tracker
     {{- range $key, $entityName := $.Database.EntityMap }}
 		{{ $entity := index $.Database.Entities $entityName }}
+		{{ if $entity.Comment }}
+		// {{ $key }}s {{ $entity.Comment }}
+		{{- end }}
         {{ $key }}s *{{ $entity.AttrName }}.{{ $entityName }}{{ $builder}}
     {{- end }}
 }

@@ -9,6 +9,12 @@ import (
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
+// Timestamp 时间戳类型的字段。
+type Timestamptz struct {
+	TimestamptzBuilder
+	TimestampStorage
+}
+
 // TimestampStorage 时间戳类型的字段存储。
 type TimestampStorage struct {
 	value *time.Time
@@ -48,12 +54,6 @@ func (t *TimestampStorage) Value() entity.FieldValue {
 		return nil
 	}
 	return *t.value
-}
-
-// Timestamp 时间戳类型的字段。
-type Timestamptz struct {
-	TimestamptzBuilder
-	TimestampStorage
 }
 
 // TimestamptzBuilder 时间戳类型的字段构建器。

@@ -11,7 +11,7 @@ import (
 )
 
 var databases = map[string]entity.DbInterface{
-	{{- range $db := .Dbs }}
+	{{- range $db := .Config.Dbs }}
 		{{ printf "%q" $db.Name }}: &entityPkg.{{ $db.Name }}{},
 	{{- end }}
 }
@@ -19,7 +19,7 @@ var databases = map[string]entity.DbInterface{
 type EntityMap map[string]string
 
 var dbEntities = map[string]EntityMap{
-	{{- range $db := .Dbs }}
+	{{- range $db := .Config.Dbs }}
 		{{ printf "%q" $db.Name }}: EntityMap{
 			{{- range  $key, $type := $db.Entities }}
 				{{ printf "%q" $key }}: {{ printf "%q" $type }},
@@ -29,7 +29,7 @@ var dbEntities = map[string]EntityMap{
 }
 
 var entities = map[string]entity.EntityInterface{
-	{{- range $name := .Entities }}
+	{{- range $name := .Config.Entities }}
 		{{ printf "%q" $name }}: &entityPkg.{{ $name }}{},
 	{{- end }}
 }

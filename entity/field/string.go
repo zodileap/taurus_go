@@ -11,6 +11,18 @@ import (
 
 type RawBytes []byte
 
+// Varchar 字符串类型的字段。
+type Varchar struct {
+	StringBuilder
+	StringStorage
+}
+
+// UUID UUID类型的字段。
+type UUID struct {
+	UUIDBuilder
+	StringStorage
+}
+
 // StringStorage 字符串类型的字段存储。
 type StringStorage struct {
 	value *string
@@ -50,12 +62,6 @@ func (s *StringStorage) Value() entity.FieldValue {
 		return nil
 	}
 	return *s.value
-}
-
-// Varchar 字符串类型的字段。
-type Varchar struct {
-	StringBuilder
-	StringStorage
 }
 
 // StringBuilder 字符串类型的字段构造器。
@@ -201,12 +207,6 @@ func varchar(size int64) string {
 	} else {
 		return fmt.Sprintf("varchar(%d)", size)
 	}
-}
-
-// UUID UUID类型的字段。
-type UUID struct {
-	UUIDBuilder
-	StringStorage
 }
 
 // UUIDBuilder UUID类型的字段构造器。

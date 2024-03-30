@@ -6,10 +6,10 @@
 */
 {{ range $key, $entity := $.Database.Entities }}
 {{ $schema := `"public"` }}
-{{ $schemaV := `'public'` }}
-{{ $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{ $tableV := joinStrings   `'` $entity.AttrName  `'`}}
-{{- range $i,$seq := $entity.Sequences }}
+{{- $schemaV := `'public'` }}
+{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
+{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- range $i,$seq := $entity.Sequences -}}
 -- ********
 -- Sequence {{ $seq.Name }}
 -- ********
@@ -23,7 +23,8 @@ BEGIN
     CACHE {{ $seq.Cache }};
 END
 $$;
-{{ end }}
+{{ end -}}
+
 -- ********
 -- Table {{ $table }}
 -- ********
@@ -61,6 +62,22 @@ BEGIN
         IF v_constraint_name IS NOT NULL THEN
             EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name);
         END IF;
+
+        -- Field Comment.
+        -- 字段备注。
+        {{- range $i,$field := $entity.Fields }}
+        {{ if $field.Comment }}COMMENT ON COLUMN {{ $schema }}.{{ $table }}.{{ printf "%q" $field.AttrName }} IS  '{{  $field.Comment }}';{{ end }}
+        {{- end -}}
+
+        {{ if $entity.Comment }}
+
+        -- Table Comment.
+        -- 表备注。
+        COMMENT ON TABLE {{ $schema }}.{{ $table }} IS '{{ $entity.Comment }}';
+        {{- end }}
+        
+        -- Primary Key.
+        -- 主键。
         ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
     ELSE
         -- If the table does not exist, then create the table.
@@ -78,6 +95,13 @@ BEGIN
         {{- range $i,$field := $entity.Fields }}
         {{ if $field.Comment }}COMMENT ON COLUMN {{ $schema }}.{{ $table }}.{{ printf "%q" $field.AttrName }} IS  '{{  $field.Comment }}';{{ end }}
         {{- end -}}
+
+        {{ if $entity.Comment }}
+
+        -- Table Comment.
+        -- 表备注。
+        COMMENT ON TABLE {{ $schema }}.{{ $table }} IS '{{ $entity.Comment }}';
+        {{- end }}
         
         -- Primary Key.
         -- 主键。

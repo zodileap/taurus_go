@@ -5,12 +5,16 @@
 {{ $BuilderName := joinStrings .Entity.Name "Builder" }}
 {{ $EntityName := .Entity.Name }}
 
+
 type {{ $BuilderName }} struct {
     *internal.Config
 	*mutations
     tracker entity.Tracker
 	{{- range $field :=  .Entity.Fields }}
-	{{ $field.Name }}   Pred{{ $field.Name }}
+	{{ if $field.Comment }}
+	// {{ $field.Name }} {{ $field.Comment }}
+	{{- end }}
+	{{ $field.Name }} Pred{{ $field.Name }}
 	{{- end }}
 }
 
