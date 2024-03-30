@@ -81,9 +81,7 @@ var (
 //
 //	redis.SetClient("test", &redis.Options{
 //		Addr: "localhost:6379",
-//		// 如果有用户名,否则空字符串
 //		Username: "",
-//		// 如果有密码,否则空字符串
 //		Password: "",
 //		DB:       1,
 //	})
