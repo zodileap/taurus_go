@@ -14,6 +14,15 @@ type {{ $entity }}Query struct {
 	predicates []func(*entitysql.Predicate)
 }
 
+// First returns the first result of the query.
+func (o *{{ $entity }}Query) First(ctx context.Context) (*{{ $entity }}, error) {
+	result, err := o.Single(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // New{{ $entity }}Query creates a new {{ $entity }}Query.
 func New{{ $entity }}Query(c *internal.Config,t entity.Tracker, ms *mutations) *{{ $entity }}Query {
 	return &{{ $entity }}Query{
@@ -34,15 +43,6 @@ func (o *{{ $entity }}Query) Where(predicates ...func(*entitysql.Predicate)) *{{
 func (o *{{ $entity }}Query) Limit(limit int) *{{ $entity }}Query {
 	o.ctx.Limit = &limit
 	return o
-}
-
-// First returns the first result of the query.
-func (o *{{ $entity }}Query) First(ctx context.Context) (*{{ $entity }}, error) {
-	result, err := o.Single(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
 
 // ToList returns the list of results of the query.
