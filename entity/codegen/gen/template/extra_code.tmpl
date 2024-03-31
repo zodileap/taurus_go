@@ -1,0 +1,10 @@
+{{ define "extraCode" }}
+{{ $header := dict "Package" .Config.Package }}
+{{ template "header" $header }}
+
+{{ if .Config.ExtraCodes }}
+{{ range .Config.ExtraCodes }}
+{{ . }}
+{{ end }}
+{{ end }}
+{{ end }}

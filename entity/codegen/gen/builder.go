@@ -218,6 +218,18 @@ func generate(t *Builder) error {
 		}
 		assets.Add(filepath.Join(t.Config.Target, tmpl.Format), b.Bytes())
 	}
+	if t.Config.ExtraCodes != nil {
+		for _, tmpl := range ExtraCodesTemplates {
+			if tmpl.Skip != nil && tmpl.Skip(t) {
+				continue
+			}
+			b := bytes.NewBuffer(nil)
+			if err := templates.ExecuteTemplate(b, tmpl.Name, t); err != nil {
+				return fmt.Errorf("execute template %q: %w", tmpl.Name, err)
+			}
+			assets.Add(filepath.Join(t.Config.Target, tmpl.Format), b.Bytes())
+		}
+	}
 
 	// 清理功能
 	// for _, f := range AllFeatures {

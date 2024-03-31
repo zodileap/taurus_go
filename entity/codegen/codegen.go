@@ -80,6 +80,9 @@ func LoadBuilder(entityPath string, cfg *gen.Config) (*gen.Builder, error) {
 		// 修改这个将影响生成代码的 Go package path
 		cfg.Package = path.Dir(builder.PkgPath)
 	}
+	if builder.ExtraCodes != nil {
+		cfg.ExtraCodes = append(cfg.ExtraCodes, builder.ExtraCodes...)
+	}
 	return gen.NewBuilder(cfg, builder.Databases...)
 }
 

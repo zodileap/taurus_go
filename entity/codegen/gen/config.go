@@ -37,4 +37,7 @@ type Config struct {
 
 	// Templates 外部传入的template
 	Templates []*template.Template
+
+	// ExtraCodes 保存额外的代码，它将被添加到生成的代码中
+	ExtraCodes []string
 }

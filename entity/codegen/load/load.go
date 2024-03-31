@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -51,8 +52,11 @@ type (
 		PkgPath string
 		// Module 加载的entity package的模块信息。
 		Module *packages.Module
-		// Databases Schema符合条件的所有Databases。
+		// Databases 从Schema中提取出的database的配置信息。
+		// Config.Dbs中的只是获得数据库的名字和它拥有的entity。Databases获得的是完整的数据库配置信息。
 		Databases []*Database
+		// ExtraCodes Schema中不是数据库或者实体的代码。
+		ExtraCodes []string
 	}
 
 	// EntityMap entity的key和类型。
@@ -157,7 +161,7 @@ func (c *Config) load() (*BuilderInfo, error) {
 	pkgs, err := packages.Load(&packages.Config{
 		BuildFlags: c.BuildFlags,
 		// Load函数需要返回的包的信息
-		Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedModule,
+		Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedModule | packages.NeedSyntax,
 	}, c.Path, entityInterface.PkgPath())
 	if err != nil {
 		return nil, entity.Err_0100020010.Sprintf(err)
@@ -181,11 +185,12 @@ func (c *Config) load() (*BuilderInfo, error) {
 		entPkg, loadPkg = pkgs[1], pkgs[0]
 	}
 	var names []string
-	// 这部分代码是检查，加载的代码中是否有实现了 ent.Interface 接口的结构体。
+	// 这部分代码是检查，加载的代码中是否有实现了 entity.Entity 接口的结构体。
 	// 获取 ent 接口类型：
 	iface := entPkg.Types.Scope().Lookup(entityInterface.Name()).Type().Underlying().(*types.Interface)
 	var dbs []DbConfig
 	dbIface := entPkg.Types.Scope().Lookup(dbInterface.Name()).Type().Underlying().(*types.Interface)
+
 	// 这个循环遍历用户定义的包（loadPkg）中的所有类型定义。
 	// loadPkg.TypesInfo.Defs 包含了包中所有类型的定义，其中 k 是定义的标识符（如类型名称），v 是定义本身（如类型信息）。
 	for k, v := range loadPkg.TypesInfo.Defs {
@@ -233,7 +238,6 @@ func (c *Config) load() (*BuilderInfo, error) {
 			})
 			continue
 		}
-
 	}
 	if len(c.Entities) == 0 {
 		c.Entities = names
@@ -242,7 +246,76 @@ func (c *Config) load() (*BuilderInfo, error) {
 		c.Dbs = dbs
 	}
 	sort.Strings(c.Entities)
-	return &BuilderInfo{PkgPath: loadPkg.PkgPath, Module: loadPkg.Module}, nil
+
+	// 收集Schema中额外的代码
+	var extraCodes []string
+	for _, file := range loadPkg.Syntax {
+		// 使用文件级别的遍历来确保我们可以正确地处理 GenDecl 节点
+		for _, decl := range file.Decls {
+			switch n := decl.(type) {
+			case *ast.GenDecl:
+				var shouldAdd bool
+				// 对于 GenDecl，我们需要检查它是否包含不符合条件的类型或常量
+				for _, spec := range n.Specs {
+					switch s := spec.(type) {
+					// Type
+					case *ast.TypeSpec:
+						typ := loadPkg.TypesInfo.Defs[s.Name].(*types.TypeName)
+						if s.Name.IsExported() && !types.Implements(typ.Type(), iface) && !types.Implements(typ.Type(), dbIface) {
+							shouldAdd = true
+							break
+						}
+					// Const 和 Var
+					case *ast.ValueSpec:
+						for _, name := range s.Names {
+							if name.IsExported() {
+								shouldAdd = true
+								break
+							}
+						}
+					}
+				}
+				if shouldAdd {
+					addNonConformingCode(n, loadPkg.Fset, &extraCodes)
+				}
+			case *ast.FuncDecl:
+				// 检查函数是否符合条件
+				if n.Recv != nil && len(n.Recv.List) > 0 {
+					// 获取函数接收器的类型
+					if recvType, ok := n.Recv.List[0].Type.(*ast.Ident); ok {
+						recvTypeName := recvType.Name
+						var recvTypeDefinition *types.TypeName
+						for _, def := range loadPkg.TypesInfo.Defs {
+							if typeName, ok := def.(*types.TypeName); ok && typeName.Name() == recvTypeName {
+								recvTypeDefinition = typeName
+								break
+							}
+						}
+						if recvTypeDefinition != nil {
+							if types.Implements(recvTypeDefinition.Type(), iface) || types.Implements(recvTypeDefinition.Type(), dbIface) {
+								// 接收器类型符合条件，跳过该函数
+								continue
+							}
+						}
+						if recvType.IsExported() {
+							addNonConformingCode(n, loadPkg.Fset, &extraCodes)
+							continue
+						}
+					}
+				} else if n.Name.IsExported() {
+					// 函数没有接收器，直接检查函数名是否导出
+					addNonConformingCode(n, loadPkg.Fset, &extraCodes)
+				}
+
+			}
+		}
+	}
+	// 打印不符合条件的源代码
+	for _, code := range extraCodes {
+		fmt.Println(code)
+	}
+
+	return &BuilderInfo{PkgPath: loadPkg.PkgPath, Module: loadPkg.Module, ExtraCodes: extraCodes}, nil
 }
 
 // loadError 用于处理加载错误。
@@ -371,4 +444,27 @@ func (c *Config) cycleCause() (cause string) {
 func filename(pkg string) string {
 	name := strings.ReplaceAll(pkg, "/", "_")
 	return fmt.Sprintf("gen_%s_%d", name, time.Now().Unix())
+}
+
+// 辅助函数，用于添加不符合条件的代码
+func addNonConformingCode(node ast.Node, fset *token.FileSet, codeList *[]string) {
+	startPos := fset.Position(node.Pos()).Offset
+	endPos := fset.Position(node.End()).Offset
+	fileContent, err := ioutil.ReadFile(fset.File(node.Pos()).Name())
+	if err != nil {
+		fmt.Printf("Error reading file: %s\n", err)
+		return
+	}
+	sourceCode := string(fileContent[startPos:endPos])
+	*codeList = append(*codeList, sourceCode)
+}
+
+// 辅助函数，用于检查切片中是否包含指定元素
+func contains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
 }

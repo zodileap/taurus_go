@@ -80,6 +80,14 @@ var (
 			Format: "internal/core.go",
 		},
 	}
+	// ExtraCodesTemplates 额外的代码模版
+	ExtraCodesTemplates []GenericTemplate = []GenericTemplate{
+		{
+			Name:   "extraCode",
+			Format: "extra_codes.go",
+		},
+	}
+
 	// SqlTemplates sql文件的模版
 	SqlTemplates []GenericTemplate = []GenericTemplate{}
 	templates    *template.Template
