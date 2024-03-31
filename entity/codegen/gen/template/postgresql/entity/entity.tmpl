@@ -17,6 +17,7 @@ type {{ $entity }} struct {
     {{- end }}
 }
 
+// {{ $entity }}Config holds the configuration for the {{ $entity }}.
 type {{ $entity }}Config struct {
 	*mutations
 	*entity.Mutation
@@ -57,6 +58,7 @@ func (e *{{ $entity }}) State() entity.EntityState {
 	return e.config.State()
 }
 
+// remove removes the {{ $entity }} from the database.
 func (e *{{ $entity }}) remove() error {
 	return e.setState(entity.Deleted)
 }
@@ -74,14 +76,17 @@ func (e *{{ $entity }}) create({{ joinRequiredFields .Entity.Fields false  }} op
 	return e, nil
 }
 
+// setUnchanged sets the state of the {{ $entity }} to unchanged.
 func (e *{{ $entity }}) setUnchanged() error {
 	return e.setState(entity.Unchanged)
 }
 
+// setState sets the state of the {{ $entity }}.
 func (e *{{ $entity }}) setState(state entity.EntityState) error {
 	return e.config.mutations.SetEntityState(e, state)
 }
 
+// scan scans the database for the {{ $entity }}.
 func scan(e *{{ $entity }}, fields []entitysql.FieldName, rows dialect.Rows) error {
 	args := make([]interface{}, len(fields))
 	for i := range fields {

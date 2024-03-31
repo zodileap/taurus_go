@@ -9,7 +9,7 @@
 
 // {{ $entity }}Delete is the delete action for the {{ $entity }}.
 type {{ $entity }}Delete struct {
-	*internal.Config
+	config *internal.Config
 	es         []*{{ $entity }}
 	predicates []func(*entitysql.Predicate)
 }
@@ -17,11 +17,12 @@ type {{ $entity }}Delete struct {
 // New{{ $entity }}Delete creates a new {{ $entity }}Delete.
 func New{{ $entity }}Delete(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Delete {
 	return &{{ $entity }}Delete{
-		Config: c,
+		config: c,
 		es: es,
 	}
 }
 
+// Where adds a predicate to the delete action.
 func (o *{{ $entity }}Delete) Where(predicates ...func(*entitysql.Predicate)) *{{ $entity }}Delete {
 	o.predicates = append(o.predicates, predicates...)
 	return o

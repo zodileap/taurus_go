@@ -9,23 +9,24 @@
 
 // {{ $entity }}Create is the create action for the {{ $entity }}.
 type {{ $entity }}Create struct {
-	*internal.Config
+	config *internal.Config
 	es []*{{ $entity }}
 }
 
 // New{{ $entity }}Create creates a new {{ $entity }}Create.
 func New{{ $entity }}Create(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Create {
 	return &{{ $entity }}Create{
-		Config: c,
+		config: c,
 		es:      es,
 	}
 }
 
-
+// create executes the create action.
 func (o *{{ $entity }}Create) create(ctx context.Context, tx dialect.Tx) (error) {
 	return o.sqlCreate(ctx, tx)
 }
 
+// sqlCreate executes the SQL create action.
 func (o *{{ $entity }}Create) sqlCreate(ctx context.Context, tx dialect.Tx) (error) {
 	var (
 		spec, err = o.createSpec()
@@ -48,6 +49,7 @@ func (o *{{ $entity }}Create) sqlCreate(ctx context.Context, tx dialect.Tx) (err
 	return entitysql.NewCreate(ctx, tx, spec)
 }
 
+// createSpec creates the create action spec. It checks for required fields and sets the returning fields.
 func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 	returning := []entitysql.FieldName{
 		{{- range $i, $field := $.Entity.Fields }}

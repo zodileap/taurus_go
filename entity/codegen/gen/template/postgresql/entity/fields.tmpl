@@ -12,17 +12,20 @@ import "{{ $field.StoragerPkg }}"
 
 
 {{- range $i,$field := $.Entity.Fields }}
+// {{ $field.Name }}Type is {{ $field.Name }} field
 type {{ $field.Name }}Type struct {
 	{{ $field.StoragerType }}
 	config *{{ $entity }}Config
 }
 
+// new{{ $field.Name }}Type creates a new {{ $field.Name }}Type
 func new{{ $field.Name }}Type(c *{{ $entity }}Config) *{{ $field.Name }}Type {
 	t := &{{ $field.Name }}Type{}
 	t.config = c
 	return t
 }
 
+// Set sets the value of {{ $field.Name }} field
 func (t *{{ $field.Name }}Type) Set(v {{ $field.ValueType }}) {
 	t.{{ $field.StoragerOrigType }}.Set(v)
 	if (t.config.State() == entity.Unchanged) {
@@ -31,6 +34,7 @@ func (t *{{ $field.Name }}Type) Set(v {{ $field.ValueType }}) {
 	}
 }
 
+// Get gets the value of {{ $field.Name }} field
 func (t *{{ $field.Name }}Type) Get() *{{ $field.ValueType }} {
 	return t.{{ $field.StoragerOrigType }}.Get()
 }

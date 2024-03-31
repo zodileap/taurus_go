@@ -39,30 +39,40 @@ func (f *{{ $fieldName }}) NEQ({{ $attrName }} {{ .Field.ValueType }}) func(*ent
 	}
 }
 
+// GT returns a function that sets the predicate to check if the field is greater than the given value.
+// Operator ">"
 func (f *{{ $fieldName }}) GT({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.GT(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
 	}
 }
 
+// GTE returns a function that sets the predicate to check if the field is greater than or equal to the given value.
+// Operator ">="
 func (f *{{ $fieldName }}) GTE({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.GTE(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
 	}
 }
 
+// LT returns a function that sets the predicate to check if the field is less than the given value.
+// Operator "<"
 func (f *{{ $fieldName }}) LT({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.LT(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
 	}
 }
 
+// LTE returns a function that sets the predicate to check if the field is less than or equal to the given value.
+// Operator "<="
 func (f *{{ $fieldName }}) LTE({{ $attrName }} {{ .Field.ValueType }}) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.LTE(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
 	}
 }
 
+// In returns a function that sets the predicate to check if the field is in the given values.
+// Operator "IN"
 func (f *{{ $fieldName }}) In({{ $attrName }}s ...{{ .Field.ValueType }}) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		v := make([]any, len({{ $attrName }}s))
@@ -73,6 +83,8 @@ func (f *{{ $fieldName }}) In({{ $attrName }}s ...{{ .Field.ValueType }}) func(*
 	}
 }
 
+// NotIn returns a function that sets the predicate to check if the field is not in the given values.
+// Operator "NOT IN"
 func (f *{{ $fieldName }}) NotIn({{ $attrName }}s ...{{ .Field.ValueType }}) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		v := make([]any, len({{ $attrName }}s))
@@ -83,6 +95,8 @@ func (f *{{ $fieldName }}) NotIn({{ $attrName }}s ...{{ .Field.ValueType }}) fun
 	}
 }
 
+// Like returns a function that sets the predicate to check if the field is like the given value.
+// Operator "LIKE"
 func (f *{{ $fieldName }}) Like({{ $attrName }} string) func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.Like(Field{{ .Field.Name }}.Name.String(), {{ $attrName }})
@@ -91,12 +105,16 @@ func (f *{{ $fieldName }}) Like({{ $attrName }} string) func(*entitysql.Predicat
 
 {{ if not .Field.Required }}
 
+// IsNull returns a function that sets the predicate to check if the field is null.
+// Operator "IS NULL"
 func (f *{{ $fieldName }}) IsNull() func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.IsNull(Field{{ .Field.Name }}.Name.String())
 	}
 }
 
+// NotNull returns a function that sets the predicate to check if the field is not null.
+// Operator "IS NOT NULL"
 func (f *{{ $fieldName }}) NotNull() func(*entitysql.Predicate) {
 	return func(p *entitysql.Predicate) {
 		p.NotNull(Field{{ .Field.Name }}.Name.String())

@@ -6,6 +6,9 @@
 {{ $EntityName := .Entity.Name }}
 
 
+// {{ $BuilderName }} is a builder for the {{ .Entity.Name }} entity.
+//
+// The builder is used to create, update, and delete {{ .Entity.Name }} entities.
 type {{ $BuilderName }} struct {
     config *internal.Config
 	mutations *mutations
@@ -18,6 +21,7 @@ type {{ $BuilderName }} struct {
 	{{- end }}
 }
 
+// New{{ $BuilderName }} creates a new {{ $BuilderName }}.
 func New{{ $BuilderName }}(c *internal.Config, t entity.Tracker) *{{ $BuilderName }} {
 	return &{{ $BuilderName }}{
 		config:  c,
@@ -92,6 +96,7 @@ func (s *{{ $BuilderName }}) initQuery() *{{ .Entity.Name }}Query {
 	return New{{ .Entity.Name }}Query(s.config,s.tracker, s.mutations)
 }
 
+// mutations is a collection of {{ .Entity.Name }} mutation.
 type mutations struct {
 	Detacheds  map[string]*{{ .Entity.Name }}
 	Unchangeds map[string]*{{ .Entity.Name }}
@@ -100,6 +105,7 @@ type mutations struct {
 	Addeds     map[string]*{{ .Entity.Name }}
 }
 
+// newMutations creates a new mutations.
 func newMutations() *mutations {
 	return &mutations{
 		Detacheds:  make(map[string]*{{ .Entity.Name }}),
@@ -110,6 +116,7 @@ func newMutations() *mutations {
 	}
 }
 
+// Get returns all the {{ .Entity.Name }} in the specified state.
 func (ms *mutations) Get(state entity.EntityState) []*{{ .Entity.Name }} {
 	switch state {
 	case entity.Detached:
@@ -146,7 +153,7 @@ func (ms *mutations) Get(state entity.EntityState) []*{{ .Entity.Name }} {
 	return nil
 }
 
-// SetEntityState
+// SetEntityState sets the state of the entity.
 func (ms *mutations) SetEntityState(e *{{ .Entity.Name }}, state entity.EntityState) error {
 	m := e.config.Mutation
 	ms.set(e, state)
@@ -166,6 +173,7 @@ func (ms *mutations) ChangeEntityState(m *entity.Mutation, state entity.EntitySt
 	}
 }
 
+// getEntity returns the entity in the specified state.
 func (ms *mutations) getEntity(m *entity.Mutation) *{{ .Entity.Name }} {
 	key := m.Key()
 	switch m.State() {
@@ -183,7 +191,7 @@ func (ms *mutations) getEntity(m *entity.Mutation) *{{ .Entity.Name }} {
 	return nil
 }
 
-// Set 设置实体的状态。
+// Set sets the entity in the specified state.
 func (ms *mutations) set(e *{{ .Entity.Name }}, state entity.EntityState) {
 	m := e.config.Mutation
 	key := m.Key()
