@@ -287,6 +287,7 @@ func (u *UUID) Required() *UUID {
 //
 //   - index: 主键的索引，从1开始，对于多个主键，需要设置不同大小的索引。
 func (u *UUID) Primary(index int) *UUID {
+	u.desc.Required = true
 	u.desc.Primary = index
 	return u
 }
