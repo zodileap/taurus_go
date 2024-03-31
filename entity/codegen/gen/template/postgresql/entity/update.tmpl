@@ -9,7 +9,7 @@
 
 // {{ $entity }}Update is the update action for the {{ $entity }}.
 type {{ $entity }}Update struct {
-	*internal.Config
+	config *internal.Config
 	ctx *entitysql.QueryContext
 	tracker entity.Tracker
 	es  []*{{ $entity }}
@@ -22,7 +22,7 @@ type {{ $entity }}Update struct {
 // New{{ $entity }}Update creates a new {{ $entity }}Update.
 func New{{ $entity }}Update(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Update {
 	return &{{ $entity }}Update{
-		Config: c,
+		config: c,
 		ctx:    &entitysql.QueryContext{},
 		es:         es,
 		predicates: [][]func(*entitysql.Predicate){},

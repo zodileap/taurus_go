@@ -310,10 +310,6 @@ func (c *Config) load() (*BuilderInfo, error) {
 			}
 		}
 	}
-	// 打印不符合条件的源代码
-	for _, code := range extraCodes {
-		fmt.Println(code)
-	}
 
 	return &BuilderInfo{PkgPath: loadPkg.PkgPath, Module: loadPkg.Module, ExtraCodes: extraCodes}, nil
 }
