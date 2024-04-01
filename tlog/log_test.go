@@ -25,20 +25,15 @@ var testLogData = []testLogStruct{
 	},
 }
 
-func testSetLogger(logger *zap.Logger) {
+func testSetLogger(logger *Logger) {
+	l := logger.logger
 	for _, data := range testLogData {
-		logger.Debug(data.msg, data.fields...)
-		logger.Info(data.msg, data.fields...)
-		logger.Warn(data.msg, data.fields...)
-		logger.Error(data.msg, data.fields...)
-		logger.DPanic(data.msg, data.fields...)
+		l.Debug(data.msg, data.fields...)
+		l.Info(data.msg, data.fields...)
+		l.Warn(data.msg, data.fields...)
+		l.Error(data.msg, data.fields...)
+		l.DPanic(data.msg, data.fields...)
 	}
-}
-
-func TestCreateLogger(t *testing.T) {
-	logger := CreateLogger("test", true)
-
-	testSetLogger(logger)
 }
 
 func TestGetLogger(t *testing.T) {
@@ -48,14 +43,14 @@ func TestGetLogger(t *testing.T) {
 }
 
 func TestSetOutputPath(t *testing.T) {
-	logger := SetOutputPath("test", "./test.log", true)
+	logger := GetLogger("test").SetOutputPath("./test.log", 100, 3, 14)
 
 	testSetLogger(logger)
 }
 
 func TestSetLevel(t *testing.T) {
-	logger := SetLevel("test", zapcore.InfoLevel, true)
+	logger := GetLogger("test").SetLevel(InfoLevel)
 	testSetLogger(logger)
-	logger = SetLevel("test", zapcore.InfoLevel, false)
+	logger = GetLogger("test").SetLevel(InfoLevel)
 	testSetLogger(logger)
 }
