@@ -28,219 +28,275 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-type Logger = zap.Logger
-
-// 日志字段
+// Field 日志字段
 type Field = zapcore.Field
 
-type loggerInfo struct {
-	logger         *Logger
-	consoleEncoder zapcore.Encoder
-	fileEncoder    zapcore.Encoder
-	writerSyncer   zapcore.WriteSyncer
-	level          zapcore.Level
+// String 生成一个字符串类型的Field。
+//
+// Params:
+//
+//   - key: 字段名
+//   - val: 字符串值
+func String(key string, val string) Field {
+	return Field{Key: key, Type: zapcore.StringType, String: val}
 }
 
-/***************  创建、更新logger  ***************/
+// Strings 生成一个字符串切片类型的Field。
+//
+// Params:
+//
+//   - key: 字段名
+//   - ss: 字符串切片
+func Strings(key string, ss []string) Field {
+	return zap.Strings(key, ss)
+}
 
-var loggers = make(map[string]loggerInfo)
+// Int64 生成一个Int64类型的Field。
+//
+// Params:
+//
+//   - key: 字段名
+//   - val: int64值
+func Int64(key string, val int64) Field {
+	return Field{Key: key, Type: zapcore.Int64Type, Integer: val}
+}
+
+// Int 生成一个Int类型的Field。
+//
+// Params:
+//
+//   - key: 字段名
+//   - val: int值
+func Int(key string, val int) Field {
+	return Int64(key, int64(val))
+}
+
+// Duration 生成一个Duration类型的Field。
+//
+// Params:
+//
+//   - key: 字段名
+//   - val: time.Duration值
+func Duration(key string, val time.Duration) Field {
+	return Field{Key: key, Type: zapcore.DurationType, Integer: int64(val)}
+}
+
+// Time 生成一个Time类型的Field。
+//
+// Params:
+//
+//   - key: 字段名
+//   - val: time.Time值
+func Time(key string, val time.Time) Field {
+	return zap.Time(key, val)
+}
+
+// Any 生成一个Any类型的Field。
+//
+// Params:
+//
+//   - key: 字段名
+//   - value: 任意类型的值
+func Any(key string, value interface{}) zapcore.Field {
+	return zap.Any(key, value)
+}
+
+// Reflect 生成一个Reflect类型的Field。
+func Reflect(key string, val interface{}) Field {
+	Print(val)
+	Print(key)
+	// return Field{Key: key, Type: zapcore.ReflectType, Interface: val}
+	return zap.Reflect(key, val)
+}
+
+// Level 日志级别
+type Level = zapcore.Level
+
+const (
+	// DebugLevel debug级别
+	DebugLevel = zapcore.DebugLevel
+	// InfoLevel info级别
+	InfoLevel = zapcore.InfoLevel
+	// WarnLevel warn级别
+	WarnLevel = zapcore.WarnLevel
+	// ErrorLevel error级别
+	ErrorLevel = zapcore.ErrorLevel
+	// DPanicLevel dpanic级别
+	DPanicLevel = zapcore.DPanicLevel
+	// PanicLevel panic级别
+	PanicLevel = zapcore.PanicLevel
+	// FatalLevel fatal级别
+	FatalLevel = zapcore.FatalLevel
+)
+
+// Encoder 日志编码格式
+type Encoder = zapcore.Encoder
+
+// WriteSyncer 日志输出路径
+type WriteSyncer = zapcore.WriteSyncer
+
+// Logger 日志对象
+type Logger struct {
+	logger         *zap.Logger
+	name           string
+	consoleEncoder Encoder
+	fileEncoder    Encoder
+	writerSyncer   WriteSyncer
+	level          Level
+}
+
+var loggers = make(map[string]*Logger)
 
 // 默认输出到控制台
-var defaultWriterSyncer zapcore.WriteSyncer = nil
+var defaultWriterSyncer WriteSyncer = nil
 
 // 默认日志控制台格式
-var defaultConsoleEncoder zapcore.Encoder = getEncoder(true)
+var defaultConsoleEncoder Encoder = getEncoder(true)
 
 // 默认日志文件格式
-var defaultFileEncoder zapcore.Encoder = getEncoder(false)
+var defaultFileEncoder Encoder = getEncoder(false)
 
 // 默认日志级别为debug
 var defaultLevel zapcore.Level = zapcore.DebugLevel
 
-// 获取日志对象
+// GetLogger 获取日志对象，如果获取的对象不存在则新建一个日志对象并返回。
 //
-// 获取已有的日志对象，如果不存在则新建一个日志对象
+// 创建的日志对象默认只输出到控制条，日志级别为Debug。
 //
-// 参数:
+// Params:
+//
 //   - loggerName: 日志对象名称，用于匹配日志
+//
+// Returns:
+//
+//	0: 日志对象。
+//
+// Example:
+//
+//	logger := tlog.GetLogger("api")
 func GetLogger(loggerName string) *Logger {
-	loggerInfo, exits := loggers[loggerName]
-	var logger *Logger
+	logger, exits := loggers[loggerName]
 	if !exits {
-		logger = CreateLogger(loggerName, true)
-	} else {
-		logger = loggerInfo.logger
+		logger = createLogger(loggerName, true)
 	}
 	return logger
 }
 
-// 创建日志对象
+// SetOutputPath 设置日志输出路径，保留除输出路径外的其他设置。
 //
-//	新建一个日志对象，如果已经存在则返回已有的日志对象
+// Params:
 //
-// 参数:
-//   - loggerName: 日志对象名称，用于匹配日志
-func CreateLogger(loggerName string, hasCaller bool) *Logger {
-	// core := zapcore.NewCore(defaultEncoder, defaultWriterSyncer, defaultLevel)
-	logger := setLogger(loggerName, defaultWriterSyncer, defaultConsoleEncoder, defaultFileEncoder, zapcore.DebugLevel, hasCaller)
-	return logger
-}
-
-// 设置日志输出路径
-//
-// 如果日志对象不存在则新建一个日志对象，并对其进行初始化设置
-// 如果日志对象已存在，则保留除输出路径外的其他设置
-//
-// 参数:
-//   - loggerName: 日志对象名称，用于匹配日志
 //   - path: 日志输出路径
-//   - hasCaller: 是否输出调用者信息
-func SetOutputPath(loggerName string, path string, hasCaller bool) *Logger {
-	loggerInfo, ok := loggers[loggerName]
-	var writerSyncer zapcore.WriteSyncer = getLogWriter(path)
-	var consoleEncoder zapcore.Encoder
-	var fileEncoder zapcore.Encoder
-	var level zapcore.Level
-	if !ok {
-		consoleEncoder = defaultConsoleEncoder
-		fileEncoder = defaultFileEncoder
-		level = defaultLevel
-	} else {
-		consoleEncoder = loggerInfo.consoleEncoder
-		fileEncoder = loggerInfo.fileEncoder
-		level = loggerInfo.level
+//   - maxSize: 日志文件大小，单位MB。如果文件超过这个大小会被切割。默认100MB。
+//   - maxBackups: 需要保留的旧日志文件数，默认保留所有旧日志文件，但是maxAge参数还是会导致文件被删除。
+//   - maxAge: 日志文件最大保存天数。
+//
+// Returns:
+//
+//	0: 日志对象。
+//
+// Example:
+//
+//	logger := tlog.GetLogger("api").SetOutputPath("log/api/api.log")
+func (l *Logger) SetOutputPath(path string, maxSize int, maxBackups int, maxAge int) *Logger {
+	if maxSize == 0 {
+		maxSize = 100
 	}
-
-	logger := setLogger(loggerName, writerSyncer, consoleEncoder, fileEncoder, level, hasCaller)
-
-	return logger
+	if maxAge == 0 {
+		maxAge = 7
+	}
+	writerSyncer := getLogWriter(path, maxSize, maxBackups, maxAge)
+	return setLogger(l.name, writerSyncer, l.consoleEncoder, l.fileEncoder, l.level, true)
 }
 
-// 设置日志级别
+// SetLevel 设置日志级别，保留除日志级别外的其他设置。
 //
-// 如果日志对象不存在则新建一个日志对象，并对其进行初始化设置，默认为info级别
-// 如果日志对象已存在，则保留除日志级别外的其他设置
+// Params:
 //
-// 参数:
-//   - loggerName: 日志对象名称，用于匹配日志
 //   - level: 日志级别
-//   - hasCaller: 是否输出调用者信息
-func SetLevel(loggerName string, level zapcore.Level, hasCaller bool) *Logger {
-	loggerInfo, ok := loggers[loggerName]
-	var writerSyncer zapcore.WriteSyncer
-	var consoleEncoder zapcore.Encoder
-	var fileEncoder zapcore.Encoder
-	if !ok {
-		writerSyncer = defaultWriterSyncer
-		consoleEncoder = defaultConsoleEncoder
-		fileEncoder = defaultFileEncoder
-
-	} else {
-		writerSyncer = loggerInfo.writerSyncer
-		consoleEncoder = loggerInfo.consoleEncoder
-		fileEncoder = loggerInfo.fileEncoder
-	}
-	logger := setLogger(loggerName, writerSyncer, consoleEncoder, fileEncoder, level, hasCaller)
-
-	return logger
+//
+// Returns:
+//
+//	0: 日志对象。
+//
+// Example:
+//
+//	logger := tlog.GetLogger("api").SetLevel(tlog.InfoLevel)
+func (l *Logger) SetLevel(level Level) *Logger {
+	return setLogger(l.name, l.writerSyncer, l.consoleEncoder, l.fileEncoder, level, true)
 }
 
-// 设置输出格式
+// SetEncoder 设置输出格式，保留除输出格式外的其他设置。
 //
-// 如果日志对象不存在则新建一个日志对象，并对其进行初始化设置
-// 如果日志对象已存在，则保留除输出格式外的其他设置
+// Params:
 //
-// 参数:
-//   - loggerName: 日志对象名称，用于匹配日志
 //   - consoleEncoder: 控制台输出格式
 //   - fileEncoder: 文件输出格式
-//   - hasCaller: 是否输出调用者信息
-func SetEncoder(loggerName string, consoleEncoder zapcore.Encoder, fileEncoder zapcore.Encoder, hasCaller bool) *Logger {
-	loggerInfo, ok := loggers[loggerName]
-	var writerSyncer zapcore.WriteSyncer
-	var level zapcore.Level
-	if !ok {
-		writerSyncer = defaultWriterSyncer
-		level = defaultLevel
-	} else {
-		writerSyncer = loggerInfo.writerSyncer
-		level = loggerInfo.level
-	}
-	logger := setLogger(loggerName, writerSyncer, consoleEncoder, fileEncoder, level, hasCaller)
-
-	return logger
+//
+// Returns:
+//
+//	0: 日志对象。
+//
+// Example:
+//
+//	 consoleEncoder := zap.NewProductionEncoderConfig()
+//	 consoleEncoder.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+//			enc.AppendString("[\033[36m" + t.Format("2006-01-02 15:04:05.000") + "\033[0m]")
+//	 }
+//	 fileEncoder := zap.NewProductionEncoderConfig()
+//	 fileEncoder.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.000")
+//	 logger := tlog.GetLogger("api").SetEncoder(consoleEncoder, fileEncoder)
+func (l *Logger) SetEncoder(consoleEncoder Encoder, fileEncoder Encoder) *Logger {
+	return setLogger(l.name, l.writerSyncer, consoleEncoder, fileEncoder, l.level, true)
 }
 
-// 设置Caller
-func SetCaller(loggerName string, hasCaller bool) *Logger {
-	loggerInfo, ok := loggers[loggerName]
-	var writerSyncer zapcore.WriteSyncer
-	var consoleEncoder zapcore.Encoder
-	var fileEncoder zapcore.Encoder
-	var level zapcore.Level
-	if !ok {
-		writerSyncer = defaultWriterSyncer
-		consoleEncoder = defaultConsoleEncoder
-		fileEncoder = defaultFileEncoder
-		level = defaultLevel
-	} else {
-		writerSyncer = loggerInfo.writerSyncer
-		consoleEncoder = loggerInfo.consoleEncoder
-		fileEncoder = loggerInfo.fileEncoder
-		level = loggerInfo.level
-	}
-	logger := setLogger(loggerName, writerSyncer, consoleEncoder, fileEncoder, level, hasCaller)
-	return logger
+// SetCaller 设置是否输出Caller信息，保留除输出Caller信息外的其他设置。
+//
+// Params:
+//
+//   - hasCaller: 是否输出Caller信息
+//
+// Returns:
+//
+//	0: 日志对象。
+//
+// Example:
+//
+//	logger := tlog.GetLogger("api").SetCaller(false)
+func (l *Logger) SetCaller(hasCaller bool) *Logger {
+	return setLogger(l.name, l.writerSyncer, l.consoleEncoder, l.fileEncoder, l.level, hasCaller)
 }
 
-/***************  定制化消息 ***************/
-
-// 输出err日志
+// Error 记录一个Error级别的日志。
 //
-// 参数:
-//   - loggerName: 日志对象名称，用于匹配日志
-//   - tracers: 调用堆栈的文件位置信息
-//   - err: 错误信息
-//   - params: 调用参数
-func LogErr(loggerName string, tracers []string, code int, err string, reason string, params ...interface{}) {
-	logger := GetLogger(loggerName)
-	tracersString := strings.Join(tracers, " ===>>> ")
-
-	fields := []Field{
-		String("tracers", tracersString),
-		Int("code", code),
-		String("error", err),
-	}
-
-	if reason != "" {
-		fields = append(fields, String("reason", reason))
-	}
-
-	// 迭代不定参数并添加到日志字段中
-	for i, param := range params {
-		fields = append(fields, Any(fmt.Sprintf("params-%d", i), param))
-	}
-
-	logger.Error(loggerName, fields...)
-}
-
-// 打印输出日志
+// Params:
 //
-// 使用的loggerName为print
-//
-// 如果想要不显示Caller信息，可以使用SetCaller("print", false)
-//
-// 参数:
 //   - msg: 日志内容
+//   - fields: Field类型的可变参数
 //
-// - fields: Field类型的可变参数
+// Example:
 //
-// 示例:
+//	tlog.Error("error",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
+func Error(loggerName string, fields ...Field) {
+	logger := GetLogger(loggerName)
+	logger.logger.Error("", fields...)
+}
+
+// Print 打印输出日志。使用的loggerName为print,print的日志级别为Debug,默认只输出到控制台。
+//
+// 如果想要不显示Caller信息，可以使用tlog.GetLogger("print").SetCaller(false)。
+//
+// 如果需要记录到文件，可以使用tlog.GetLogger("print").SetOutputPath("log/print.log")。
+//
+// Params:
+//
+//   - msg: 日志内容
+//   - fields: Field类型的可变参数
+//
+// Example:
 //
 //	tlog.Print("api",
-//
 //		tlog.Int("code", 321321),
-//
 //	)
 func Print(msg any, fields ...Field) {
 	// 获取调用者的信息
@@ -252,6 +308,20 @@ func Print(msg any, fields ...Field) {
 	console(fmt.Sprint(msg), file, line, fields...)
 }
 
+// Printf 格式化输出日志。使用的loggerName为print,print的日志级别为Debug,默认只输出到控制台。
+//
+// 如果想要不显示Caller信息，可以使用tlog.GetLogger("print").SetCaller(false)。
+//
+// 如果需要记录到文件，可以使用tlog.GetLogger("print").SetOutputPath("log/print.log")。
+//
+// Params:
+//
+//   - format: 格式化字符串
+//   - args: 格式化参数
+//
+// Example:
+//
+//	tlog.Printf("format: %s", "test")
 func Printf(format string, args ...any) {
 	// 获取调用者的信息
 	_, file, line, ok := runtime.Caller(1) // 1 代表上一层的调用堆栈
@@ -262,12 +332,20 @@ func Printf(format string, args ...any) {
 	console(fmt.Sprintf(format, args...), file, line)
 }
 
-// 打印输出日志
+// PrintString 打印字符串。使用的loggerName为print,print的日志级别为Debug,默认只输出到控制台。
 //
-// 使用的loggerName为print
+// 如果想要不显示Caller信息，可以使用tlog.GetLogger("print").SetCaller(false)。
 //
-// 如果想要不显示Caller信息，可以使用SetCaller("print", false)
-func PrintString(s ...string) {
+// 如果需要记录到文件，可以使用tlog.GetLogger("print").SetOutputPath("log/print.log")。
+//
+// Params:
+//
+//   - s: 字符串
+//
+// Example:
+//
+//	tlog.PrintString("print", "a", "message")
+func PrintStrings(s ...string) {
 	msg := strings.Join(s, " ")
 	// 获取调用者的信息
 	_, file, line, ok := runtime.Caller(1) // 1 代表上一层的调用堆栈
@@ -278,49 +356,14 @@ func PrintString(s ...string) {
 	console(msg, file, line)
 }
 
-/***************  Field设置 ***************/
-
-// 获得String类型的Field
-func String(key string, val string) Field {
-	return Field{Key: key, Type: zapcore.StringType, String: val}
-}
-
-func Strings(key string, ss []string) Field {
-	return zap.Strings(key, ss)
-}
-
-// 获得Int64类型的Field
-func Int64(key string, val int64) Field {
-	return Field{Key: key, Type: zapcore.Int64Type, Integer: val}
-}
-
-// 获得Int类型的Field
-func Int(key string, val int) Field {
-	return Int64(key, int64(val))
-}
-
-// 获得Duration类型的Field
-func Duration(key string, val time.Duration) Field {
-	return Field{Key: key, Type: zapcore.DurationType, Integer: int64(val)}
-}
-
-func Time(key string, val time.Time) Field {
-	return zap.Time(key, val)
-}
-
-func Any(key string, value interface{}) zapcore.Field {
-	return zap.Any(key, value)
-}
-
-func Reflect(key string, val interface{}) Field {
-	Print(val)
-	Print(key)
-	// return Field{Key: key, Type: zapcore.ReflectType, Interface: val}
-	return zap.Reflect(key, val)
-}
-
-/***************  私有函数和方法  ***************/
-
+// console 输出到控制台
+//
+// Params:
+//
+//   - msg: 日志内容
+//   - file: 文件名
+//   - line: 行号
+//   - fs: Field类型的可变参数
 func console(msg string, file string, line int, fs ...Field) {
 	logger := GetLogger("print")
 	allFields := make([]Field, 0)
@@ -328,22 +371,35 @@ func console(msg string, file string, line int, fs ...Field) {
 
 	// 将其他 fields 添加到 allFields 切片中
 	allFields = append(allFields, fs...)
-	logger.Debug(msg,
-		allFields...)
+	logger.logger.Debug(msg, allFields...)
 }
 
-// 设置日志对象
+// createLogger 创建日志对象，如果已经存在则返回已有的日志对象
 //
-// 参数:
+// Params:
+//   - loggerName: 日志对象名称，用于匹配日志
+func createLogger(loggerName string, hasCaller bool) *Logger {
+	logger := setLogger(loggerName, defaultWriterSyncer, defaultConsoleEncoder, defaultFileEncoder, zapcore.DebugLevel, hasCaller)
+	return logger
+}
+
+// setLogger 设置日志对象
+//
+// Params:
+//
 //   - loggerName: 日志对象名称，用于匹配日志
 //   - writerSyncer: 日志输出路径
 //   - consoleEncoder: 控制台输出格式
 //   - fileEncoder: 文件输出格式
-func setLogger(loggerName string, writerSyncer zapcore.WriteSyncer, consoleEncoder zapcore.Encoder, fileEncoder zapcore.Encoder, level zapcore.Level, hasCaller bool) *Logger {
+//   - level: 日志级别
+//   - hasCaller: 是否输出调用者信息
+func setLogger(loggerName string, writerSyncer WriteSyncer, consoleEncoder Encoder, fileEncoder Encoder, level Level, hasCaller bool) *Logger {
 	// NOTE:
 	// 不论writerSyncer的设置。默认输出到控制台
 	consoleCore := zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stdout), level)
 	var l *zap.Logger
+	// 如果writerSyncer为nil，则只输出到控制台
+	// 否则同时输出到控制台和文件
 	if writerSyncer == nil {
 		if hasCaller {
 			l = zap.New(zapcore.NewTee(consoleCore), zap.AddCaller())
@@ -359,24 +415,28 @@ func setLogger(loggerName string, writerSyncer zapcore.WriteSyncer, consoleEncod
 		}
 
 	}
-	loggers[loggerName] = loggerInfo{
+
+	logger := &Logger{
+		name:           loggerName,
 		logger:         l,
 		consoleEncoder: consoleEncoder,
 		fileEncoder:    fileEncoder,
 		writerSyncer:   writerSyncer,
 		level:          level,
 	}
-	return l
+	loggers[loggerName] = logger
+	return logger
 
 }
 
-// 获取日志编码格式
+// getEncoder 获取日志编码格式
 //
 // 如果isConsole为true，则返回控制台输出格式;则返回文件输出格式.
 //
-// 参数:
+// Params:
+//
 //   - isConsole: 是否为控制台输出
-func getEncoder(isConsole bool) zapcore.Encoder {
+func getEncoder(isConsole bool) Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
 	encoderConfig.CallerKey = "caller"
@@ -396,16 +456,20 @@ func getEncoder(isConsole bool) zapcore.Encoder {
 
 }
 
-// 获取日志输出路径
+// getLogWriter 把传入的路径实现为一个WriteSyncer。
 //
-// 参数:
+// Params:
+//
 //   - path: 日志输出路径
-func getLogWriter(path string) zapcore.WriteSyncer {
+//   - maxSize: 日志文件大小，单位MB。如果文件超过这个大小会被切割。默认100MB。
+//   - maxBackups: 需要保留的旧日志文件数，默认保留所有旧日志文件，但是maxAge参数还是会导致文件被删除。
+//   - maxAge: 日志文件最大保存天数。
+func getLogWriter(path string, maxSize int, maxBackups int, maxAge int) WriteSyncer {
 	lumberJackLogger := &lumberjack.Logger{
 		Filename:   path,
-		MaxSize:    500, // MB
-		MaxBackups: 3,   // backups
-		MaxAge:     28,  // days
+		MaxSize:    maxSize,    // MB
+		MaxBackups: maxBackups, // backups
+		MaxAge:     maxAge,     // days
 		Compress:   true,
 	}
 	return zapcore.AddSync(lumberJackLogger)
