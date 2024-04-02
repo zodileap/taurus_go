@@ -267,19 +267,186 @@ func (l *Logger) SetCaller(hasCaller bool) *Logger {
 	return setLogger(l.name, l.writerSyncer, l.consoleEncoder, l.fileEncoder, l.level, hasCaller)
 }
 
+// Debug 记录一个Debug级别的日志。
+//
+// Params:
+//
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+func (l *Logger) Debug(msg string, fields ...Field) {
+	l.logger.Debug(msg, fields...)
+}
+
+// Info 记录一个Info级别的日志。
+//
+// Params:
+//
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+func (l *Logger) Info(msg string, fields ...Field) {
+	l.logger.Info(msg, fields...)
+}
+
+// Warn 记录一个Warn级别的日志。
+//
+// Params:
+//
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+func (l *Logger) Warn(msg string, fields ...Field) {
+	l.logger.Warn(msg, fields...)
+}
+
 // Error 记录一个Error级别的日志。
 //
 // Params:
 //
-//   - msg: 日志内容
-//   - fields: Field类型的可变参数
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+func (l *Logger) Error(msg string, fields ...Field) {
+	l.logger.Error(msg, fields...)
+}
+
+// DPanic 记录一个DPanic级别的日志。
+//
+// Params:
+//
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+func (l *Logger) DPanic(msg string, fields ...Field) {
+	l.logger.DPanic(msg, fields...)
+}
+
+// Panic 记录一个Panic级别的日志。
+//
+// Params:
+//
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+func (l *Logger) Panic(msg string, fields ...Field) {
+	l.logger.Panic(msg, fields...)
+}
+
+// Fatal 记录一个Fatal级别的日志。
+//
+// Params:
+//
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+func (l *Logger) Fatal(msg string, fields ...Field) {
+	l.logger.Fatal(msg, fields...)
+}
+
+// Debug 记录一个Debug级别的日志。
+//
+// Params:
+//
+//   - loggerName: 日志对象名称。
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+//
+// Example:
+//
+//	tlog.Debug("debug",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
+func Debug(loggerName string, msg string, fields ...Field) {
+	logger := GetLogger(loggerName)
+	logger.Debug(msg, fields...)
+}
+
+// Info 记录一个Info级别的日志。
+//
+// Params:
+//
+//   - loggerName: 日志对象名称。
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+//
+// Example:
+//
+//	tlog.Info("info",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
+func Info(loggerName string, msg string, fields ...Field) {
+	logger := GetLogger(loggerName)
+	logger.Info(msg, fields...)
+}
+
+// Warn 记录一个Warn级别的日志。
+//
+// Params:
+//
+//   - loggerName: 日志对象名称。
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+//
+// Example:
+//
+//	tlog.Warn("warn",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
+func Warn(loggerName string, msg string, fields ...Field) {
+	logger := GetLogger(loggerName)
+	logger.Warn(msg, fields...)
+}
+
+// Error 记录一个Error级别的日志。
+//
+// Params:
+//
+//   - loggerName: 日志对象名称。
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
 //
 // Example:
 //
 //	tlog.Error("error",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
-func Error(loggerName string, fields ...Field) {
+func Error(loggerName string, msg string, fields ...Field) {
 	logger := GetLogger(loggerName)
-	logger.logger.Error("", fields...)
+	logger.Error(msg, fields...)
+}
+
+// DPanic 记录一个DPanic级别的日志。
+//
+// Params:
+//
+//   - loggerName: 日志对象名称。
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+//
+// Example:
+//
+//	tlog.DPanic("dpanic",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
+func DPanic(loggerName string, msg string, fields ...Field) {
+	logger := GetLogger(loggerName)
+	logger.DPanic(msg, fields...)
+}
+
+// Panic 记录一个Panic级别的日志。
+//
+// Params:
+//
+//   - loggerName: 日志对象名称。
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+//
+// Example:
+//
+//	tlog.Panic("panic",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
+func Panic(loggerName string, msg string, fields ...Field) {
+	logger := GetLogger(loggerName)
+	logger.Panic(msg, fields...)
+}
+
+// Fatal 记录一个Fatal级别的日志。
+//
+// Params:
+//
+//   - loggerName: 日志对象名称。
+//   - msg: 日志内容。
+//   - fields: Field类型的可变参数。
+//
+// Example:
+//
+//	tlog.Fatal("fatal",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
+func Fatal(loggerName string, msg string, fields ...Field) {
+	logger := GetLogger(loggerName)
+	logger.Fatal(msg, fields...)
 }
 
 // Print 打印输出日志。使用的loggerName为print,print的日志级别为Debug,默认只输出到控制台。
