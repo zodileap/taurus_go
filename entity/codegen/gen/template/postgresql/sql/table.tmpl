@@ -46,7 +46,9 @@ BEGIN
         {{- range $i,$field := $entity.Fields }}
         {{- $fieldName := $field.AttrName }}
         IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} AND column_name = '{{ $fieldName }}' ) THEN
-            ALTER TABLE {{ $schema }}.{{ $table }} ADD COLUMN {{ template "init_table_field" $field }};
+            ALTER TABLE {{ $schema }}.{{ $table }} ADD COLUMN {{ template "init_table_field" $field}};
+        ELSE
+            {{ template "update_table_field" dict "Schema" $schema "Table" $table "Field" $field }}
         END IF;
         {{- end }}
         -- Search for the name of any existing primary key constraints. 
@@ -117,4 +119,14 @@ $$;
         {{- $fieldName }} {{ $.AttrType }}
         {{- if $.Required }} NOT NULL {{- end }}
         {{- if $.Default }} DEFAULT {{ $.DefaultValue }} {{- end }}
+{{- end }}
+
+
+{{- define "update_table_field" }}
+{{- $fieldName := printf "%q" $.Field.AttrName }}
+{{- $header := printf "ALTER TABLE %s.%s ALTER COLUMN %s" $.Schema $.Table $fieldName }}
+        {{ if $.Field.Required }}    {{ $header }} SET NOT NULL; {{ else }}    {{ $header }} DROP NOT NULL; {{ end }}
+        {{ if $.Field.Default }}    {{ $header }} SET DEFAULT {{ $.Field.DefaultValue }}; {{ else }}    {{ $header }} DROP DEFAULT; {{ end }}
+        {{- $header }} TYPE {{ $.Field.AttrType }} USING {{ $fieldName }}::{{ $.Field.AttrType }};
+
 {{- end }}
