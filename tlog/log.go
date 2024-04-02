@@ -159,9 +159,9 @@ var defaultFileEncoder Encoder = getEncoder(false)
 // 默认日志级别为debug
 var defaultLevel zapcore.Level = zapcore.DebugLevel
 
-// GetLogger 获取日志对象，如果获取的对象不存在则新建一个日志对象并返回。
+// Get 获取日志对象，如果获取的对象不存在则新建一个日志对象并返回。
 //
-// 创建的日志对象默认只输出到控制条，日志级别为Debug。
+// 创建的日志对象默认只输出到控制条，日志级别为Debug。并且默认关闭Caller信息，如果有需要可以通过SetCaller(true)开启。
 //
 // Params:
 //
@@ -173,11 +173,11 @@ var defaultLevel zapcore.Level = zapcore.DebugLevel
 //
 // Example:
 //
-//	logger := tlog.GetLogger("api")
-func GetLogger(loggerName string) *Logger {
+//	logger := tlog.Get("api")
+func Get(loggerName string) *Logger {
 	logger, exits := loggers[loggerName]
 	if !exits {
-		logger = createLogger(loggerName, true)
+		logger = createLogger(loggerName, false)
 	}
 	return logger
 }
@@ -349,7 +349,7 @@ func (l *Logger) Fatal(msg string, fields ...Field) {
 //
 //	tlog.Debug("debug",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
 func Debug(loggerName string, msg string, fields ...Field) {
-	logger := GetLogger(loggerName)
+	logger := Get(loggerName)
 	logger.Debug(msg, fields...)
 }
 
@@ -365,7 +365,7 @@ func Debug(loggerName string, msg string, fields ...Field) {
 //
 //	tlog.Info("info",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
 func Info(loggerName string, msg string, fields ...Field) {
-	logger := GetLogger(loggerName)
+	logger := Get(loggerName)
 	logger.Info(msg, fields...)
 }
 
@@ -381,7 +381,7 @@ func Info(loggerName string, msg string, fields ...Field) {
 //
 //	tlog.Warn("warn",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
 func Warn(loggerName string, msg string, fields ...Field) {
-	logger := GetLogger(loggerName)
+	logger := Get(loggerName)
 	logger.Warn(msg, fields...)
 }
 
@@ -397,7 +397,7 @@ func Warn(loggerName string, msg string, fields ...Field) {
 //
 //	tlog.Error("error",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
 func Error(loggerName string, msg string, fields ...Field) {
-	logger := GetLogger(loggerName)
+	logger := Get(loggerName)
 	logger.Error(msg, fields...)
 }
 
@@ -413,7 +413,7 @@ func Error(loggerName string, msg string, fields ...Field) {
 //
 //	tlog.DPanic("dpanic",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
 func DPanic(loggerName string, msg string, fields ...Field) {
-	logger := GetLogger(loggerName)
+	logger := Get(loggerName)
 	logger.DPanic(msg, fields...)
 }
 
@@ -429,7 +429,7 @@ func DPanic(loggerName string, msg string, fields ...Field) {
 //
 //	tlog.Panic("panic",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
 func Panic(loggerName string, msg string, fields ...Field) {
-	logger := GetLogger(loggerName)
+	logger := Get(loggerName)
 	logger.Panic(msg, fields...)
 }
 
@@ -445,7 +445,7 @@ func Panic(loggerName string, msg string, fields ...Field) {
 //
 //	tlog.Fatal("fatal",  tlog.String("rquestTime", t.Format("2006-01-02 15:04:05")))
 func Fatal(loggerName string, msg string, fields ...Field) {
-	logger := GetLogger(loggerName)
+	logger := Get(loggerName)
 	logger.Fatal(msg, fields...)
 }
 
@@ -532,7 +532,7 @@ func PrintStrings(s ...string) {
 //   - line: 行号
 //   - fs: Field类型的可变参数
 func console(msg string, file string, line int, fs ...Field) {
-	logger := GetLogger("print")
+	logger := Get("print")
 	allFields := make([]Field, 0)
 	allFields = append(allFields, String("file", fmt.Sprintf("%s:%d", file, line)))
 
@@ -545,6 +545,7 @@ func console(msg string, file string, line int, fs ...Field) {
 //
 // Params:
 //   - loggerName: 日志对象名称，用于匹配日志
+//   - hasCaller: 是否输出调用者信息
 func createLogger(loggerName string, hasCaller bool) *Logger {
 	logger := setLogger(loggerName, defaultWriterSyncer, defaultConsoleEncoder, defaultFileEncoder, zapcore.DebugLevel, hasCaller)
 	return logger

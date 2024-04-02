@@ -37,20 +37,20 @@ func testSetLogger(logger *Logger) {
 }
 
 func TestGetLogger(t *testing.T) {
-	logger := GetLogger("test")
+	logger := Get("test")
 
 	testSetLogger(logger)
 }
 
 func TestSetOutputPath(t *testing.T) {
-	logger := GetLogger("test").SetOutputPath("./test.log", 100, 3, 14)
+	logger := Get("test").SetOutputPath("./test.log", 100, 3, 14)
 
 	testSetLogger(logger)
 }
 
 func TestSetLevel(t *testing.T) {
-	logger := GetLogger("test").SetLevel(InfoLevel)
+	logger := Get("test").SetLevel(InfoLevel)
 	testSetLogger(logger)
-	logger = GetLogger("test").SetLevel(InfoLevel)
+	logger = Get("test").SetLevel(InfoLevel)
 	testSetLogger(logger)
 }
