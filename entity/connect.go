@@ -47,7 +47,7 @@ func GetConnection(tag string) (dialect.Driver, error) {
 	case dialect.PostgreSQL:
 		if conn.IsVerifyCa {
 			dbUrl = fmt.Sprintf(
-				`postgres://%s:%s@%s:%d/%s?sslmode=verify-ca&sslrootcert=%s&sslcert=%s&sslkey=%s`,
+				`postgres://%s:%s@%s:%d/%s?sslmode=verify-full&sslrootcert=%s&sslcert=%s&sslkey=%s`,
 				conn.User,
 				conn.Password,
 				conn.Host,
