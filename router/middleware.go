@@ -26,7 +26,7 @@ func InfoLoggerMiddleware(log *tlog.Logger) gin.HandlerFunc {
 		// 请求后
 		latency := time.Since(t)
 
-		logger := tlog.GetLogger("api")
+		logger := tlog.Get("api")
 		log, exists := c.Get("log")
 		if !exists {
 			logger.Debug("",
