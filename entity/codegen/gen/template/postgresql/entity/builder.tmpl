@@ -30,10 +30,10 @@ func New{{ $BuilderName }}(c *internal.Config, t entity.Tracker) *{{ $BuilderNam
 	}
 }
 
-// New creates a new UserEntity，and add it to the tracker.
+// Create creates a new UserEntity，and add it to the tracker.
 // Required parameters are fields that have no default value but are required, 
 // and options are fields that can be left empty by calling WithFieldName.
-func (b *{{ $BuilderName }}) New({{ joinRequiredFields .Entity.Fields false }} options ...func(*{{$EntityName }})) (*{{$EntityName}} , error) {
+func (b *{{ $BuilderName }}) Create({{ joinRequiredFields .Entity.Fields false }} options ...func(*{{$EntityName }})) (*{{$EntityName}} , error) {
 	e := New(b.config, b.mutations)
 	return e.create({{ joinRequiredFields .Entity.Fields true }} options...)
 }
