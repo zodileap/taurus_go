@@ -741,11 +741,11 @@ func (h *HashTracker) DelAll(key string) error {
 // HashRes Hash类型操作的结果。
 // 同一个键只会有一个HashRes。
 type HashRes struct {
-	// Key 键的名字
+	// Key 键名
 	Key string
-	// Value 字段的值，`Get`,`GetM`,`GetVals`的操作结果的值。
+	// Value 值，`Get`,`GetM`,`GetVals`的操作结果的值。
 	Value []string
-	// MapValue 字段和值的对，GetAll的操作结果的值。
+	// MapValue 键和值的map结构，它一般用于存储GetAll()的操作结果的值。
 	MapValue map[string]string
 	// AddNum 成功添加的数量
 	AddNum int64
