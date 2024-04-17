@@ -13,15 +13,17 @@ var (
 	// Funcs are the predefined template
 	// functions used by the codegen.
 	Funcs = template.FuncMap{
-		"base":            filepath.Base,
-		"dict":            dict,
-		"toLower":         toLower,
-		"toFirstCap":      toFirstCap,
-		"toSnakeCase":     stringutil.ToSnakeCase,
-		"stringReplace":   strings.Replace,
-		"stringHasPrefix": strings.HasPrefix,
-		"sub":             sub,
-		"joinStrings":     joinStrings,
+		"base":             filepath.Base,
+		"dict":             dict,
+		"toLower":          toLower,
+		"toFirstCap":       toFirstCap,
+		"toFirstLower":     toFirstLower,
+		"toSnakeCase":      stringutil.ToSnakeCase,
+		"stringReplace":    strings.Replace,
+		"stringHasPrefix":  strings.HasPrefix,
+		"stringReplaceAll": strings.ReplaceAll,
+		"sub":              sub,
+		"joinStrings":      joinStrings,
 	}
 	acronyms = make(map[string]struct{})
 )
@@ -52,6 +54,10 @@ func toLower(s string) string {
 
 func toFirstCap(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
+}
+
+func toFirstLower(s string) string {
+	return strings.ToLower(s[0:1]) + s[1:]
 }
 
 func sub(a, b int) int {
