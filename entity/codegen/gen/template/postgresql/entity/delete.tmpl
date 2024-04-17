@@ -1,21 +1,21 @@
 {{ define "entity/delete" }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" $entityAttr }}
+{{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Delete is the delete action for the {{ $entity }}.
 type {{ $entity }}Delete struct {
-	config *internal.Config
+	config *internal.Dialect
 	es         []*{{ $entity }}
 	predicates []func(*entitysql.Predicate)
 }
 
 // New{{ $entity }}Delete creates a new {{ $entity }}Delete.
-func New{{ $entity }}Delete(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Delete {
+func New{{ $entity }}Delete(c *internal.Dialect, es ...*{{ $entity }}) *{{ $entity }}Delete {
 	return &{{ $entity }}Delete{
 		config: c,
 		es: es,
@@ -53,7 +53,7 @@ func (o *{{ $entity }}Delete) sqlDelete(ctx context.Context,tx dialect.Tx) error
 }
 
 func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
-	spec := entitysql.NewDeleteSpec(Entity)
+	spec := entitysql.NewDeleteSpec({{ $entityAttr }}.Entity)
 	if ps := o.predicates; len(ps) > 0 {
 		spec.Predicate = func(p *entitysql.Predicate) {
 			for _, f := range ps {
@@ -63,7 +63,7 @@ func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 	}
 	{{- range $i, $f := $.Entity.Fields }}
 		{{- if eq $f.Primary 1 }}
-		pred{{ $f.Name }} := &Pred{{ $f.Name }}{}
+		pred{{ $f.Name }} := &{{ $entityAttr }}.Pred{{ $f.Name }}{}
 		if o.predicates == nil {
 			o.predicates = make([]func(*entitysql.Predicate), 0, len(o.es))
 		}

@@ -1,17 +1,21 @@
 {{ define "entity/query" }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" $entityAttr }}
+{{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Query is the query action for the {{ $entity }}.
 type {{ $entity }}Query struct {
-	config     *{{ $entity }}Config
+	config     *{{ toFirstLower $entity}}Config
 	ctx        *entitysql.QueryContext
 	predicates []func(*entitysql.Predicate)
+	rels 	 []internal.{{ $entity }}Rel
+	order	  []{{ $.Entity.AttrName }}.OrderTerm
+	scanner	[]*internal.QueryScanner
+	scannerTotal int
 }
 
 // First returns the first result of the query.
@@ -24,13 +28,18 @@ func (o *{{ $entity }}Query) First(ctx context.Context) (*{{ $entity }}, error) 
 }
 
 // New{{ $entity }}Query creates a new {{ $entity }}Query.
-func New{{ $entity }}Query(c *internal.Config,t entity.Tracker, ms *mutations) *{{ $entity }}Query {
+func New{{ $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ toFirstLower $entity  }}Mutations) *{{ $entity }}Query {
 	return &{{ $entity }}Query{
-		config: &{{ $entity }}Config{
-			Config:    c,
-			mutations: ms,
+		config: &{{ toFirstLower $entity }}Config{
+			Dialect:    c,
+			{{ toFirstLower $entity }}Mutations: ms,
 		},
 		ctx:    &entitysql.QueryContext{},
+		predicates: []func(*entitysql.Predicate){},
+		rels: []internal.{{ $entity }}Rel{},
+		order: []{{ $.Entity.AttrName }}.OrderTerm{},
+		scanner: []*internal.QueryScanner{},
+		scannerTotal: 0,
 	}
 }
 
@@ -42,6 +51,16 @@ func (o *{{ $entity }}Query) Where(predicates ...func(*entitysql.Predicate)) *{{
 // Limit sets the limit of the query.
 func (o *{{ $entity }}Query) Limit(limit int) *{{ $entity }}Query {
 	o.ctx.Limit = &limit
+	return o
+}
+
+func (o *{{ $entity }}Query) Order(term ...{{ $entityAttr }}.OrderTerm) *{{ $entity }}Query {
+	o.order = append(o.order, term...)
+	return o
+}
+
+func (o *{{ $entity }}Query) Include(rels ...internal.{{ $entity }}Rel) *{{ $entity }}Query {
+	o.rels = append(o.rels, rels...)
 	return o
 }
 
@@ -60,18 +79,29 @@ func (o *{{ $entity }}Query) Single(ctx context.Context) (*{{ $entity }}, error)
 func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ $entity }}, error) {
 	var (
 		spec   = o.querySpec()
-		res  = New(o.config.Config, o.config.mutations)
+		res  = o.config.New()
 	)
-	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
-		return scan(res, fields, rows)
+	switch res := res.(type) {
+	case *{{ $entity }}:
+		spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
+			builder := entitysql.NewScannerBuilder(o.scannerTotal)
+			builder.Append(0,res.scan(fields)...)
+			for _, s := range o.scanner {
+				res.createRel(builder, s)
+			}
+
+			return rows.Scan(builder.Flatten()...)
+		}
+		if err := entitysql.NewQuery(ctx, o.config.Driver, spec); err != nil {
+			return nil, err
+		}
+		if err := res.setUnchanged(); err != nil {
+			return nil, err
+		}
+		return res, nil
+	default:
+		return nil, entity.Err_0100030006
 	}
-	if err := entitysql.NewQuery(ctx, o.config.Driver, spec); err != nil {
-		return nil, err
-	}
-	if err := res.setUnchanged(); err != nil {
-		return nil, err
-	}
-	return res, nil
 }
 
 func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ $entity }}, error) {
@@ -79,13 +109,24 @@ func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ $entity }}, erro
 		spec = o.querySpec()
 		res  = []*{{ $entity }}{}
 	)
-	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
-		e := New(o.config.Config, o.config.mutations)
-		if err := scan(e, fields, rows); err != nil {
-			return err
-		} else {
-			res = append(res, e)
-			return nil
+	spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
+		e := o.config.New()
+		switch e := e.(type) {
+		case *{{ $entity }}:
+			builder := entitysql.NewScannerBuilder(o.scannerTotal + 1)
+			builder.Append(0,e.scan([]entitysql.ScannerField{})...)
+			for _, s := range o.scanner {
+				e.createRel(builder, s)
+			}
+
+			if err := rows.Scan(builder.Flatten()...); err != nil {
+				return err
+			} else {
+				res = merge{{ $entity }}(res, e)
+				return nil
+			}
+		default:
+			return entity.Err_0100030006
 		}
 	}
 	if err := entitysql.NewQuery(ctx, o.config.Driver, spec); err != nil {
@@ -100,7 +141,7 @@ func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ $entity }}, erro
 }
 
 func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
-	s := entitysql.NewQuerySpec(Entity, columns)
+	s := entitysql.NewQuerySpec({{ $entityAttr }}.Entity, {{ $entityAttr }}.Columns)
 	if o.ctx.Limit != nil {
 		s.Limit = *o.ctx.Limit
 	}
@@ -115,7 +156,36 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 			}
 		}
 	}
+	if rs := o.rels; len(rs) > 0 {
+		s.Rels = make([]entitysql.Relation, 0, len(rs))
+		s.Orders = append(s.Orders, {{ $entityAttr }}.ByPrimary)
+		for _, r := range rs {
+			s.Rels = append(s.Rels, func (s *entitysql.Selector)  {
+				o.scanner =  o.addRels(s, s.Table(), r, o.scanner)
+			})
+		}
+	}
+	for _, o := range o.order {
+		s.Orders = append(s.Orders, func (order *entitysql.Order)  {
+			o.Apply(order)
+		})
+	}
 	return s
+}
+
+func (o *{{ $entity }}Query) addRels(s *entitysql.Selector,t *entitysql.SelectTable, rel internal.Rel, scanner []*internal.QueryScanner)  []*internal.QueryScanner {
+	desc, children, config := rel.Desc()
+	join := entitysql.AddRelBySelector(s, t, desc)
+	_, tableNum := join.GetAs()
+	qs := internal.QueryScanner{Config: config,Children: []*internal.QueryScanner{}, TableNum: tableNum}
+	scanner = append(scanner, &qs)
+	o.scannerTotal++
+	if len(children) > 0 {
+		for _, c := range children {
+			qs.Children = o.addRels(s, join, c, qs.Children)
+		}
+	}
+	return scanner
 }
 
 {{ end }}

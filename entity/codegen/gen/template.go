@@ -25,7 +25,7 @@ var (
 	DatabaseTemplates []InstanceTemplate = []InstanceTemplate{
 		{
 			Name:   "database",
-			Format: pkgf("%s.go"),
+			Format: pkgf("d_%s.go"),
 		},
 		{
 			Name:   "sql/table",
@@ -36,11 +36,31 @@ var (
 	EntityTemplates []InstanceTemplate = []InstanceTemplate{
 		{
 			Name:   "entity/builder",
-			Format: pkgf("%s/builder.go"),
+			Format: pkgf("e_%s_builder.go"),
 		},
 		{
 			Name:   "entity/entity",
-			Format: pkgf("%s/entity.go"),
+			Format: pkgf("e_%s_entity.go"),
+		},
+		{
+			Name:   "entity/fields",
+			Format: pkgf("e_%s_fields.go"),
+		},
+		{
+			Name:   "entity/create",
+			Format: pkgf("e_%s_create.go"),
+		},
+		{
+			Name:   "entity/delete",
+			Format: pkgf("e_%s_delete.go"),
+		},
+		{
+			Name:   "entity/query",
+			Format: pkgf("e_%s_query.go"),
+		},
+		{
+			Name:   "entity/update",
+			Format: pkgf("e_%s_update.go"),
 		},
 		{
 			Name: "entity/meta",
@@ -49,28 +69,16 @@ var (
 			},
 		},
 		{
-			Name:   "entity/fields",
-			Format: pkgf("%s/fields.go"),
-		},
-		{
-			Name:   "entity/create",
-			Format: pkgf("%s/create.go"),
-		},
-		{
-			Name:   "entity/delete",
-			Format: pkgf("%s/delete.go"),
-		},
-		{
-			Name:   "entity/query",
-			Format: pkgf("%s/query.go"),
-		},
-		{
-			Name:   "entity/update",
-			Format: pkgf("%s/update.go"),
-		},
-		{
 			Name:   "entity/where",
 			Format: pkgf("%s/where.go"),
+		},
+		{
+			Name:   "entity/order",
+			Format: pkgf("%s/order.go"),
+		},
+		{
+			Name:   "rel/entity",
+			Format: pkgf("rel/%s.go"),
 		},
 	}
 	// InstanceTemplates 内部使用的模版
@@ -78,6 +86,14 @@ var (
 		{
 			Name:   "internal/core",
 			Format: "internal/core.go",
+		},
+		{
+			Name:   "internal/rels",
+			Format: "internal/rels.go",
+		},
+		{
+			Name:   "rel/rel",
+			Format: "rel/rel.go",
 		},
 	}
 	// ExtraCodesTemplates 额外的代码模版
@@ -115,6 +131,7 @@ func initTemplates(builder *Builder, dbType dialect.DbDriver) {
 				"template/postgresql/*.tmpl",
 				"template/postgresql/sql/*.tmpl",
 				"template/postgresql/entity/*.tmpl",
+				"template/rel/*.tmpl",
 			))
 	} else {
 		templates = template.MustParse(template.NewTemplate("templates").
@@ -122,6 +139,7 @@ func initTemplates(builder *Builder, dbType dialect.DbDriver) {
 			ParseFS(templateDir,
 				"template/*.tmpl",
 				"template/internal/*.tmpl",
+				"template/rel/*.tmpl",
 			))
 	}
 

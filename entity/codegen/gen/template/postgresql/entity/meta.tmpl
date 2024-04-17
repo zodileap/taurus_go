@@ -24,7 +24,7 @@ var (
 )
 
 var (
-    columns = []entitysql.FieldName{
+    Columns = []entitysql.FieldName{
         {{- range $field := $.Entity.Fields }}
         Field{{ $field.Name }}.Name,
         {{- end }}

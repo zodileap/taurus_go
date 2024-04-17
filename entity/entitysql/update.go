@@ -68,7 +68,11 @@ func (b *updateBuilder) update(ctx context.Context, drv dialect.Tx) error {
 			return err
 		}
 		for rows.Next() {
-			err := b.Scan(rows, b.Entity.Columns)
+			scanneeFields := make([]ScannerField, len(b.Entity.Columns))
+			for i, column := range b.Entity.Columns {
+				scanneeFields[i] = ScannerField(column)
+			}
+			err := b.Scan(rows, scanneeFields)
 			if err != nil {
 				return err
 			}

@@ -26,25 +26,25 @@ const {{ $db }}Tag = {{ printf "%q" $.Database.Tag}}
 
 // {{ $db }}  is an struct of the database
 type {{ $db }} struct {
-    *internal.Config
+    *internal.Dialect
 	tracker entity.Tracker
     {{- range $key, $entityName := $.Database.EntityMap }}
-		{{ $entity := index $.Database.Entities $entityName }}
-		{{ if $entity.Comment }}
+		{{- $entity := index $.Database.Entities $entityName }}
+		{{- if $entity.Comment }}
 		// {{ $key }}s {{ $entity.Comment }}
 		{{- end }}
-        {{ $key }}s *{{ $entity.AttrName }}.{{ $entityName }}{{ $builder}}
+        {{ $key }}s *{{ $entityName }}{{ $builder}}
     {{- end }}
 }
 
 // New{{ $db }} creates a new {{ $db }} instance.
 func New{{ $db }}() (*{{ $db }}, error) {
-    config, err := internal.NewConfig({{ $db }}Tag)
+    dialect, err := internal.NewDialect({{ $db }}Tag)
 	if err != nil {
 		return nil, err
 	}
 	{{ $lowerDb }} := &{{ $db }}{
-		Config: config,
+		Dialect: dialect,
 		tracker: &entity.Tracking{},
 	}
 	{{ $lowerDb }}.init()
@@ -58,7 +58,7 @@ func (d *{{ $db }}) Close() error {
 
 // Save saves all changes to the database.
 func (d *{{ $db }}) Save(ctx context.Context) error {
-	tx, err := d.Config.MayTx(ctx)
+	tx, err := d.Dialect.MayTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -76,11 +76,44 @@ func (d *{{ $db }}) Save(ctx context.Context) error {
 }
 
 func (d *{{ $db }}) init() {
-    {{- range $key, $entityName := $.Database.EntityMap }}
-		{{- $entity := index $.Database.Entities $entityName }}
-        d.{{ $key }}s = {{ $entity.AttrName }}.New{{ $entity.Name }}{{ $builder}}(d.Config,d.tracker)
-		d.tracker.Add(d.{{ $key }}s)
-    {{- end }}
+{{- range $key, $entityName := $.Database.EntityMap }}
+	{{- $entity := index $.Database.Entities $entityName }}
+	{{ toFirstLower $entity.Name }}Config := new{{ $entity.Name }}Config(d.Dialect)
+{{- end }}
+
+{{- range $key, $entityName := $.Database.EntityMap }}
+	{{- $entity := index $.Database.Entities $entityName }}
+	{{ if gt (len $entity.Relations) 0 }}
+	d.{{ $key }}s = new{{ $entity.Name }}{{ $builder}}(
+		{{ toFirstLower $entity.Name }}Config,
+		d.tracker,
+		{{- range $rel := $entity.Relations }}
+		{{- $res := getEntityRelDirection $rel $entity }}
+		*rel.New{{ $res.Join.Name }}Relation(
+			{{ toFirstLower $res.Join.Name }}Config, 
+			entitysql.RelationDesc{
+				Orders: []entitysql.OrderFunc{
+					{{ $res.Join.AttrName }}.ByPrimary,
+				},
+				To: entitysql.RelationTable{
+					Table: "{{ $res.To.AttrName }}",
+					Field: "{{ $res.To.Field.AttrName }}",
+					Columns: {{ $res.To.AttrName }}.Columns,
+				},
+				Join: entitysql.RelationTable{
+					Table: "{{ $res.Join.AttrName }}",
+					Field: "{{ $res.Join.Field.AttrName }}",
+					Columns: {{ $res.Join.AttrName }}.Columns,
+				},
+			},
+		),
+		{{ end }}
+	)
+	{{ else }}
+	d.{{ $key }}s = new{{ $entity.Name }}{{ $builder}}({{ toFirstLower $entity.Name }}Config,d.tracker)
+	{{ end -}}
+	d.tracker.Add(d.{{ $key }}s)
+{{- end }}
 }
 
 {{ end }}

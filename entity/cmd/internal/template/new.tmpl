@@ -12,11 +12,15 @@ type {{ toFirstCap . }} struct {
     entity.Database
 }
 
-func (d {{ toFirstCap .}}) Config() entity.DbConfig {
+func (d *{{ toFirstCap .}}) Config() entity.DbConfig {
     return entity.DbConfig{
         Tag: "{{.}}",
 		Type: dialect.PostgreSQL,
     }
+}
+
+func (d *{{ toFirstCap .}}) Relationships() []entity.RelationshipBuilder {
+	return []entity.RelationshipBuilder{}
 }
 {{ end }}
 
@@ -42,13 +46,13 @@ type {{ toFirstCap . }}Entity struct {
     entity.Entity
 }
 
-func (e {{ toFirstCap . }}Entity) Config() entity.EntityConfig {
+func (e *{{ toFirstCap . }}Entity) Config() entity.EntityConfig {
 	return entity.EntityConfig{
 		AttrName: "{{ toSnakeCase . }}",
 	}
 }
 
-func (e {{ toFirstCap . }}Entity) Fields() []entity.FieldBuilder {
+func (e *{{ toFirstCap . }}Entity) Fields() []entity.FieldBuilder {
 	return []entity.FieldBuilder{
 	}
 }

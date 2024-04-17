@@ -1,15 +1,15 @@
 {{ define "entity/update" }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" $entityAttr }}
+{{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Update is the update action for the {{ $entity }}.
 type {{ $entity }}Update struct {
-	config *internal.Config
+	config *internal.Dialect
 	ctx *entitysql.QueryContext
 	tracker entity.Tracker
 	es  []*{{ $entity }}
@@ -20,7 +20,7 @@ type {{ $entity }}Update struct {
 }
 
 // New{{ $entity }}Update creates a new {{ $entity }}Update.
-func New{{ $entity }}Update(c *internal.Config, es ...*{{ $entity }}) *{{ $entity }}Update {
+func New{{ $entity }}Update(c *internal.Dialect, es ...*{{ $entity }}) *{{ $entity }}Update {
 	return &{{ $entity }}Update{
 		config: c,
 		ctx:    &entitysql.QueryContext{},
@@ -43,10 +43,11 @@ func (o *{{ $entity }}Update) sqlUpdate(ctx context.Context,tx dialect.Tx) (erro
 	if err != nil {
 		return err
 	}
-	spec.Scan = func(rows dialect.Rows, fields []entitysql.FieldName) error {
+	spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
 		e := res[cursor]
 		cursor++
-		if err := scan(e, fields, rows); err != nil {
+		args := e.scan( fields)
+		if err := rows.Scan(args...); err != nil {
 			return err
 		} else {
 			res = append(res, e)
@@ -57,7 +58,7 @@ func (o *{{ $entity }}Update) sqlUpdate(ctx context.Context,tx dialect.Tx) (erro
 }
 
 func (o *{{ $entity }}Update) updateSpec() (*entitysql.UpdateSpec, error) {
-	spec := entitysql.NewUpdateSpec(Entity, columns)
+	spec := entitysql.NewUpdateSpec({{ $entityAttr }}.Entity, {{ $entityAttr }}.Columns)
 	if len(o.predicates) != len(o.sets) {
 		return nil, entity.Err_0100030005
 	}
@@ -77,7 +78,7 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 		{{- if eq $f.Primary 1 }}
 		{{- $found = true }}
 		{{- $predField = $f.Name }}
-		pred{{ $f.Name }} := &Pred{{ $f.Name }}{}
+		pred{{ $f.Name }} := &{{ $entityAttr }}.Pred{{ $f.Name }}{}
 		{{- end }}
 	{{- end }}
 	{{- if not $found }}
@@ -104,8 +105,8 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 		for _, f := range fields {
 			switch f {
 			{{- range $i, $f := $.Entity.Fields }}
-			case Field{{ $f.Name }}.Name.String():
-				o.sets[index][Field{{ $f.Name }}.Name.String()] = entitysql.CaseSpec{
+			case {{ $entityAttr }}.Field{{ $f.Name }}.Name.String():
+				o.sets[index][{{ $entityAttr }}.Field{{ $f.Name }}.Name.String()] = entitysql.CaseSpec{
 					Value: e.{{ $f.Name }}.Value(),
 					When:  pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()),
 				}
@@ -113,7 +114,8 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 			{{- end }}
 			}
 		}
-		if (o.total+num)/entity.BatchSize > len(o.batchIndex) {
+		batchSize := *(entity.GetConfig().BatchSize)
+		if (o.total+num)/batchSize > len(o.batchIndex) {
 			o.batchIndex = append(o.batchIndex, len(o.predicates))
 		}else{
 			o.batchIndex[len(o.batchIndex)-1] = len(o.predicates)

@@ -1,90 +1,129 @@
 {{ define "entity/builder" }}
-{{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" $entityAttr }}
+{{ $entity := .Entity.Name }}
+{{ $entityAttr := .Entity.AttrName }}
+{{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
-{{ $BuilderName := joinStrings .Entity.Name "Builder" }}
-{{ $EntityName := .Entity.Name }}
+{{ $BuilderName := joinStrings $entity "Builder" }}
 
 
-// {{ $BuilderName }} is a builder for the {{ .Entity.Name }} entity.
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
+{{ template "import/load" $importPkgs }}
+
+// {{ $BuilderName }} is a builder for the {{ $entity }} entity.
 //
-// The builder is used to create, update, and delete {{ .Entity.Name }} entities.
+// The builder is used to create, update, and delete {{ $entity }} entities.
 type {{ $BuilderName }} struct {
-    config *internal.Config
-	mutations *mutations
-    tracker entity.Tracker
+	config *{{ toFirstLower $entity}}Config
+	tracker   entity.Tracker
+
 	{{- range $field :=  .Entity.Fields }}
 	{{ if $field.Comment }}
 	// {{ $field.Name }} {{ $field.Comment }}
 	{{- end }}
-	{{ $field.Name }} Pred{{ $field.Name }}
+	{{ $field.Name }} {{ $.Entity.AttrName }}.Pred{{ $field.Name }}
+	{{- end }}
+
+	{{- range $field :=  .Entity.Fields }}
+	// By{{ $field.Name }} configures the query to sort results based on the '{{ $field.AttrName }}' field of the entity.
+	// Sorting entities in ascending order by default.
+	By{{ $field.Name }} {{ $.Entity.AttrName }}.By{{ $field.Name }}
+	{{- end }}
+	
+	{{- range $relation :=  .Entity.Relations }}
+	{{ $result := getEntityRel $relation $.Entity  }}
+	{{ with $result }} 
+	// {{ toFirstCap $result.Name}} configures the query to include data from the '{{$result.AttrName}}' table.
+	// The method modifies the existing query to include a LEFT JOIN clause.
+	// {{ toFirstCap $result.Name }} be used as an argument to the Include method。
+	{{ toFirstCap $result.Name}} {{ $result.RelType }}
+	{{ end }}
 	{{- end }}
 }
 
-// New{{ $BuilderName }} creates a new {{ $BuilderName }}.
-func New{{ $BuilderName }}(c *internal.Config, t entity.Tracker) *{{ $BuilderName }} {
+// new{{ $BuilderName }} creates a new {{ $BuilderName }}.
+func new{{ $BuilderName }}(c *{{ toFirstLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
 	return &{{ $BuilderName }}{
 		config:  c,
 		tracker: t,
-		mutations: newMutations(),
+		{{ range $relation :=  .Entity.Relations }}
+		{{- $result := getEntityRel $relation $.Entity  }}
+		{{- with $result }} 
+		{{- toFirstCap $result.Name }}: {{ $result.Name }},
+		{{- end }}
+		{{- end }}
 	}
 }
 
 // Create creates a new UserEntity，and add it to the tracker.
 // Required parameters are fields that have no default value but are required, 
 // and options are fields that can be left empty by calling WithFieldName.
-func (b *{{ $BuilderName }}) Create({{ joinRequiredFields .Entity.Fields false }} options ...func(*{{$EntityName }})) (*{{$EntityName}} , error) {
-	e := New(b.config, b.mutations)
-	return e.create({{ joinRequiredFields .Entity.Fields true }} options...)
+func (b *{{ $BuilderName }}) Create({{ joinRequiredFields .Entity.Fields false }} options ...func(*{{$entity }})) (*{{$entity}} , error) {
+	e := b.config.New()
+	switch t := e.(type) {
+	case *{{ $entity }}:
+		return t.create({{ joinRequiredFields .Entity.Fields true }} options...)
+	default:
+		return nil, entity.Err_0100030006
+	}
 }
 
-func (b *{{ $BuilderName }}) Remove(e *{{ $EntityName }}) error {
+func (b *{{ $BuilderName }}) Remove(e *{{ $entity }}) error {
 	if e.config.Mutation == nil {
 		return nil
 	}
 	return e.remove()
 }
 
-// First returns the first {{ .Entity.Name }}.
-func (s *{{ $BuilderName }}) First(ctx context.Context) (*{{ $EntityName }}, error) {
+// First returns the first {{ $entity }}.
+func (s *{{ $BuilderName }}) First(ctx context.Context) (*{{ $entity }}, error) {
 	query := s.initQuery()
 	return query.First(ctx)
 }
 
-func (s *{{ $BuilderName }}) ToList(ctx context.Context) ([]*{{ $EntityName }}, error) {
+func (s *{{ $BuilderName }}) ToList(ctx context.Context) ([]*{{ $entity }}, error) {
 	query := s.initQuery()
 	return query.ToList(ctx)
 }
 
-func (s *{{ $BuilderName }}) Where(conditions ...func(*entitysql.Predicate)) *{{ $EntityName }}Query {
+func (s *{{ $BuilderName }}) Include(rels ...internal.{{ $entity }}Rel) *{{ $entity }}Query {
+	query := s.initQuery()
+	return query.Include(rels...)
+}
+
+func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ $entity }}Query {
+	query := s.initQuery()
+	return query.Order(o...)
+}
+
+func (s *{{ $BuilderName }}) Where(conditions ...func(*entitysql.Predicate)) *{{ $entity }}Query {
 	query := s.initQuery()
 	return query.Where(conditions...)
 }
 
 {{- range $field :=  .Entity.Fields }}
-{{ $info := dict "Field" $field "EntityName" $EntityName "Entity" $.Entity.Name "BuilderName" $BuilderName }}
+{{ $info := dict "Field" $field "EntityName" $entity "Entity" $entity "BuilderName" $BuilderName }}
 {{ template "with_field" $info }}
 {{- end }}
 
-// Exec executes all the mutations for the {{ .Entity.Name }}.
+// Exec executes all the {{ toFirstLower $entity }}Mutations for the {{ $entity }}.
 func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
-	if len(s.mutations.Addeds) > 0 {
-		e := s.mutations.Get(entity.Added)
-		n := New{{ .Entity.Name }}Create(s.config, e...)
+	if len(s.config.{{ toFirstLower $entity }}Mutations.Addeds) > 0 {
+		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Added)
+		n := New{{ $entity }}Create(s.config.Dialect, e...)
 		if err := n.create(ctx, tx); err != nil {
 			return err
 		}
 	}
-	if len(s.mutations.Modifieds) > 0 {
-		e := s.mutations.Get(entity.Modified)
-		n := New{{ .Entity.Name }}Update(s.config, e...)
+	if len(s.config.{{ toFirstLower $entity }}Mutations.Modifieds) > 0 {
+		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Modified)
+		n := New{{ $entity }}Update(s.config.Dialect, e...)
 		if err := n.update(ctx, tx); err != nil {
 			return err
 		}
 	}
-	if len(s.mutations.Deleteds) > 0 {
-		e := s.mutations.Get(entity.Deleted)
-		n := New{{ .Entity.Name }}Delete(s.config, e...)
+	if len(s.config.{{ toFirstLower $entity }}Mutations.Deleteds) > 0 {
+		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Deleted)
+		n := New{{ $entity }}Delete(s.config.Dialect, e...)
 		if err := n.delete(ctx, tx); err != nil {
 			return err
 		}
@@ -92,59 +131,59 @@ func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
 	return nil
 }
 
-func (s *{{ $BuilderName }}) initQuery() *{{ .Entity.Name }}Query {
-	return New{{ .Entity.Name }}Query(s.config,s.tracker, s.mutations)
+func (s *{{ $BuilderName }}) initQuery() *{{ $entity }}Query {
+	return New{{ $entity }}Query(s.config.Dialect, s.tracker, s.config.{{ toFirstLower $entity }}Mutations)
 }
 
-// mutations is a collection of {{ .Entity.Name }} mutation.
-type mutations struct {
-	Detacheds  map[string]*{{ .Entity.Name }}
-	Unchangeds map[string]*{{ .Entity.Name }}
-	Deleteds   map[string]*{{ .Entity.Name }}
-	Modifieds  map[string]*{{ .Entity.Name }}
-	Addeds     map[string]*{{ .Entity.Name }}
+// {{ toFirstLower $entity }}Mutations is a collection of {{ $entity }} mutation.
+type {{ toFirstLower $entity  }}Mutations struct {
+	Detacheds  map[string]*{{ $entity }}
+	Unchangeds map[string]*{{ $entity }}
+	Deleteds   map[string]*{{ $entity }}
+	Modifieds  map[string]*{{ $entity }}
+	Addeds     map[string]*{{ $entity }}
 }
 
-// newMutations creates a new mutations.
-func newMutations() *mutations {
-	return &mutations{
-		Detacheds:  make(map[string]*{{ .Entity.Name }}),
-		Unchangeds: make(map[string]*{{ .Entity.Name }}),
-		Deleteds:   make(map[string]*{{ .Entity.Name }}),
-		Modifieds:  make(map[string]*{{ .Entity.Name }}),
-		Addeds:     make(map[string]*{{ .Entity.Name }}),
+// new{{ .Entity.Name }}Mutations creates a new mutations.
+func new{{ toFirstCap $entity }}Mutations() *{{ toFirstLower $entity }}Mutations {
+	return &{{ toFirstLower $entity }}Mutations{
+		Detacheds:  make(map[string]*{{ $entity }}),
+		Unchangeds: make(map[string]*{{ $entity }}),
+		Deleteds:   make(map[string]*{{ $entity }}),
+		Modifieds:  make(map[string]*{{ $entity }}),
+		Addeds:     make(map[string]*{{ $entity }}),
 	}
 }
 
-// Get returns all the {{ .Entity.Name }} in the specified state.
-func (ms *mutations) Get(state entity.EntityState) []*{{ .Entity.Name }} {
+// Get returns all the {{ $entity }} in the specified state.
+func (ms *{{ toFirstLower $entity  }}Mutations) Get(state entity.EntityState) []*{{ $entity }} {
 	switch state {
 	case entity.Detached:
-		s := make([]*{{ .Entity.Name }}, 0, len(ms.Detacheds))
+		s := make([]*{{ $entity }}, 0, len(ms.Detacheds))
 		for _, m := range ms.Detacheds {
 			s = append(s, m)
 		}
 		return s
 	case entity.Unchanged:
-		s := make([]*{{ .Entity.Name }}, 0, len(ms.Unchangeds))
+		s := make([]*{{ $entity }}, 0, len(ms.Unchangeds))
 		for _, m := range ms.Unchangeds {
 			s = append(s, m)
 		}
 		return s
 	case entity.Deleted:
-		s := make([]*{{ .Entity.Name }}, 0, len(ms.Deleteds))
+		s := make([]*{{ $entity }}, 0, len(ms.Deleteds))
 		for _, m := range ms.Deleteds {
 			s = append(s, m)
 		}
 		return s
 	case entity.Modified:
-		s := make([]*{{ .Entity.Name }}, 0, len(ms.Modifieds))
+		s := make([]*{{ $entity }}, 0, len(ms.Modifieds))
 		for _, m := range ms.Modifieds {
 			s = append(s, m)
 		}
 		return s
 	case entity.Added:
-		s := make([]*{{ .Entity.Name }}, 0, len(ms.Addeds))
+		s := make([]*{{ $entity }}, 0, len(ms.Addeds))
 		for _, m := range ms.Addeds {
 			s = append(s, m)
 		}
@@ -154,7 +193,7 @@ func (ms *mutations) Get(state entity.EntityState) []*{{ .Entity.Name }} {
 }
 
 // SetEntityState sets the state of the entity.
-func (ms *mutations) SetEntityState(e *{{ .Entity.Name }}, state entity.EntityState) error {
+func (ms *{{ toFirstLower $entity  }}Mutations) SetEntityState(e *{{ $entity }}, state entity.EntityState) error {
 	m := e.config.Mutation
 	ms.set(e, state)
 	if err := internal.SetEntityState(m, state); err != nil {
@@ -165,7 +204,7 @@ func (ms *mutations) SetEntityState(e *{{ .Entity.Name }}, state entity.EntitySt
 
 // ChangeEntityState attempts to set the desired entity state,
 // but will not do so if the conditions are not met.
-func (ms *mutations) ChangeEntityState(m *entity.Mutation, state entity.EntityState) {
+func (ms *{{ toFirstLower $entity  }}Mutations) ChangeEntityState(m *entity.Mutation, state entity.EntityState) {
 	e := ms.getEntity(m)
 	ms.set(e, state)
 	if err := internal.SetEntityState(m, state); err != nil {
@@ -174,7 +213,7 @@ func (ms *mutations) ChangeEntityState(m *entity.Mutation, state entity.EntitySt
 }
 
 // getEntity returns the entity in the specified state.
-func (ms *mutations) getEntity(m *entity.Mutation) *{{ .Entity.Name }} {
+func (ms *{{ toFirstLower $entity  }}Mutations) getEntity(m *entity.Mutation) *{{ $entity }} {
 	key := m.Key()
 	switch m.State() {
 	case entity.Detached:
@@ -192,7 +231,7 @@ func (ms *mutations) getEntity(m *entity.Mutation) *{{ .Entity.Name }} {
 }
 
 // Set sets the entity in the specified state.
-func (ms *mutations) set(e *{{ .Entity.Name }}, state entity.EntityState) {
+func (ms *{{ toFirstLower $entity  }}Mutations) set(e *{{ $entity }}, state entity.EntityState) {
 	m := e.config.Mutation
 	key := m.Key()
 	switch m.State() {
@@ -235,4 +274,9 @@ func (s *{{ .BuilderName }}) With{{ .Field.Name }}({{ toLower  .Field.Name }} {{
 }
 {{ end }}
 {{ end }}
+{{ end }}
+
+
+{{ define "builder_rel_filed" }}
+
 {{ end }}

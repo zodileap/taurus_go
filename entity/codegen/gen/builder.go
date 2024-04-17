@@ -21,10 +21,9 @@ type (
 	// Builder 用于生成资源文件的构建器。
 	Builder struct {
 		*Config
-		// Databases 包含了从entity package中加载的所有database。
-		Databases []*load.Database
 		// Nodes是Schema中的database info的集合。
-		Nodes []*DatabaseInfo
+		Nodes     []*DatabaseInfo
+		EntityMap load.EntityMap
 	}
 
 	// Generator 代码生成器接口。
@@ -58,9 +57,12 @@ type (
 //	1: 错误信息。
 func NewBuilder(c *Config, databases ...*load.Database) (s *Builder, err error) {
 	defer catch(&err)
-	s = &Builder{Config: c, Databases: databases}
+	s = &Builder{Config: c, EntityMap: make(load.EntityMap)}
 	for i := range databases {
 		s.addNode(databases[i])
+		for k, v := range databases[i].EntityMap {
+			s.EntityMap[k] = v
+		}
 	}
 	return s, nil
 }

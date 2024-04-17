@@ -6,8 +6,16 @@ import (
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
-// 单条语句，参数的最大数量，以PostgreSQL为标准。
-const BatchSize int = 65535
+func init() {
+	defalutBatchSize := 65535
+	defalutSqlConsole := false
+	defalutSqlLogger := "entity"
+	config = &Config{
+		BatchSize:  &defalutBatchSize,
+		SqlConsole: &defalutSqlConsole,
+		SqlLogger:  &defalutSqlLogger,
+	}
+}
 
 // 和数据库连接相关定义。
 type ConnectionConfig struct {
@@ -54,6 +62,7 @@ type (
 	}
 	DbInterface interface {
 		Config() DbConfig
+		Relationships() []RelationshipBuilder
 	}
 )
 
@@ -132,6 +141,8 @@ type (
 	// 包含了关于字段的描述，配置信息等。
 	// 这个在生成代码时会被调用。
 	Descriptor struct {
+		// EntityName 字段所属的实体表名。这个会在调用Init时被赋值。
+		EntityName string `json:"entity_name,omitempty"`
 		// Name 字段在结构体中的名字，这个会在codegen/load中通过Init被赋值。
 		Name string `json:"name,omitempty"`
 		// AttrName 字段的数据库属性名，
@@ -201,4 +212,153 @@ func NewSequence(name string) Sequence {
 		Start:      &start,
 		Cache:      &cache,
 	}
+}
+
+// RelationshipBuilder 表关系构建器。
+type RelationshipBuilder interface {
+	Init(initDesc *RelationshipDescriptor) error
+	// Descriptor codegen中使用，用于获取字段的描述。
+	Descriptor() *RelationshipDescriptor
+}
+
+// RelationshipDescriptor 表关系描述。
+type RelationshipDescriptor struct {
+	// Has 关联的实体表。
+	Has EntityInterface
+	// With 当前选择的表。
+	With EntityInterface
+	// HasRel 关联的实体表在关联中的关系。
+	HasRel Rel
+	// FromRel 当前选择的表在关联中的关系。
+	WithRel Rel
+	// ForeignKey 外键。
+	ForeignKey FieldBuilder
+	// ReferenceKey 引用键。如果不设置，默认使用实体的主键。如果引用的实体没有主键，会出现Panic。
+	ReferenceKey FieldBuilder
+	// ConstraintName 外键约束名。如果没有设置会默认使用ForeignKey为ConstraintName。Entity在运行时不使用约束名称，它只在生成的sql中使用。
+	ConstraintName string
+	Update         string
+	Delete         string
+}
+
+// Rel is an edge relation type.
+type Rel int
+
+// Relation types.
+const (
+	O Rel = 1
+	M Rel = 2
+	// O2O,One to one / has one.
+	// O<<2 | O = 5
+	O2O Rel = 5
+	// O2M,One to many / has many.
+	// O<<2 | M = 6
+	O2M Rel = 6
+	// M2O,Many to one (inverse perspective for O2M).
+	// M<<2 | O = 9
+	M2O Rel = 9
+	// M2M,Many to many.
+	// M<<2 | M = 10
+	M2M Rel = 10
+)
+
+// RelOpConstraint 是用在外键操作中的约束。
+type RelOpConstraint string
+
+const (
+	// Null 没有设置约束，会使用数据库的默认的约束。
+	Null RelOpConstraint = ""
+	// NoAction 这是默认行为。如果父表中被引用的键被更新/删除，且子表中存在依赖这个键的行，则更新/删除操作会失败。
+	NoAction RelOpConstraint = "NO ACTION"
+	// Restrict 与NoAction类似，但检查是立即进行的。
+	Restrict RelOpConstraint = "RESTRICT"
+	// Cascade 如果父表中的被引用行被更新/删除，子表中依赖这个行的所有行也会被更新/删除，保持外键关系的一致性。
+	Cascade RelOpConstraint = "CASCADE"
+	// SetNull 如果父表中的被引用行被更新/删除，子表中依赖这个行的所有行的外键列会被设置为 NULL。
+	SetNull RelOpConstraint = "SET NULL"
+	// SetDefault 如果父表中的被引用行被更新/删除，子表中依赖这个行的所有行的外键列会被设置为其列定义中的默认值。
+	SetDefault RelOpConstraint = "SET DEFAULT"
+)
+
+// InitRelationship 初始化一个表关系。
+func InitRelationship() *Relationship {
+	r := &Relationship{}
+	initDesc := &RelationshipDescriptor{}
+	r.Init(initDesc)
+	return r
+}
+
+// Relationship 表关系。
+type Relationship struct {
+	desc *RelationshipDescriptor
+}
+
+// Init codegen中使用，用于初始化表关系的描述。
+func (r *Relationship) Init(initDesc *RelationshipDescriptor) error {
+	r.desc = initDesc
+	return nil
+}
+
+// Descriptor codegen中使用，用于获取表关系的描述。
+func (r *Relationship) Descriptor() *RelationshipDescriptor {
+	return r.desc
+}
+
+// ForeignKey 设置外键。
+func (r *Relationship) ForeignKey(f FieldBuilder) *Relationship {
+	r.desc.ForeignKey = f
+	return r
+}
+
+// ReferenceKey 设置引用键。如果不设置，默认使用表的主键。如果引用的表没有主键，会出现Panic。
+func (r *Relationship) ReferenceKey(f FieldBuilder) *Relationship {
+	r.desc.ReferenceKey = f
+	return r
+}
+
+// HasOne 设置当前表在关联中的关系为One。
+func (r *Relationship) HasOne(e EntityInterface) *Relationship {
+	r.desc.Has = e
+	r.desc.HasRel = O
+	return r
+}
+
+// HasMany 设置当前表在关联中的关系为Many。
+func (r *Relationship) HasMany(e EntityInterface) *Relationship {
+	r.desc.Has = e
+	r.desc.HasRel = M
+	return r
+}
+
+// WithOne 设置关联的实体表在关联中的关系为One。
+func (r *Relationship) WithOne(e EntityInterface) *Relationship {
+	r.desc.With = e
+	r.desc.WithRel = O
+	return r
+}
+
+// WithMany 设置关联的实体表在关联中的关系为Many。
+func (r *Relationship) WithMany(e EntityInterface) *Relationship {
+	r.desc.With = e
+	r.desc.WithRel = M
+	return r
+}
+
+// ConstraintName 设置外键约束名。
+// 如果没有设置会默认使用ForeignKey为ConstraintName。Entity在运行时不使用约束名称，它只在生成的sql中使用。
+func (r *Relationship) ConstraintName(name string) *Relationship {
+	r.desc.ConstraintName = name
+	return r
+}
+
+// Update 设置外键更新操作。
+func (r *Relationship) Update(op RelOpConstraint) *Relationship {
+	r.desc.Update = string(op)
+	return r
+}
+
+// Delete 设置外键删除操作。
+func (r *Relationship) Delete(op RelOpConstraint) *Relationship {
+	r.desc.Delete = string(op)
+	return r
 }

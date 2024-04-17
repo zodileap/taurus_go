@@ -10,14 +10,14 @@ import (
 	"github.com/yohobala/taurus_go/entity/entitysql"
 )
 
-type Config struct {
+type Dialect struct {
 	Tag    string
 	Driver dialect.Driver
 }
 
-// NewConfig creates a new Config.
-func NewConfig(tag string) (*Config, error) {
-	c := &Config{
+// NewDialect creates a new Dialect.
+func NewDialect(tag string) (*Dialect, error) {
+	c := &Dialect{
 		Tag:    tag,
 		Driver: nil,
 	}
@@ -28,7 +28,7 @@ func NewConfig(tag string) (*Config, error) {
 	return c, nil
 }
 
-func (c *Config) initDriver() error {
+func (c *Dialect) initDriver() error {
 	driver, err := entity.GetConnection(c.Tag)
 	if err != nil {
 		return err
@@ -37,7 +37,7 @@ func (c *Config) initDriver() error {
 	return nil
 }
 
-func (b *Config) MayTx(ctx context.Context) (dialect.Tx, error) {
+func (b *Dialect) MayTx(ctx context.Context) (dialect.Tx, error) {
 	tx, err := b.Driver.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -83,4 +83,27 @@ func SetEntityState(m *entity.Mutation, state entity.EntityState) error {
 	}
 	return nil
 }
+
+// Entity is the interface that wraps the basic methods for an entity.
+type Entity interface {
+}
+
+// EntityConfig is the interface that wraps the basic methods for an entity config.
+type EntityConfig interface {
+	New () Entity
+	Desc() EntityConfigDesc
+}
+
+// EntityConfigDesc is the entity config description.
+type EntityConfigDesc struct {
+	Name string
+}
+
+// QueryScanner is a struct that contains the configuration of the query scanner.
+type QueryScanner struct {
+	Config EntityConfig
+	Children []*QueryScanner
+	TableNum int
+}
+
 {{ end }}

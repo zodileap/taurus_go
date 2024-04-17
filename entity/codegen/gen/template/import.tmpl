@@ -11,4 +11,9 @@ import "{{ . }}"
 {{ end }}
 
 import "{{ .Package }}/internal"
+import "{{ .Package }}/rel"
+{{ if .Entity }}
+import "{{ .Package }}/{{ .Entity.AttrName }}"
 {{ end }}
+
+{{- end }}

@@ -2,8 +2,11 @@ package entitysql
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/yohobala/taurus_go/tlog"
 )
 
 type (
@@ -18,7 +21,44 @@ type (
 	}
 	// QueryContextKey 用于在context中存储QueryContext。
 	QueryContextKey struct{}
+
+	RelationDesc struct {
+		Orders     []OrderFunc
+		Predicates []func(*Predicate)
+		To         RelationTable
+		Join       RelationTable
+	}
+
+	RelationTable struct {
+		Table   string
+		Field   string
+		Columns []FieldName
+	}
+
+	// Relation 用于生成联表查询。
+	Relation func(*Selector)
 )
+
+func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTable {
+	var (
+		build = NewDialect(s.Dialect())
+	)
+	joinT := build.Table(desc.Join.Table).Schema(s.Table().schema)
+	s.LeftJoin(joinT).On(t.C(desc.To.Field), joinT.C(desc.Join.Field))
+	s.SetSelect(joinT.as, s.Rows(desc.Join.Columns...)...)
+
+	if orders := desc.Orders; len(orders) > 0 {
+		for _, order := range orders {
+			o := O()
+			o.SetDialect(joinT.dialect)
+			o.SetAs(joinT.as)
+			order(o)
+			s.SetOrder(o)
+		}
+	}
+
+	return joinT
+}
 
 // NewQueryContext 将QueryContext添加到context中，并返回一个新的context。
 //
@@ -58,8 +98,11 @@ type QuerySpec struct {
 	Scan Scanner
 	// Limit 限制查询语句返回的记录数。
 	Limit int
-	// Predicate 用于生成查询语句。
+	// Predicate 查询语句的条件，用于生成where子句。
 	Predicate func(*Predicate)
+	// Rels 用于生成联表查询。
+	Rels   []Relation
+	Orders []func(*Order)
 }
 
 // NewQuerySpec 创建一个QuerySpec。
@@ -108,13 +151,18 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 	if err != nil {
 		return err
 	}
+	config := entity.GetConfig()
+	if *(config.SqlConsole) {
+		tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+	}
 	var rows dialect.Rows
 	err = drv.Query(ctx, spec.Query, spec.Args, &rows)
 	if err != nil {
 		return err
 	}
 	for rows.Next() {
-		err := b.Scan(rows, b.Entity.Columns)
+		ScannerFields := make([]ScannerField, len(b.Entity.Columns))
+		err := b.Scan(rows, ScannerFields)
 		if err != nil {
 			return err
 		}
@@ -134,8 +182,9 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 //	0: 选择语句生成器。
 func (b *queryBuilder) selector(ctx context.Context) (*Selector, error) {
 	selector := b.builder.Select()
-	selector.SetFrom(b.Entity.Name)
-	selector.SetSelect(selector.Rows(b.Entity.Columns...)...)
+	t := b.entityBuilder.builder.Table(b.Entity.Name)
+	selector.SetFrom(t)
+	selector.SetSelect(t.as, selector.Rows(b.Entity.Columns...)...)
 	selector.SetContext(ctx)
 	if b.Limit != 0 {
 		selector.SetLimit(b.Limit)
@@ -143,6 +192,20 @@ func (b *queryBuilder) selector(ctx context.Context) (*Selector, error) {
 	if pred := b.Predicate; pred != nil {
 		selector.where = P()
 		pred(selector.where)
+	}
+	if orders := b.Orders; len(orders) > 0 {
+		for _, order := range orders {
+			o := O()
+			o.SetDialect(b.builder.dialect)
+			o.SetAs(t.as)
+			order(o)
+			selector.SetOrder(o)
+		}
+	}
+	if rels := b.Rels; len(rels) > 0 {
+		for _, rel := range rels {
+			rel(selector)
+		}
 	}
 
 	return selector, nil

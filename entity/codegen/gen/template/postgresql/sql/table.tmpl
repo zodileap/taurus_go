@@ -4,6 +4,32 @@
     Catalogs: {{ $.Database.Name }}
     Schema: public
 */
+
+-- ********
+-- Sequence leapnote_tier_id_seq
+-- ********
+DO $$
+BEGIN
+{{ range $key, $entity := $.Database.Entities }}
+{{ $schema := `"public"` }}
+{{- $schemaV := `'public'` }}
+{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
+{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- range $i,$rel := $entity.Relations }}
+IF EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE table_schema = 'public'
+    AND table_name = '{{ $rel.Dependent.AttrName }}'
+    AND constraint_name = '{{ $rel.Desc.Constraint }}'
+) THEN
+    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT "{{ $rel.Desc.Constraint }}";
+END IF;
+{{- end }}
+{{- end }}
+END
+$$;
+
 {{ range $key, $entity := $.Database.Entities }}
 {{ $schema := `"public"` }}
 {{- $schemaV := `'public'` }}
@@ -64,23 +90,6 @@ BEGIN
         IF v_constraint_name IS NOT NULL THEN
             EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name);
         END IF;
-
-        -- Field Comment.
-        -- 字段备注。
-        {{- range $i,$field := $entity.Fields }}
-        {{ if $field.Comment }}COMMENT ON COLUMN {{ $schema }}.{{ $table }}.{{ printf "%q" $field.AttrName }} IS  '{{  $field.Comment }}';{{ end }}
-        {{- end -}}
-
-        {{ if $entity.Comment }}
-
-        -- Table Comment.
-        -- 表备注。
-        COMMENT ON TABLE {{ $schema }}.{{ $table }} IS '{{ $entity.Comment }}';
-        {{- end }}
-        
-        -- Primary Key.
-        -- 主键。
-        ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
     ELSE
         -- If the table does not exist, then create the table.
         -- 如果表不存在，则创建表。
@@ -92,23 +101,34 @@ BEGIN
             {{- end }}
             {{- end }}
         );
-        -- Field Comment.
-        -- 字段备注。
-        {{- range $i,$field := $entity.Fields }}
-        {{ if $field.Comment }}COMMENT ON COLUMN {{ $schema }}.{{ $table }}.{{ printf "%q" $field.AttrName }} IS  '{{  $field.Comment }}';{{ end }}
-        {{- end -}}
-
-        {{ if $entity.Comment }}
-
-        -- Table Comment.
-        -- 表备注。
-        COMMENT ON TABLE {{ $schema }}.{{ $table }} IS '{{ $entity.Comment }}';
-        {{- end }}
-        
-        -- Primary Key.
-        -- 主键。
-        ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies $entity.Fields }});
     END IF;
+    -- Field Comment.
+    -- 字段备注。
+    {{- range $i,$field := $entity.Fields }}
+    {{ if $field.Comment }}COMMENT ON COLUMN {{ $schema }}.{{ $table }}.{{ printf "%q" $field.AttrName }} IS  '{{  $field.Comment }}';{{ end }}
+    {{- end -}}
+
+    {{ if $entity.Comment }}
+    -- Table Comment.
+    -- 表备注。
+    COMMENT ON TABLE {{ $schema }}.{{ $table }} IS '{{ $entity.Comment }}';
+    {{- end }}
+
+    -- Primary Key.
+     -- 主键。
+    ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
+
+    {{ if gt (len $entity.Relations) 0 }}
+    -- Foreign Key.
+    -- 外键。
+    {{- range $i,$rel := $entity.Relations }}
+    {{ if eq $rel.Dependent.AttrName $entity.AttrName }}
+    ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
+    ADD CONSTRAINT {{ $rel.Desc.Constraint }} FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
+    REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
+    {{ end }}
+    {{- end }}
+    {{- end }}
 END
 $$;
 {{ end }}

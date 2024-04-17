@@ -21,6 +21,8 @@ type Builder struct {
 	total int
 	// qualifier 限定符作为标识符（如表名）的前缀。
 	qualifier string
+	// isAs 是否使用别名
+	isAs bool
 }
 
 type (
@@ -47,14 +49,19 @@ const (
 // SELECT * FROM users WHERE age > ? AND name = ?
 type Querier interface {
 	// Query 返回元素的查询表示形式以及与之相关的参数
-	Query() (string, []any)
+	Query() (SqlSpec, error)
 }
 
 // raw 插入不需要要转义的原始字符串。
 type raw struct{ s string }
 
 // Query 返回原始字符串，不需要参数。
-func (r *raw) Query() (string, []any) { return r.s, nil }
+func (r *raw) Query() (SqlSpec, error) {
+	return SqlSpec{
+		Query: r.s,
+		Args:  nil,
+	}, nil
+}
 
 // Raw 返回一个不需要转义的原始字符串
 func Raw(s string) Querier { return &raw{s} }
@@ -463,10 +470,10 @@ func (b *Builder) join(qs []Querier, sep string) *Builder {
 			st.SetDialect(b.dialect)
 			st.SetTotal(b.total)
 		}
-		query, args := q.Query()
-		b.WriteString(query)
-		b.args = append(b.args, args...)
-		b.total += len(args)
+		spec, _ := q.Query()
+		b.WriteString(spec.Query)
+		b.args = append(b.args, spec.Args...)
+		b.total += len(spec.Args)
 	}
 	return b
 }
@@ -543,6 +550,14 @@ func (b *Builder) isIdent(s string) bool {
 	default:
 		return strings.Contains(s, "`")
 	}
+}
+
+// isQualified 检查字符串是否包含限定符。限定符：[.]、["."]、[`.`]
+func (b *Builder) isQualified(s string) bool {
+	ident, pg := b.isIdent(s), b.postgres()
+	return !ident && len(s) > 2 && strings.ContainsRune(s[1:len(s)-1], '.') || // <qualifier>.<column>
+		ident && pg && strings.Contains(s, `"."`) || // "qualifier"."column"
+		ident && !pg && strings.Contains(s, "`.`") // `qualifier`.`column`
 }
 
 // joinReturning 添加RETURNING子句到查询中，MySQL不支持。

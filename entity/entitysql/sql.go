@@ -12,7 +12,37 @@ import (
 )
 
 // Scanner 用于扫描返回的数据。
-type Scanner func(row dialect.Rows, rows []FieldName) error
+type Scanner func(row dialect.Rows, selects []ScannerField) error
+
+type ScannerField interface {
+	String() string
+}
+
+type ScannerBuilder struct {
+	args [][]any
+}
+
+func NewScannerBuilder(length int) *ScannerBuilder {
+	return &ScannerBuilder{
+		args: make([][]any, length),
+	}
+}
+
+func (s *ScannerBuilder) Args() [][]any {
+	return s.args
+}
+
+func (s *ScannerBuilder) Flatten() []any {
+	var args []any
+	for _, a := range s.args {
+		args = append(args, a...)
+	}
+	return args
+}
+
+func (s *ScannerBuilder) Append(index int, args ...any) {
+	s.args[index] = append(s.args[index], args...)
+}
 
 type (
 	// SqlSpec sql语句信息。
@@ -66,6 +96,92 @@ func setColumns(fields []*FieldSpec, set func(column string, value driver.Value)
 	return nil
 }
 
+type TableView interface {
+	// view 是一个标记接口，用于标记一个视图。
+	view()
+	// C 返回序列化的列名。
+	C(string) string
+}
+
+type SelectTable struct {
+	Builder
+	as     string
+	asNum  int
+	name   string
+	schema string
+	quote  bool
+}
+
+// Table 创建一个表。
+func Table(name string) *SelectTable {
+	return &SelectTable{quote: true, name: name}
+}
+
+// Schema 设置模式名称。
+func (s *SelectTable) Schema(name string) *SelectTable {
+	s.schema = name
+	return s
+}
+
+// As 设置别名。
+func (s *SelectTable) As(alias string) *SelectTable {
+	s.as = alias
+	return s
+}
+
+func (s *SelectTable) GetAs() (string, int) {
+	return s.as, s.asNum
+}
+
+// C 返回序列化的列名。
+func (s *SelectTable) C(column string) string {
+	name := s.name
+	if s.as != "" {
+		name = s.as
+	}
+	b := &Builder{dialect: s.dialect}
+	if s.as == "" {
+		b.WriteSchema(s.schema)
+	}
+	b.Ident(name).WriteByte('.').Ident(column)
+	return b.String()
+}
+
+// Columns 返回一个序列号后的列名列表。
+func (s *SelectTable) Columns(columns ...string) []string {
+	names := make([]string, 0, len(columns))
+	for _, c := range columns {
+		names = append(names, s.C(c))
+	}
+	return names
+}
+
+// Unquote 使表名格式化为原始字符串（无引号）。
+// 当不想查询当前数据库下的表时，它非常有用。
+// 例如 在 MySQL 中为 "INFORMATION_SCHEMA.TABLE_CONSTRAINTS"。
+func (s *SelectTable) Unquote() *SelectTable {
+	s.quote = false
+	return s
+}
+
+// ref 返回引用的表名。
+func (s *SelectTable) ref() string {
+	if !s.quote {
+		return s.name
+	}
+	b := &Builder{dialect: s.dialect}
+	b.WriteSchema(s.schema)
+	b.Ident(s.name)
+	if s.as != "" {
+		b.WriteString(" AS ")
+		b.Ident(s.as)
+	}
+	return b.String()
+}
+
+// view 是一个标记接口，用于实现TableView接口。
+func (*SelectTable) view() {}
+
 type (
 	// entityBuilder 实体表的生成器。
 	entityBuilder struct {
@@ -91,6 +207,26 @@ func (b *DialectBuilder) Select() *Selector {
 	return &s
 }
 
+func (b *DialectBuilder) Table(name string) *SelectTable {
+	t := Table(name)
+	t.SetDialect(b.dialect)
+	return t
+}
+
+type join struct {
+	on    *Predicate
+	kind  string
+	table TableView
+}
+
+func (j join) clone() join {
+	if sel, ok := j.table.(*Selector); ok {
+		j.table = sel.Clone()
+	}
+	j.on = j.on.clone()
+	return j
+}
+
 // Rollback 回滚事务。
 func Rollback(tx dialect.Tx, err error) error {
 	if rerr := tx.Rollback(); rerr != nil {
@@ -106,16 +242,25 @@ type (
 	Selector struct {
 		Builder
 		ctx          context.Context
+		as           string
 		limit        *int
 		selectFields []Selection
-		from         []string
+		from         []TableView
 		where        *Predicate
+		order        []*Order
+		joins        []join
+		table        *SelectTable
 	}
 	// Selection 选择的字段。
 	Selection struct {
-		name string
+		name   string
+		entity string
 	}
 )
+
+func (s Selection) String() string {
+	return s.name
+}
 
 // Query 生成一个查询语句。
 //
@@ -125,6 +270,9 @@ type (
 //	1: 查询参数。
 func (s *Selector) Query() (SqlSpec, error) {
 	b := s.Builder.clone()
+	if len(s.from)+len(s.joins) > 1 {
+		b.isAs = true
+	}
 	b.WriteString("SELECT ")
 	if len(s.selectFields) > 0 {
 		s.appendSelect(&b)
@@ -138,20 +286,82 @@ func (s *Selector) Query() (SqlSpec, error) {
 		if i > 0 {
 			b.Comma()
 		}
-		b.WriteString(fmt.Sprintf(`"%s"`, from))
+		switch t := from.(type) {
+		case *SelectTable:
+			t.SetDialect(s.dialect)
+			b.WriteString(t.ref())
+		case *Selector:
+			t.SetDialect(s.dialect)
+			b.Wrap(func(b *Builder) {
+				b.Join(t)
+			})
+			if t.as != "" {
+				b.WriteString(" AS ")
+				b.Ident(t.as)
+			}
+		}
+	}
+	for _, join := range s.joins {
+		b.WriteString(" " + join.kind + " ")
+		switch view := join.table.(type) {
+		case *SelectTable:
+			view.SetDialect(s.dialect)
+			b.WriteString(view.ref())
+		case *Selector:
+			view.SetDialect(s.dialect)
+			b.Wrap(func(b *Builder) {
+				b.Join(view)
+			})
+			b.WriteString(" AS ")
+			b.Ident(view.as)
+		}
+		if join.on != nil {
+			b.WriteString(" ON ")
+			b.Join(join.on)
+		}
 	}
 	if s.where != nil {
 		b.WriteString(" WHERE ")
 		b.Join(s.where)
 	}
-	if len(b.args) > entity.BatchSize {
+	batchSize := *(entity.GetConfig().BatchSize)
+	if len(b.args) > batchSize {
 		return SqlSpec{}, entity.Err_0100030004
 	}
 	if s.limit != nil {
 		b.WriteString(" LIMIT ")
 		b.WriteString(strconv.Itoa(*s.limit))
 	}
+	if s.order != nil && len(s.order) > 0 {
+		b.WriteString(" ORDER BY ")
+		for i, order := range s.order {
+			if i > 0 {
+				b.Comma()
+			}
+			order.Query(&b)
+		}
+	}
 	return SqlSpec{Query: b.String(), Args: b.args}, nil
+}
+
+func (s *Selector) Clone() *Selector {
+	if s == nil {
+		return nil
+	}
+	joins := make([]join, len(s.joins))
+	for i := range s.joins {
+		joins[i] = s.joins[i].clone()
+	}
+	return &Selector{
+		Builder: s.Builder.clone(),
+		ctx:     s.ctx,
+		as:      s.as,
+		from:    s.from,
+		limit:   s.limit,
+		where:   s.where.clone(),
+		joins:   append([]join{}, joins...),
+		order:   append([]*Order{}, s.order...),
+	}
 }
 
 // Rows 返回字段的名称。
@@ -169,6 +379,27 @@ func (s *Selector) Rows(rows ...FieldName) []string {
 		names[i] = string(rows[i])
 	}
 	return names
+}
+
+func (s *Selector) OnP(p *Predicate) *Selector {
+	if len(s.joins) > 0 {
+		join := &s.joins[len(s.joins)-1]
+		switch {
+		case join.on == nil:
+			join.on = p
+		default:
+			join.on = AndPred(join.on, p)
+		}
+	}
+	return s
+}
+
+// On sets the `ON` clause for the `JOIN` operation.
+func (s *Selector) On(c1, c2 string) *Selector {
+	s.OnP(P(func(builder *Builder) {
+		builder.Ident(c1).WriteOp(OpEQ).Ident(c2)
+	}))
+	return s
 }
 
 // SetDialect
@@ -203,16 +434,18 @@ func (s *Selector) SetContext(ctx context.Context) *Selector {
 //
 // Params:
 //
+//   - entity: 实体表的名称。
 //   - rows: 字段的名称。
 //
 // Returns:
 //
 //	0: 选择语句生成器。
-func (s *Selector) SetSelect(rows ...string) *Selector {
-	s.selectFields = make([]Selection, len(rows))
+func (s *Selector) SetSelect(entity string, rows ...string) *Selector {
+	fields := make([]Selection, len(rows))
 	for i := range rows {
-		s.selectFields[i] = Selection{name: rows[i]}
+		fields[i] = Selection{name: rows[i], entity: entity}
 	}
+	s.selectFields = append(s.selectFields, fields...)
 	return s
 }
 
@@ -225,8 +458,35 @@ func (s *Selector) SetSelect(rows ...string) *Selector {
 // Returns:
 //
 //	0: 选择语句生成器。
-func (s *Selector) SetFrom(from string) *Selector {
-	s.from = append(s.from, from)
+func (s *Selector) SetFrom(t TableView) *Selector {
+	s.from = nil
+	return s.AppendFrom(t)
+}
+
+// AppendFrom appends a new TableView to the `FROM` clause.
+func (s *Selector) AppendFrom(t TableView) *Selector {
+	s.from = append(s.from, t)
+	switch view := t.(type) {
+	case *SelectTable:
+		if view.as == "" {
+			view.as, view.asNum = s.getAs()
+		}
+	case *Selector:
+		if view.as == "" {
+			view.as, _ = s.getAs()
+		}
+	}
+	if st, ok := t.(state); ok {
+		st.SetDialect(s.dialect)
+	}
+	if len(s.from) >= 1 {
+		s.table = selectTable(s.from[0])
+	}
+	return s
+}
+
+func (s *Selector) SetOrder(order *Order) *Selector {
+	s.order = append(s.order, order)
 	return s
 }
 
@@ -244,6 +504,50 @@ func (s *Selector) SetLimit(limit int) *Selector {
 	return s
 }
 
+func (s *Selector) LeftJoin(t TableView) *Selector {
+	return s.join("LEFT JOIN", t)
+}
+
+func (s *Selector) C(column string) string {
+	// 跳过已经限定的列
+	if s.isQualified(column) {
+		return column
+	}
+	if s.as != "" {
+		b := &Builder{dialect: s.dialect}
+		b.Ident(s.as)
+		b.WriteByte('.')
+		b.Ident(column)
+		return b.String()
+	}
+	return s.Table().C(column)
+}
+
+func (s *Selector) Table() *SelectTable {
+	if len(s.from) == 0 {
+		return nil
+	}
+	return selectTable(s.from[0])
+}
+
+// selectTable returns a *SelectTable from the given TableView.
+func selectTable(t TableView) *SelectTable {
+	if t == nil {
+		return nil
+	}
+	switch view := t.(type) {
+	case *SelectTable:
+		return view
+	case *Selector:
+		if len(view.from) == 0 {
+			return nil
+		}
+		return selectTable(view.from[0])
+	default:
+		panic(fmt.Sprintf("unexpected TableView %T", t))
+	}
+}
+
 // appendSelect 添加选择的字段。
 //
 // Params:
@@ -254,9 +558,42 @@ func (s *Selector) appendSelect(b *Builder) {
 		if i > 0 {
 			b.Comma()
 		}
+		if b.isAs {
+			b.WriteString(b.Quote(field.entity))
+			b.WriteString(".")
+		}
 		b.WriteString(b.Quote(field.name))
 	}
 }
+
+// join 在selector中添加一个table
+func (s *Selector) join(kind string, t TableView) *Selector {
+	s.joins = append(s.joins, join{
+		kind:  kind,
+		table: t,
+	})
+	switch view := t.(type) {
+	case *SelectTable:
+		if view.as == "" {
+			view.as, view.asNum = s.getAs()
+		}
+	case *Selector:
+		if view.as == "" {
+			view.as, _ = s.getAs()
+
+		}
+	}
+	if st, ok := t.(state); ok {
+		st.SetDialect(s.dialect)
+	}
+	return s
+}
+
+func (s *Selector) getAs() (string, int) {
+	return ("t" + strconv.Itoa(len(s.joins)+len(s.from))), len(s.joins) + len(s.from)
+}
+
+func (*Selector) view() {}
 
 /**************** Inserter 插入语句生成器 ***************/
 
@@ -330,8 +667,9 @@ func (i *Inserter) Insert() ([]SqlSpec, error) {
 		i.setInitialQuery(&b)
 		b.WriteByte('(').IdentComma(i.columns...).WriteByte(')')
 		b.WriteString(" VALUES ")
+		batchSize := *(entity.GetConfig().BatchSize)
 		for j := 0; j < i.rowTotal; j++ {
-			if current+len(i.columns) > entity.BatchSize {
+			if current+len(i.columns) > batchSize {
 				specs = append(specs, SqlSpec{Query: b.String(), Args: b.args})
 				b = i.Builder.new()
 				i.setInitialQuery(&b)
@@ -740,13 +1078,14 @@ func (d *Deleter) Query() ([]SqlSpec, error) {
 	d.setInitialQuery(&b)
 	if d.where != nil {
 		length := d.where.FunsLen()
-		batchNum := length/entity.BatchSize + 1
+		batchSize := *(entity.GetConfig().BatchSize)
+		batchNum := length/batchSize + 1
 		for i := 0; i < batchNum; i++ {
 			b.WriteString(" WHERE ")
-			if length < (i+1)*entity.BatchSize {
-				b.Join(d.where.Clone(i*entity.BatchSize, -1))
+			if length < (i+1)*batchSize {
+				b.Join(d.where.Clone(i*batchSize, -1))
 			} else {
-				b.Join(d.where.Clone(i*entity.BatchSize, (i+1)*entity.BatchSize))
+				b.Join(d.where.Clone(i*batchSize, (i+1)*batchSize))
 			}
 			specs = append(specs, SqlSpec{Query: b.String(), Args: b.args})
 			b = d.Builder.new()
@@ -810,12 +1149,20 @@ type (
 	// Predicate Where子句生成器。
 	Predicate struct {
 		Builder
+		depth int
 		// fns Where子句生成器的函数。
 		fns []func(*Builder)
 	}
 	// PredicateFunc Where子句生成器的函数。
 	PredicateFunc func(p *Predicate)
 )
+
+func AndPred(preds ...*Predicate) *Predicate {
+	p := P()
+	return p.Append(func(b *Builder) {
+		p.mayWrap(preds, b, "AND")
+	})
+}
 
 // P 创建一个Where子句生成器。
 func P(fns ...func(*Builder)) *Predicate {
@@ -848,7 +1195,7 @@ func (p *Predicate) Clone(begin int, end int) *Predicate {
 //
 //	0: 查询中的Where子句。
 //	1: 查询中的参数。
-func (p *Predicate) Query() (string, []any) {
+func (p *Predicate) Query() (SqlSpec, error) {
 	if p.Len() > 0 || len(p.args) > 0 {
 		p.Reset()
 		p.args = nil
@@ -866,7 +1213,10 @@ func (p *Predicate) Query() (string, []any) {
 		}
 		f(&p.Builder)
 	}
-	return p.String(), p.args
+	return SqlSpec{
+		Query: p.String(),
+		Args:  p.args,
+	}, nil
 }
 
 // FunsLen 返回Where子句的长度。
@@ -886,6 +1236,32 @@ func (p *Predicate) FunsLen() int {
 func (p *Predicate) Append(f func(*Builder)) *Predicate {
 	p.fns = append(p.fns, f)
 	return p
+}
+
+func (p *Predicate) mayWrap(preds []*Predicate, b *Builder, op string) {
+	switch n := len(preds); {
+	case n == 1:
+		b.Join(preds[0])
+		return
+	case n > 1 && p.depth != 0:
+		b.WriteByte('(')
+		defer b.WriteByte(')')
+	}
+	for i := range preds {
+		preds[i].depth = p.depth + 1
+		if i > 0 {
+			b.WriteByte(' ')
+			b.WriteString(op)
+			b.WriteByte(' ')
+		}
+		if len(preds[i].fns) > 1 {
+			b.Wrap(func(b *Builder) {
+				b.Join(preds[i])
+			})
+		} else {
+			b.Join(preds[i])
+		}
+	}
 }
 
 // And 添加一个AND标识符。
@@ -1220,6 +1596,13 @@ func (*Predicate) arg(b *Builder, a any) {
 	}
 }
 
+func (p *Predicate) clone() *Predicate {
+	if p == nil {
+		return p
+	}
+	return &Predicate{fns: append([]func(*Builder){}, p.fns...)}
+}
+
 /**************** CASE 批量更新中Set语句生成器 ***************/
 
 type (
@@ -1256,16 +1639,20 @@ func NewCaser(column string, cases []CaseSpec) *Caser {
 //
 //	0: CASE语句。
 //	1: CASE语句的参数。
-func (c *Caser) Query() (string, []any) {
+func (c *Caser) Query() (SqlSpec, error) {
 	if c.Len() > 0 || len(c.args) > 0 {
 		c.Reset()
 		c.args = nil
 	}
 	if len(c.Cases) == 0 {
-		return "", nil
+		return SqlSpec{}, nil
+
 	} else if len(c.Cases) == 1 && c.Cases[0].When == nil {
 		c.arg(c.Cases[0].Value)
-		return c.String(), c.args
+		return SqlSpec{
+			Query: c.String(),
+			Args:  c.args,
+		}, nil
 	} else {
 		c.WriteString("CASE ")
 		for _, cs := range c.Cases {
@@ -1281,7 +1668,11 @@ func (c *Caser) Query() (string, []any) {
 		c.Else()
 		c.WriteString(" END")
 	}
-	return c.String(), c.args
+	return SqlSpec{
+		Query: c.String(),
+		Args:  c.args,
+	}, nil
+
 }
 
 // When 添加一个WHEN条件。
@@ -1345,4 +1736,78 @@ func (c *Caser) arg(a any) {
 	default:
 		c.Builder.Arg(a)
 	}
+}
+
+type (
+	Order struct {
+		OrderOptions
+		Builder
+		Column string
+		// Orders 排序信息。
+	}
+
+	OrderOptions struct {
+		Desc       bool
+		As         string // Optional alias.
+		NullsFirst bool   // Whether to sort nulls first.
+		NullsLast  bool   // Whether to sort nulls last.
+	}
+
+	OrderFunc func(*Order)
+)
+
+func O() *Order {
+	return &Order{}
+}
+
+func (o *Order) Query(b *Builder) {
+	if b.isAs {
+		b.WriteString(b.Quote(o.As))
+		b.WriteString(".")
+	}
+	b.Ident(o.Column)
+	if o.OrderOptions.Desc {
+		b.WriteString(" DESC")
+	}
+	if o.OrderOptions.NullsFirst {
+		b.WriteString(" NULLS FIRST")
+	}
+	if o.OrderOptions.NullsLast {
+		b.WriteString(" NULLS LAST")
+	}
+}
+
+func (o *Order) SetDialect(dialect dialect.DbDriver) *Order {
+	o.dialect = dialect
+	return o
+}
+
+func (o *Order) SetAs(schema string) *Order {
+	o.OrderOptions.As = schema
+	return o
+}
+
+func (o *Order) SetColumn(column string) *Order {
+	o.Column = column
+	return o
+}
+
+func (o *Order) Desc() *Order {
+	o.OrderOptions.Desc = true
+	return o
+}
+
+func (o *Order) Asc() *Order {
+	o.OrderOptions.Desc = false
+	return o
+}
+
+func (o *Order) NullsFirst() *Order {
+	o.OrderOptions.NullsFirst = true
+	return o
+}
+
+func (o *Order) NullsLast() *Order {
+	o.OrderOptions.NullsLast = true
+	return o
 }

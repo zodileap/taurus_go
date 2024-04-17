@@ -1,0 +1,17 @@
+{{ define "internal/rels" }}
+{{ $header := dict "Package" "internal" }}
+{{ template "header" $header }}
+
+import "github.com/yohobala/taurus_go/entity/entitysql"
+
+type Rel interface {
+	Desc() (entitysql.RelationDesc, []Rel, EntityConfig)
+}
+
+{{ range $key,$entityName := .EntityMap }}
+type {{ toFirstCap $entityName }}Rel interface {
+   Rel
+}
+{{ end }}
+
+{{ end }}

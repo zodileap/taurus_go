@@ -1,55 +1,83 @@
 {{ define "entity/entity" }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" $entityAttr }}
+{{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 type {{ $entity }} struct {
-    config      *{{ $entity }}Config
+	internal.Entity
+    config      *{{ toFirstLower $entity}}Config
     {{- range $i,$field := $.Entity.Fields }}
 		{{ if $field.Comment }}
 		// {{ $field.Name }} {{ $field.Comment }}
 		{{- end }}
-        {{ $field.Name }} *{{ $field.Name }}Type
+        {{ $field.Name }} *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }}
     {{- end }}
+
+	{{- range $relation :=  .Entity.Relations }}
+	{{ $result := getEntityRel $relation $.Entity  }}
+	{{ with $result }} 
+	{{ toFirstCap $result.Name}} {{ $result.EntityType }}
+	{{ end }}
+	{{- end }}
 }
 
-// {{ $entity }}Config holds the configuration for the {{ $entity }}.
-type {{ $entity }}Config struct {
-	*mutations
+// {{ toFirstLower $entity}}Config holds the configuration for the {{ $entity }}.
+type {{ toFirstLower $entity}}Config struct {
+	internal.EntityConfig
+	*internal.Dialect
 	*entity.Mutation
-	*internal.Config
+	*{{ toFirstLower $entity }}Mutations
+	name string
+}
+
+func new{{ $entity }}Config(c *internal.Dialect) *{{ toFirstLower $entity}}Config {
+	return &{{ toFirstLower $entity}}Config{
+		Dialect:    c,
+		{{ toFirstLower $entity }}Mutations: new{{ $entity }}Mutations(),
+		name: "{{ $entityAttr }}",
+	}
 }
 
 
 // New creates a new {{ $entity }}, but does not add tracking.
-func New(c *internal.Config, ms *mutations) *{{ $entity }} {
+func (c *{{ toFirstLower $entity}}Config) New() internal.Entity {
 	b := entity.NewMutation(entity.Detached)
 	e := &{{ $entity }}{
-		config: &{{ $entity }}Config{
+		config: &{{ toFirstLower $entity }}Config{
 			Mutation:  b,
-			Config:    c,
-			mutations: ms,
+			Dialect:    c.Dialect,
+			{{ toFirstLower $entity }}Mutations: c.{{ toFirstLower $entity }}Mutations,
 		},
 	}
 	e.setState(entity.Detached)
 	{{- range $i,$field := $.Entity.Fields }}
-		e.{{ $field.Name }} = new{{ $field.Name }}Type(e.config)
+		e.{{ $field.Name }} = new{{ toFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}{{ $field.Name }}(e.config)
 	{{- end }}
 	return e
 }
 
-
+func (c *{{ toFirstLower $entity}}Config) Desc() internal.EntityConfigDesc {
+	return internal.EntityConfigDesc{
+		Name: c.name,
+	}
+}
 
 // String implements the fmt.Stringer interface.
 func (e *{{ $entity }}) String() string {
-    return fmt.Sprintf("{ {{ joinFieldsString .Entity.Fields }} }",
+    return fmt.Sprintf("{ {{ joinFieldsString .Entity.Fields }}{{- range $relation :=  .Entity.Relations }}{{ $result := getEntityRel $relation $.Entity  }}{{ with $result }}, {{ toFirstCap $result.Name}}: %v{{ end }}{{- end }}}",
     {{- range $i,$field := $.Entity.Fields }}
         e.{{ $field.Name }},
     {{- end}}
+	{{- range $relation :=  .Entity.Relations }}
+	{{- $result := getEntityRel $relation $.Entity  }}
+	{{- with $result }}
+		e.{{ toFirstCap $result.Name }},
+	{{- end }}
+	{{- end }}
     )
 }
 
@@ -83,23 +111,93 @@ func (e *{{ $entity }}) setUnchanged() error {
 
 // setState sets the state of the {{ $entity }}.
 func (e *{{ $entity }}) setState(state entity.EntityState) error {
-	return e.config.mutations.SetEntityState(e, state)
+	return e.config.{{ toFirstLower $entity }}Mutations.SetEntityState(e, state)
 }
 
 // scan scans the database for the {{ $entity }}.
-func scan(e *{{ $entity }}, fields []entitysql.FieldName, rows dialect.Rows) error {
-	args := make([]interface{}, len(fields))
-	for i := range fields {
-		switch fields[i] {
-		{{- range $field := $.Entity.Fields }}
-        case Field{{ $field.Name }}.Name:
-            args[i] = e.{{ $field.Name }}
-        {{- end }}
+func (e *{{ $entity }}) scan(fields []entitysql.ScannerField) []any {
+	if len(fields) == 0 {
+		args := make([]any, len({{ $entityAttr }}.Columns))
+		for i, c := range {{ $entityAttr }}.Columns {
+			switch c.String() {
+			{{- range $field := $.Entity.Fields }}
+			case {{ $entityAttr }}.Field{{ $field.Name }}.Name.String():
+				args[i] = e.{{ $field.Name }}
+			{{- end }}
+			}
+		}
+		return args
+	} else{
+		args := make([]any, len(fields))
+		for i := range fields {
+			switch fields[i].String() {
+			{{- range $field := $.Entity.Fields }}
+			case {{ $entityAttr }}.Field{{ $field.Name }}.Name.String():
+				args[i] = e.{{ $field.Name }}
+			{{- end }}
+			}
+		}
+		return args
+	}
+}
+
+func (e *{{ $entity }}) createRel(buidler *entitysql.ScannerBuilder, scanner *internal.QueryScanner) {
+	switch scanner.Config.Desc().Name {
+	{{- range $relation :=  .Entity.Relations }}
+	{{- $result := getEntityRel $relation $.Entity  }}
+	{{- with $result }}
+	{{- $val := toFirstLower $result.Rel.Name }}
+	case "{{ $result.AttrName }}":
+		{{ $val }} := scanner.Config.New().(*{{ $result.Rel.Name }})
+		buidler.Append(scanner.TableNum - 1 , {{ $val }}.scan([]entitysql.ScannerField{})...)
+		{{- if eq $result.Rel.Rel 1 }}
+		e.{{ toFirstCap $result.Name}} = {{ $val }}
+		{{- else if eq $result.Rel.Rel 2 }}
+		e.{{ toFirstCap $result.Name}} = append(e.{{ toFirstCap $result.Name}}, {{ $val}})
+		{{- end }}
+		for _, c := range scanner.Children {
+			{{ $val }}.createRel(buidler, c)
+		}
+	{{- end }}
+	{{- end }}
+	}
+}
+
+func merge{{ $entity }}(es []*{{ $entity }}, e *{{ $entity }}) []*{{ $entity }} {
+	if e == nil{
+		return es
+	}
+	if len(es) == 0 {
+		es = append(es, e)
+	}else{
+		v := es[len(es) - 1]
+		{{ $primaryKey := getPrimaryField .Entity.Fields }}
+		if e.{{ $primaryKey.Name }}.Get() != nil {
+			if v.{{ $primaryKey.Name }}.Get() != nil && *v.{{ $primaryKey.Name }}.Get() == *e.{{ $primaryKey.Name }}.Get() {
+			{{- range $relation :=  .Entity.Relations }}
+			{{- $result := getEntityRel $relation $.Entity  }}
+			{{- with $result }} 
+			{{- if eq $result.Rel.Rel 1 }}
+				{{ $result.AttrName }}s := merge{{ $result.Rel.Name }}([]{{ $result.EntityType }}{v.{{ toFirstCap $result.Name }}}, e.{{ toFirstCap $result.Name }})
+				if len({{ $result.AttrName }}s) > 0 {
+					v.{{ toFirstCap $result.Name }} = {{ $result.AttrName }}s[0]
+				}
+			{{- else if eq $result.Rel.Rel 2 }}
+				for _, {{ $result.AttrName }} := range e.{{ toFirstCap $result.Name }} {
+					{{ $result.AttrName }}s := merge{{ $result.Rel.Name }}(v.{{ toFirstCap $result.Name }}, {{ $result.AttrName }})
+					if len({{ $result.AttrName }}s) > 0 {
+						v.{{ toFirstCap $result.Name }} = {{ $result.AttrName }}s
+					}
+				}
+			{{- end }}
+			{{- end }}
+			{{- end }}
+		}else{
+			es = append(es, e)
 		}
 	}
-	if err := rows.Scan(args...); err != nil {
-		return err
 	}
-	return nil
+	return es
 }
+
 {{ end }}

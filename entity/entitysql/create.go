@@ -150,8 +150,11 @@ func (b *createBuilder) insertLastID(ctx context.Context, insert *Inserter) erro
 				return err
 			}
 			for rows.Next() {
-				tlog.Print("scan")
-				err := b.Scan(rows, b.Returning)
+				ScannerFields := make([]ScannerField, len(b.Returning))
+				for i, name := range b.Returning {
+					ScannerFields[i] = ScannerField(name)
+				}
+				err := b.Scan(rows, ScannerFields)
 				if err != nil {
 					return err
 				}

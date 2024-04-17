@@ -271,6 +271,44 @@ var Err_0100020018 err.ErrCode = err.New(
 	"",
 )
 
+// Err_0100020019 在创建实体关系时，出现依赖字段类型不等于主键字段类型。
+//
+// Verbs:
+//
+//	0: 依赖字段所在的表名。
+//	1: 依赖字段名。
+//	2: 依赖字段类型。
+//	3: 主键字段所在的表名。
+//	4: 主键字段名。
+//	5: 主键字段类型。
+var Err_0100020019 err.ErrCode = err.New(
+	"0100020019",
+	"dependent field%q.%q type %q is not equal to principal field %q.%q type %q",
+	"",
+)
+
+// Err_0100020020 在读取实体时，存在相同AttrName的实体
+//
+// Verbs:
+//
+//	0: 实体的AttrName。
+var Err_0100020020 err.ErrCode = err.New(
+	"0100020020",
+	"entity attrName %q already exists",
+	"",
+)
+
+// Err_0100020021 没有给实体设置主键。
+//
+// Verbs:
+//
+//	0: 实体的结构体名字，不是AttrName。
+var Err_0100020021 err.ErrCode = err.New(
+	"0100020021",
+	"entity %q has no primary key",
+	"",
+)
+
 /**************** CRUD遇到的问题 ***************/
 
 // Err_0100030001 在创建语句中，必填但没有默认值的字段的值为空。
@@ -319,6 +357,13 @@ var Err_0100030004 err.ErrCode = err.New(
 var Err_0100030005 err.ErrCode = err.New(
 	"0100030005",
 	"update set and predicate params count not equal.",
+	"",
+)
+
+// Err_0100030006 创建实体时，遇到错误的实体类型。
+var Err_0100030006 err.ErrCode = err.New(
+	"0100010006",
+	"invalid entity type %T.",
 	"",
 )
 

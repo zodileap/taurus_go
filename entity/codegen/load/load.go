@@ -125,7 +125,7 @@ func (c *Config) Load() (*BuilderInfo, error) {
 		return nil, entity.Err_0100020008.Sprintf(target, err)
 	}
 	// 清理加载文件。
-	defer os.RemoveAll(".gen")
+	// defer os.RemoveAll(".gen")
 	// 运行生成的代码，解析代码输出，得到entity。
 	out, err := cmd.RunGo(target, c.BuildFlags)
 	if err != nil {
@@ -198,7 +198,11 @@ func (c *Config) load() (*BuilderInfo, error) {
 		typ, ok := v.(*types.TypeName)
 		// 如果 v 不是命名类型，或者 k（标识符）不是导出的（即不是公开的），
 		// 或者类型 typ没有实现entityInterface接口，则跳过当前迭代。
-		if !ok || !k.IsExported() || (!types.Implements(typ.Type(), iface) && !types.Implements(typ.Type(), dbIface)) {
+		if !ok || !k.IsExported() ||
+			(!types.Implements(typ.Type(), iface) &&
+				!types.Implements(typ.Type(), dbIface) &&
+				!types.Implements(types.NewPointer(typ.Type()), iface) &&
+				!types.Implements(types.NewPointer(typ.Type()), dbIface)) {
 			continue
 		}
 		// 这里尝试将类型的声明（k.Obj.Decl）断言为 *ast.TypeSpec 类型，这是 Go 语言抽象语法树（AST）中表示类型声明的结构。
@@ -212,22 +216,33 @@ func (c *Config) load() (*BuilderInfo, error) {
 			return nil, entity.Err_0100020013.Sprintf(spec.Type, k.Name)
 		}
 
-		if types.Implements(typ.Type(), iface) {
+		if types.Implements(typ.Type(), iface) || types.Implements(types.NewPointer(typ.Type()), iface) {
 			names = append(names, k.Name)
 			continue
 		}
-		if types.Implements(typ.Type(), dbIface) {
+		if types.Implements(typ.Type(), dbIface) || types.Implements(types.NewPointer(typ.Type()), dbIface) {
 			entities := EntityMap{}
 			// 遍历结构体的每个字段。
 			for _, field := range structType.Fields.List {
 				for _, fieldName := range field.Names {
-					fieldType := loadPkg.TypesInfo.TypeOf(fieldName)
-					if fieldType != nil && types.Implements(fieldType, iface) {
-						// 这里可以处理实现了iface接口的字段
-						if ident, ok := field.Type.(*ast.Ident); ok {
-							entities[fieldName.Name] = ident.Name
-						} else {
-							return nil, entity.Err_0100020014.Sprintf(field.Type, k.Name)
+					var fieldTypeName string
+					if starExpr, ok := field.Type.(*ast.StarExpr); ok {
+						// 如果字段类型是指针类型，获取指针指向的类型的名称
+						if ident, ok := starExpr.X.(*ast.Ident); ok {
+							fieldTypeName = ident.Name
+						}
+					} else if ident, ok := field.Type.(*ast.Ident); ok {
+						// 否则，直接获取字段类型的名称
+						fieldTypeName = ident.Name
+					}
+
+					if fieldTypeName != "" {
+						fieldType := loadPkg.TypesInfo.TypeOf(field.Type)
+						if fieldType != nil {
+							if types.Implements(fieldType, iface) || types.Implements(types.NewPointer(fieldType), iface) {
+								// 如果字段类型或其指针类型实现了接口
+								entities[fieldName.Name] = fieldTypeName
+							}
 						}
 					}
 				}
@@ -261,7 +276,10 @@ func (c *Config) load() (*BuilderInfo, error) {
 					// Type
 					case *ast.TypeSpec:
 						typ := loadPkg.TypesInfo.Defs[s.Name].(*types.TypeName)
-						if s.Name.IsExported() && !types.Implements(typ.Type(), iface) && !types.Implements(typ.Type(), dbIface) {
+						if s.Name.IsExported() && !types.Implements(typ.Type(), iface) &&
+							!types.Implements(typ.Type(), dbIface) &&
+							!types.Implements(types.NewPointer(typ.Type()), iface) &&
+							!types.Implements(types.NewPointer(typ.Type()), dbIface) {
 							shouldAdd = true
 							break
 						}

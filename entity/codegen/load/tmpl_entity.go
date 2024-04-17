@@ -42,22 +42,66 @@ type (
 		ImportPkgs []string
 		// Sequences entity的关联序列
 		Sequences []entity.Sequence
+		// Relations entity的关系
+		Relations []*Relation
 	}
 
 	// Field 表示entity的字段所包含的信息。
 	// 继承了entity.Descriptor
 	Field struct {
 		entity.Descriptor
-		// ValueType 字段的值类型，比如"entity.Int64"的ValueType为"int64"。
-		ValueType    string `json:"value_type,omitempty"`
-		Validators   int    `json:"validators,omitempty"`
+		// ValueType 字段的值在go中对应的类型，比如"entity.Int64"的ValueType为"int64"。
+		ValueType string `json:"value_type,omitempty"`
+		// Validators 字段的验证器数量
+		Validators int `json:"validators,omitempty"`
+		// StoragerType 字段的存储器的类型，这个是字段的作用是关联已经定义的好的存储器。比如field.IntStorage[int16]
 		StoragerType string `json:"storager_type,omitempty"`
-		// StoragerOrigType 获得去除泛型后的名字
+		// StoragerOrigType 字段的存储器去除泛型后的名字，比如field.IntStorage[int16]变成field.IntStorage
 		StoragerOrigType string `json:"storager_orig_type,omitempty"`
-		StoragerPkg      string `json:"storager_pkg,omitempty"`
+		// StoragerPkg 字段的存储器的包路径
+		StoragerPkg string `json:"storager_pkg,omitempty"`
 	}
 
-	// fieldInfo 这个是用于解析字段的类型中Builder和Storager的信息。
+	// Relation 表示entity之间的关系
+	Relation struct {
+		// Desc entity在自定义时的信息
+		Desc RelationDesc
+		// Principal 主体实体
+		Principal RelationEntity
+		// Dependent 依赖实体
+		Dependent RelationEntity
+	}
+
+	// RelationEntity 存储有关系的entity的信息
+	RelationEntity struct {
+		Name string `json:"name,omitempty"`
+		// AttrName entity的属性名称
+		AttrName string `json:"attr_name,omitempty"`
+		Field    *Field
+		Rel      entity.Rel
+	}
+
+	// RelationDesc 表示entity之间的关系的描述，
+	// 不用entity.RelationshipDescriptor是因为entity.RelationshipDescriptor有一些字段是接口类型，
+	// 在序列化时会产生异常。
+	RelationDesc struct {
+		Has          Entity
+		With         Entity
+		HasRel       entity.Rel
+		WithRel      entity.Rel
+		ForeignKey   Field
+		ReferenceKey Field
+		Constraint   string
+		Update       string
+		Delete       string
+	}
+
+	// entityInfo 这个是用于解析字段的类型中Builder和Storager的信息。
+	entityInfo struct {
+		field *fieldInfo
+	}
+
+	// fieldInfo entiy中字段的信息
 	fieldInfo struct {
 		Builder  entity.FieldBuilder
 		Storager fieldInfoStorager
@@ -100,22 +144,22 @@ func MarshalEntity(ei entity.EntityInterface) (ent *Entity, err error) {
 	if config.AttrName != "" {
 		entityName = config.AttrName
 	} else {
-		// 利用反射获取entity的名称
-		entityName = indirect(reflect.TypeOf(ei)).Name()
+		panic("entity must set AttrName in Config() method")
 	}
 	ent = &Entity{
 		Name: indirect(reflect.TypeOf(ei)).Name(),
 		// 利用反射获取entity的名称
-		AttrName:   entityName,
-		Comment:    config.Comment,
-		Config:     config,
-		ImportPkgs: ImportPkgs,
+		AttrName: entityName,
+		Comment:  config.Comment,
+		Config:   config,
 	}
 	ImportPkgs = []string{}
 	// 加载entity的字段，调用[entity.EntityInterface]的Fields()方法
-	if err := ent.loadFields(ei); err != nil {
+	if err := ent.loadEntity(ei); err != nil {
 		return nil, entity.Err_0100020018.Sprintf(ent.Name, err)
 	}
+
+	ent.ImportPkgs = ImportPkgs
 	return ent, nil
 }
 
@@ -136,13 +180,156 @@ func Unmarshal(b []byte) (*Database, error) {
 	return s, nil
 }
 
-// loadFields 从entity.EntityInterface中使用Fields()方法加载字段信息。
+// loadRelationship 加载entity的关系。这个用于确定entity之间的关系，并在entity中添加关系。
+func (db *Database) loadRelationship(di entity.DbInterface) (err error) {
+	rels, err := checkRelationships(di)
+	if err != nil {
+		return err
+	}
+	var rs []Relation
+	for _, r := range rels {
+		var err error
+		desc := r.Descriptor()
+		err = checkRelationDescriptor(desc)
+		if err != nil {
+			return err
+		}
+		rel := desc.WithRel<<2 | desc.HasRel
+		var principal entity.EntityInterface
+		var dependent entity.EntityInterface
+		var principalEntity *Entity
+		var dependentEntity *Entity
+		var principalField *Field
+		var dependentField *Field
+		var principalRel entity.Rel
+		var dependentRel entity.Rel
+		if rel == entity.M2O {
+			principal = desc.Has
+			principalRel = desc.HasRel
+			dependent = desc.With
+			dependentRel = desc.WithRel
+		} else {
+			principal = desc.With
+			principalRel = desc.WithRel
+			dependent = desc.Has
+			dependentRel = desc.HasRel
+		}
+		principalEntity, err = db.extractEntity(principal)
+		if err != nil {
+			return err
+		}
+		dependentEntity, err = db.extractEntity(dependent)
+		if err != nil {
+			return err
+		}
+		dependentField, err = db.extractRelField(desc.ForeignKey, dependent)
+		if err != nil {
+			return err
+		}
+		principalField, err = db.extractRelField(desc.ReferenceKey, principal)
+		if err != nil {
+			return err
+		}
+		if (dependentField.StoragerType != principalField.StoragerType) || (dependentField.StoragerPkg != principalField.StoragerPkg) {
+			// 输出两个字段的类型不一致的提示
+			return entity.Err_0100020019.Sprintf(dependentField.EntityName, dependentField.Name, dependentField.StoragerType, principalField.EntityName, principalField.Name, principalField.StoragerType)
+		}
+
+		r := Relation{
+			Principal: RelationEntity{
+				Name:     principalEntity.Name,
+				AttrName: principalEntity.AttrName,
+				Field:    principalField,
+				Rel:      principalRel,
+			},
+			Dependent: RelationEntity{
+				Name:     dependentEntity.Name,
+				AttrName: dependentEntity.AttrName,
+				Field:    dependentField,
+				Rel:      dependentRel,
+			},
+			Desc: RelationDesc{
+				Has:          *principalEntity,
+				With:         *dependentEntity,
+				HasRel:       desc.HasRel,
+				WithRel:      desc.WithRel,
+				ForeignKey:   *dependentField,
+				ReferenceKey: *principalField,
+				Constraint:   desc.ConstraintName,
+				Update:       desc.Update,
+				Delete:       desc.Delete,
+			},
+		}
+		rs = append(rs, r)
+	}
+	err = db.addRelationship(rs)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// addRelationship 添加关系。把关系添加到依赖实体中，因为生成的sql语句是在依赖实体中生成的。
+func (db *Database) addRelationship(rs []Relation) error {
+	entities := db.Entities
+	for _, e := range entities {
+		for _, r := range rs {
+			r := r
+			if e.AttrName == r.Dependent.AttrName {
+				for _, er := range e.Relations {
+					if er.Principal.AttrName == r.Principal.AttrName {
+						return fmt.Errorf("relationship already exists principal entity %q,dependent entity %q %v", r.Principal.AttrName, r.Dependent.AttrName, er)
+					}
+				}
+				e.Relations = append(e.Relations, &r)
+			} else if e.AttrName == r.Principal.AttrName {
+				for _, er := range e.Relations {
+					if er.Dependent.AttrName == r.Dependent.AttrName {
+						return fmt.Errorf("relationship already exists principal entity %q,dependent entity %q %v", r.Principal.AttrName, r.Dependent.AttrName, er)
+					}
+				}
+				e.Relations = append(e.Relations, &r)
+			}
+		}
+	}
+	return nil
+}
+
+// extractRelField 从entity中提取关系字段。会判断字段是否为空，如果是空的会寻找实体的主键字段。
+func (db *Database) extractRelField(r entity.FieldBuilder, e entity.EntityInterface) (*Field, error) {
+	entities := db.Entities
+	for _, _e := range entities {
+		if _e.AttrName == e.Config().AttrName {
+			for _, f := range _e.Fields {
+				if r != nil && f.Name == r.Descriptor().Name {
+					return f, nil
+				} else if r == nil && f.Primary == 1 {
+					return f, nil
+				}
+			}
+		}
+
+	}
+	return nil, fmt.Errorf("not found field %s", r.Descriptor().Name)
+}
+
+func (db *Database) extractEntity(e entity.EntityInterface) (*Entity, error) {
+	entities := db.Entities
+	for _, _e := range entities {
+		if _e.AttrName == e.Config().AttrName {
+			return _e, nil
+		}
+	}
+	return nil, fmt.Errorf("not found entity %s", e.Config().AttrName)
+}
+
+// loadEntity 从entity.EntityInterface中加载Schema定义的entity信息。
 //
 // Params:
 //
 //   - ei: 实现了entity.EntityInterface的entity。
-func (e *Entity) loadFields(ei entity.EntityInterface) error {
-	fields, err := initFields(ei)
+func (e *Entity) loadEntity(ei entity.EntityInterface) error {
+	entityInfos, err := e.initEntity(ei)
 	if err != nil {
 		return err
 	}
@@ -150,24 +337,36 @@ func (e *Entity) loadFields(ei entity.EntityInterface) error {
 	if err != nil {
 		return err
 	}
-	for _, f := range fields {
-		sf, err := newField(f.Builder, f.Builder.Descriptor())
-		if err != nil {
-			return err
+	for _, f := range entityInfos {
+		if f.field != nil {
+			sf, err := newField(f.field.Builder, f.field.Builder.Descriptor())
+			if err != nil {
+				return err
+			}
+			if sf.Sequence.Name != nil {
+				e.Sequences = append(e.Sequences, sf.Sequence)
+			}
+			sf.StoragerPkg = f.field.Storager.Pkg
+			sf.StoragerType = f.field.Storager.Type
+			sf.StoragerOrigType = f.field.Storager.OrigType
+			e.Fields = append(e.Fields, sf)
 		}
-		if sf.Sequence.Name != nil {
-			e.Sequences = append(e.Sequences, sf.Sequence)
+	}
+	// 判断一些值是否符合要求
+	var hasPrimary bool
+	for _, f := range e.Fields {
+		if f.Primary >= 1 {
+			hasPrimary = true
 		}
-		sf.StoragerPkg = f.Storager.Pkg
-		sf.StoragerType = f.Storager.Type
-		sf.StoragerOrigType = f.Storager.OrigType
-		e.Fields = append(e.Fields, sf)
+	}
+	if !hasPrimary {
+		return entity.Err_0100020021.Sprintf(e.Name)
 	}
 	return nil
 }
 
-// initFields 初始化entity的字段，会生成一个初始的Descriptor，这个Descriptor会有一些默认的配置，并传给字段的Init方法。
-// 这个方法保证了调用Fields()方法时不会nil pointer dereference。
+// initEntity 初始化Shcema中Entity的成员，会生成一个初始的Descriptor，这个Descriptor会有一些默认的配置，并传给字段的Init方法。
+// 这个方法保证了调用Fields()等方法时不会nil pointer dereference。
 //
 // Params:
 //
@@ -175,10 +374,10 @@ func (e *Entity) loadFields(ei entity.EntityInterface) error {
 //
 // Returns:
 //
-//		0: entity中的字段信息。
-//	 1: 错误信息。
-func initFields(ei entity.EntityInterface) ([]fieldInfo, error) {
-	fields := make([]fieldInfo, 0)
+//	0: entity中的字段信息。
+//	1: 错误信息。
+func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
+	infos := make([]entityInfo, 0)
 	val := reflect.ValueOf(ei)
 	// 如果是指针，则获取其指向的元素
 	if val.Kind() != reflect.Ptr || val.IsNil() {
@@ -192,9 +391,6 @@ func initFields(ei entity.EntityInterface) ([]fieldInfo, error) {
 	t := val.Type()
 	// 遍历结构体的字段
 	for i := 0; i < val.NumField(); i++ {
-		// 判断字段是否实现了 entity.Field 接口
-		// 同时还要判断字段的指针类型实现了 entity.Field 接口
-		// 因为Entity字段可以是指针类型或者是值类型
 		fieldVal := val.Field(i)
 		fieldName := t.Field(i).Name
 		ImportPkgs = append(ImportPkgs, fieldVal.Type().PkgPath())
@@ -206,60 +402,62 @@ func initFields(ei entity.EntityInterface) ([]fieldInfo, error) {
 		if !ok {
 			continue
 		}
-
-		fe := fieldVal.Elem()
-		fy := fe.Type()
-		var storager *fieldInfoStorager
-		for i := 0; i < fe.NumField(); i++ {
-			storager = analyseField(fe.Field(i), fy.Field(i))
-			if storager != nil {
-				break
-			}
+		if fieldVal.Kind() != reflect.Ptr {
+			panic(fmt.Sprintf("field %q must be a non-nil pointer", fieldName))
 		}
-		if storager == nil {
+		fe := fieldVal.Elem()
+		if !fe.IsValid() {
+			// 处理 fe 是零值的情况
 			continue
 		}
+		fy := fe.Type()
+		for i := 0; i < fe.NumField(); i++ {
+			storager := analyseField(fe.Field(i), fy.Field(i))
+			if storager != nil {
+				initDesc := &entity.Descriptor{
+					Name:       fieldName,
+					AttrName:   stringutil.ToSnakeCase(fieldName),
+					Type:       t.Field(i).Type.String(),
+					EntityName: e.Name,
+				}
 
-		// 初始化field并传入初始Descriptor
-		// 在这里设置了AttrName默认值
-		initDesc := &entity.Descriptor{
-			Name:     fieldName,
-			AttrName: stringutil.ToSnakeCase(fieldName),
-			Type:     t.Field(i).Type.String(),
-		}
-		if fieldVal.IsNil() {
-			// 如果字段是 nil，则创建一个新实例
-			newInstance := reflect.New(fieldVal.Type().Elem()).Interface()
-			if ef, ok := newInstance.(entity.FieldBuilder); ok {
-				err := initField(ei, ef, initDesc)
-				if err != nil {
-					return fields, err
+				if fieldVal.IsNil() {
+					newInstance := reflect.New(fieldVal.Type().Elem()).Interface()
+					if ef, ok := newInstance.(entity.FieldBuilder); ok {
+						err := e.initField(ei, ef, initDesc)
+						if err != nil {
+							return infos, err
+						}
+						// 很重要，将新的实例赋值给原来的字段
+						fieldVal.Set(reflect.ValueOf(ef))
+						f := entityInfo{
+							field: &fieldInfo{
+								Builder:  ef,
+								Storager: *storager,
+							},
+						}
+						infos = append(infos, f)
+					}
+				} else {
+					if ef, ok := fieldVal.Interface().(entity.FieldBuilder); ok {
+						err := e.initField(ei, ef, initDesc)
+						if err != nil {
+							return infos, err
+						}
+						f := entityInfo{
+							field: &fieldInfo{
+								Builder:  ef,
+								Storager: *storager,
+							},
+						}
+						infos = append(infos, f)
+					}
 				}
-				f := fieldInfo{
-					Builder:  ef,
-					Storager: *storager,
-				}
-				fields = append(fields, f)
-				// 将新实例赋值给字段
-				// fieldVal.Set(reflect.ValueOf(newInstance))
-			}
-
-		} else {
-			// 如果字段已经被初始化，则只调用 Init 方法
-			if ef, ok := fieldVal.Interface().(entity.FieldBuilder); ok {
-				err := initField(ei, ef, initDesc)
-				if err != nil {
-					return fields, err
-				}
-				f := fieldInfo{
-					Builder:  ef,
-					Storager: *storager,
-				}
-				fields = append(fields, f)
+				continue
 			}
 		}
 	}
-	return fields, nil
+	return infos, nil
 }
 
 // initField 调用字段的Init方法，获得Descriptor。
@@ -269,7 +467,7 @@ func initFields(ei entity.EntityInterface) ([]fieldInfo, error) {
 //   - ei: 实现了entity.EntityInterface的entity。
 //   - f: 实现了entity.FieldBuilder的字段。
 //   - initDesc: 初始的Descriptor。
-func initField(ei entity.EntityInterface, f entity.FieldBuilder, initDesc *entity.Descriptor) (err error) {
+func (e *Entity) initField(ei entity.EntityInterface, f entity.FieldBuilder, initDesc *entity.Descriptor) (err error) {
 	defer func() {
 		if v := recover(); v != nil {
 			err = fmt.Errorf("%T.Init panics: %v", f, v)
@@ -329,6 +527,7 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	}
 
 	ef := &Field{}
+	ef.EntityName = ed.EntityName
 	ef.Name = ed.Name
 	ef.AttrName = ed.AttrName
 	ef.Type = ed.Type
@@ -353,55 +552,7 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	return ef, nil
 }
 
-// checkSequence 检查序列的值。
-//
-// Params:
-//
-//   - seq: 序列。
-func checkSequence(seq entity.Sequence) (err error) {
-	if seq.Name != nil && *seq.Name == "" {
-		return fmt.Errorf("sequence name is empty")
-	}
-	if seq.Increament == nil {
-		i := int64(1)
-		seq.Increament = &i
-	}
-	if seq.Min == nil {
-		i := int64(1)
-		seq.Min = &i
-	}
-	if seq.Max == nil {
-		i := int64(9223372036854775807)
-		seq.Max = &i
-	}
-	if seq.Start == nil {
-		i := int64(1)
-		seq.Start = &i
-	}
-	if seq.Cache == nil {
-		i := int64(1)
-		seq.Cache = &i
-	}
-	return nil
-}
-
-// indirect 穿透指针类型，获取不是指针类型的基础类型
-//
-// Params:
-//
-//   - t: 反射类型。
-//
-// Returns:
-//
-//	0: 不是指针类型的基础类型。
-func indirect(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	return t
-}
-
-// analyseField 用于分析entity的字段，提取出里面的builder和storage来。
+// analyseField 用于分析entity的字段，判断是不是Field类型，提取出里面的builder和storage来。
 //
 // Params:
 //
@@ -436,8 +587,86 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 			Type:     typeName,
 			OrigType: OrigTypeName,
 		}
+
 	}
 	return nil
+}
+
+// checkSequence 检查序列的值。
+//
+// Params:
+//
+//   - seq: 序列。
+func checkSequence(seq entity.Sequence) (err error) {
+	if seq.Name != nil && *seq.Name == "" {
+		return fmt.Errorf("sequence name is empty")
+	}
+	if seq.Increament == nil {
+		i := int64(1)
+		seq.Increament = &i
+	}
+	if seq.Min == nil {
+		i := int64(1)
+		seq.Min = &i
+	}
+	if seq.Max == nil {
+		i := int64(9223372036854775807)
+		seq.Max = &i
+	}
+	if seq.Start == nil {
+		i := int64(1)
+		seq.Start = &i
+	}
+	if seq.Cache == nil {
+		i := int64(1)
+		seq.Cache = &i
+	}
+	return nil
+}
+
+// checkRelationDescriptor 检查关系描述符是否为空。
+func checkRelationDescriptor(desc *entity.RelationshipDescriptor) error {
+	if desc == nil {
+		return fmt.Errorf("RelationshipDescriptor is nil")
+	}
+	if desc.ForeignKey == nil {
+		return fmt.Errorf("ForeignKey is nil")
+	}
+	if desc.Has == nil {
+		return fmt.Errorf("Has is nil")
+	}
+	if desc.With == nil {
+		return fmt.Errorf("With is nil")
+	}
+	return nil
+}
+
+// checkRelationships 检查entity的Relationships()方法是否有panic，并得到返回值。
+func checkRelationships(r interface {
+	Relationships() []entity.RelationshipBuilder
+}) (rels []entity.RelationshipBuilder, err error) {
+	defer func() {
+		if v := recover(); v != nil {
+			err = fmt.Errorf("%T.Relationships panics: %v", r, v)
+		}
+	}()
+	return r.Relationships(), nil
+}
+
+// indirect 穿透指针类型，获取不是指针类型的基础类型
+//
+// Params:
+//
+//   - t: 反射类型。
+//
+// Returns:
+//
+//	0: 不是指针类型的基础类型。
+func indirect(t reflect.Type) reflect.Type {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t
 }
 
 // assertFieldBuilder 断言字段是否实现了entity.FieldBuilder接口。
@@ -487,6 +716,12 @@ func assertFieldStrager(v reflect.Value) (reflect.Value, bool) {
 			}
 		}
 	} else {
+		e := v.Elem()
+		// 避免零值
+		if !e.IsValid() {
+			newInstance := reflect.New(v.Type().Elem()).Elem()
+			v.Set(newInstance.Addr())
+		}
 		return v, true
 	}
 	return v, false

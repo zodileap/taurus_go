@@ -50,10 +50,10 @@ func main() {
 // 序列化用户的package中的entity,
 // 把[entity.EntityInterface]中的方法的返回值都序列化到Entity中
 //
-// 参数:
+// Params:
 //
-//	di: 数据库接口
-//	de: 数据库中的entity
+//	- di: 数据库接口
+//	- de: 数据库中的entity
 func Marshal(di entity.DbInterface,name string, de EntityMap) (b []byte, err error) {
 	config := di.Config()
 	if config.Tag == "" {
@@ -72,17 +72,38 @@ func Marshal(di entity.DbInterface,name string, de EntityMap) (b []byte, err err
 		EntityMap: map[string]string{},
 		Entities: 	map[string]*Entity{},
 	}
+	v := reflect.ValueOf(di).Elem()
 	for key, entityName := range de {
 		e := entities[entityName]
 		db = database
-		entity, err := MarshalEntity( e)
+		me, err := MarshalEntity( e)
 		if err != nil {
 			return nil, err
 		}
+		for _, _e := range database.Entities {
+			if _e.AttrName == me.AttrName {
+				return nil,entity.Err_0100020020.Sprintf(me.AttrName)
+			}
+		}
 		database.EntityMap[key] = entityName
-		database.Entities[entityName] = entity
+		database.Entities[entityName] = me
+		field := v.FieldByName(key)
+		if field.IsValid() {
+			  // 确保传递给 Set 方法的值与字段的类型匹配
+			if field.Type().Kind() == reflect.Ptr {
+				field.Set(reflect.ValueOf(e)) // e 已经是指针类型
+			} else {
+				field.Set(reflect.ValueOf(e).Elem()) // 获取 e 指向的值
+			}
+		} else {
+			// 处理无效字段的情况，例如打印错误信息或返回错误
+			fmt.Printf("Field %q not found in type %T\n", entityName, di)
+		}
 	}
-
+	err = database.loadRelationship(di)
+	if err != nil {
+		return nil, err
+	}
 
 	return json.Marshal(database)
 }

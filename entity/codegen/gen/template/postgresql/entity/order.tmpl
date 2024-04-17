@@ -1,0 +1,79 @@
+{{ define "entity/order" }}
+{{ $entity := $.Entity.Name}}
+{{ $entityAttr := $.Entity.AttrName }}
+{{ $header := dict "Package" $entityAttr }}
+{{ template "header" $header }}
+
+{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ template "import/load" $importPkgs }}
+
+type OrderOption func(*entitysql.Order)
+
+{{- range $field :=  .Entity.Fields }}
+{{ if eq $field.Primary 1 }}
+func ByPrimary(o *entitysql.Order) {
+	(&By{{ $field.Name }}{}).Apply(o)
+}
+{{- end }}
+{{- end }}
+
+type OrderTerm interface {
+	Apply(*entitysql.Order)
+}
+
+{{- range $field :=  .Entity.Fields }}
+{{ $info := dict "Field" $field }}
+{{ template "entity/order_field" $info }}
+{{- end }}
+
+{{ end }}
+
+{{ define "entity/order_field" }}
+{{ $fieldName := joinStrings "By" .Field.Name }}
+{{ $attrName := .Field.AttrName }}
+
+type {{ $fieldName }} struct {
+	OrderTerm
+	Options []OrderOption
+	Field   string
+}
+
+func (b *{{ $fieldName }}) Apply(o *entitysql.Order) {
+    o.SetColumn(Field{{ .Field.Name }}.Name.String())
+	if len(b.Options) == 0 {
+		b.Asc()
+	}
+	for _, opt := range b.Options {
+		opt(o)
+	}
+}
+
+func (b *{{ $fieldName }}) Desc() *{{ $fieldName }} {
+    b.Options = append(b.Options, func(o *entitysql.Order) {
+        o.Desc()
+    })
+    return b
+}
+
+func (b *{{ $fieldName }}) Asc() *{{ $fieldName }} {
+    b.Options = append(b.Options, func(o *entitysql.Order) {
+        o.Asc()
+    })
+    return b
+}
+
+func (b *{{ $fieldName }}) NullsFirst() *{{ $fieldName }} {
+    b.Options = append(b.Options, func(o *entitysql.Order) {
+        o.NullsFirst()
+    })
+    return b
+}
+
+func (b *{{ $fieldName }}) NullsLast() *{{ $fieldName }} {
+    b.Options = append(b.Options, func(o *entitysql.Order) {
+        o.NullsLast()
+    })
+    return b
+}
+
+{{ end }}
