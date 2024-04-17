@@ -135,14 +135,28 @@ func ToUpperFirst(s string, sep string, num int) string {
 	return strings.Join(ns, sep)
 }
 
+// IsFormatString 检查字符串是否包含格式化字符串。
 func IsFormatString(s string) bool {
 	return strings.Contains(s, "%")
 }
 
+// IsUpper 函数检查字符串的第一个字符是否为大写字母。
 func IsUpper(s string) bool {
 	if s == "" {
 		return false
 	}
 	r := []rune(s)
 	return unicode.IsUpper(r[0])
+}
+
+// numberToLetters 将数字转换为字母。
+// 例如，0 -> "A"，1 -> "B"，...，25 -> "Z"，26 -> "AA"，27 -> "AB"，...。
+func NumberToLetters(n int) string {
+	result := ""
+	for n >= 0 {
+		// 计算当前位置的字母
+		result = string(rune('A'+(n%26))) + result
+		n = n/26 - 1
+	}
+	return result
 }

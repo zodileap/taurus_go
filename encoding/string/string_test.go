@@ -86,3 +86,55 @@ func TestIsUUIDValid(t *testing.T) {
 		}
 	}
 }
+
+func TestToUpperFirst(t *testing.T) {
+	data := []struct {
+		input string
+		want  string
+	}{
+		{
+			input: "hello",
+			want:  "Hello",
+		},
+		{
+			input: "world",
+			want:  "World",
+		},
+	}
+
+	for _, d := range data {
+		if got := ToUpperFirst(d.input, "", 1); got != d.want {
+			t.Errorf("结果错误，ToUpperFirst(%s) = %s, want %s", d.input, got, d.want)
+		}
+	}
+}
+
+func TestNumberToLetters(t *testing.T) {
+	data := []struct {
+		input int
+		want  string
+	}{
+		{
+			input: 1,
+			want:  "B",
+		},
+		{
+			input: 2,
+			want:  "C",
+		},
+		{
+			input: 26,
+			want:  "AA",
+		},
+		{
+			input: 27,
+			want:  "AB",
+		},
+	}
+
+	for _, d := range data {
+		if got := NumberToLetters(d.input); got != d.want {
+			t.Errorf("结果错误，NumberToLetters(%d) = %s, want %s", d.input, got, d.want)
+		}
+	}
+}
