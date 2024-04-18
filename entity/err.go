@@ -367,4 +367,11 @@ var Err_0100030006 err.ErrCode = err.New(
 	"",
 )
 
+// Err_0100030007 联表查询，多次传入同一个关联表。
+var Err_0100030007 err.ErrCode = err.New(
+	"0100030007",
+	"multiple times to include the same relation table.",
+	"",
+)
+
 /**************** dialect遇到的问题 ***************/
