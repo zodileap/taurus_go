@@ -208,7 +208,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 	} else if rel.Dependent.AttrName == e.AttrName {
 		if rel.Principal.Rel == entity.O {
 			return &getEntityRelResult{
-				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Principal.Name, "_", ""), "", 1),
+				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Principal.AttrName, "_", ""), "", 1),
 				AttrName:   rel.Principal.AttrName,
 				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				EntityType: fmt.Sprintf("*%s", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
@@ -216,7 +216,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			}
 		} else {
 			return &getEntityRelResult{
-				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Principal.Name, "_", ""), "", 1) + "s",
+				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Principal.AttrName, "_", ""), "", 1) + "s",
 				AttrName:   rel.Principal.AttrName,
 				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				EntityType: fmt.Sprintf("[]*%s", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
