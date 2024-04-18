@@ -125,7 +125,7 @@ func (c *Config) Load() (*BuilderInfo, error) {
 		return nil, entity.Err_0100020008.Sprintf(target, err)
 	}
 	// 清理加载文件。
-	// defer os.RemoveAll(".gen")
+	defer os.RemoveAll(".gen")
 	// 运行生成的代码，解析代码输出，得到entity。
 	out, err := cmd.RunGo(target, c.BuildFlags)
 	if err != nil {

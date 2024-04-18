@@ -1698,6 +1698,7 @@ type (
 //
 //   - column: 列名。
 //   - cases: CASE语句信息。
+//   - as: 实体别名。
 //
 // Returns:
 //
