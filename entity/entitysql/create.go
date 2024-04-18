@@ -188,9 +188,10 @@ func (b *createBuilder) insertLastID(ctx context.Context, insert *Inserter) erro
 //   - inserter: 插入语句生成器。
 func (b *createBuilder) setColumns(inserter *Inserter) error {
 	inserter.SetColumns(b.Entity.Columns...)
+	t := b.entityBuilder.builder.Table(b.Entity.Name)
 	for _, fields := range b.Fields {
 		err := setColumns(fields, func(column string, value driver.Value) {
-			inserter.Set(column, value)
+			inserter.Set(column, t.as, value)
 		})
 		if err != nil {
 			return err

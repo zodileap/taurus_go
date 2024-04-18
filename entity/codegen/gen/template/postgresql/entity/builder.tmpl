@@ -95,7 +95,7 @@ func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ $
 	return query.Order(o...)
 }
 
-func (s *{{ $BuilderName }}) Where(conditions ...func(*entitysql.Predicate)) *{{ $entity }}Query {
+func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ $entity }}Query {
 	query := s.initQuery()
 	return query.Where(conditions...)
 }

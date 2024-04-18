@@ -11,7 +11,7 @@
 type {{ $entity }}Delete struct {
 	config *internal.Dialect
 	es         []*{{ $entity }}
-	predicates []func(*entitysql.Predicate)
+	predicates []entitysql.PredicateFunc
 }
 
 // New{{ $entity }}Delete creates a new {{ $entity }}Delete.
@@ -23,7 +23,7 @@ func New{{ $entity }}Delete(c *internal.Dialect, es ...*{{ $entity }}) *{{ $enti
 }
 
 // Where adds a predicate to the delete action.
-func (o *{{ $entity }}Delete) Where(predicates ...func(*entitysql.Predicate)) *{{ $entity }}Delete {
+func (o *{{ $entity }}Delete) Where(predicates ...entitysql.PredicateFunc) *{{ $entity }}Delete {
 	o.predicates = append(o.predicates, predicates...)
 	return o
 }
@@ -55,9 +55,9 @@ func (o *{{ $entity }}Delete) sqlDelete(ctx context.Context,tx dialect.Tx) error
 func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 	spec := entitysql.NewDeleteSpec({{ $entityAttr }}.Entity)
 	if ps := o.predicates; len(ps) > 0 {
-		spec.Predicate = func(p *entitysql.Predicate) {
+		spec.Predicate = func(p *entitysql.Predicate, as string) {
 			for _, f := range ps {
-				f(p)
+				f(p,as)
 			}
 		}
 	}
@@ -65,7 +65,7 @@ func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 		{{- if eq $f.Primary 1 }}
 		pred{{ $f.Name }} := &{{ $entityAttr }}.Pred{{ $f.Name }}{}
 		if o.predicates == nil {
-			o.predicates = make([]func(*entitysql.Predicate), 0, len(o.es))
+			o.predicates = make([]entitysql.PredicateFunc, 0, len(o.es))
 		}
 		for i, e := range o.es {
 			if e.{{ $f.Name }}.Get() != nil {
@@ -78,9 +78,9 @@ func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 		{{- end }}
 	{{- end }}
 	if ps := o.predicates; len(ps) > 0 {
-		spec.Predicate = func(p *entitysql.Predicate) {
+		spec.Predicate = func(p *entitysql.Predicate, as string) {
 			for _, f := range ps {
-				f(p)
+				f(p,as)
 			}
 		}
 	}

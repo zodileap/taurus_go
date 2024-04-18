@@ -10,7 +10,7 @@ import (
 // DeleteSpec 用于生成删除语句。
 type DeleteSpec struct {
 	Entity    *EntitySpec
-	Predicate func(*Predicate)
+	Predicate PredicateFunc
 	Affected  *int64
 }
 
@@ -86,11 +86,12 @@ func (b *deleteBuilder) delete(ctx context.Context, drv dialect.Tx) error {
 //	0: 删除语句生成器。
 func (b *deleteBuilder) deleter(ctx context.Context) (*Deleter, error) {
 	deleter := NewDeleter(ctx)
+	t := b.entityBuilder.builder.Table(b.Entity.Name)
 	deleter.SetDialect(b.builder.dialect)
 	deleter.SetEntity(b.Entity.Name)
 	if pred := b.Predicate; pred != nil {
-		deleter.where = P()
-		pred(deleter.where)
+		deleter.where = P(deleter.Builder)
+		pred(deleter.where, t.as)
 	}
 	return deleter, nil
 }

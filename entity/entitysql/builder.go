@@ -8,23 +8,6 @@ import (
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
-// Builder 用于构建SQL查询的字符串构建器。
-type Builder struct {
-	// sb 用于构建查询的字符串构建器。
-	sb *strings.Builder
-	// dialect 使用的数据库驱动
-	dialect dialect.DbDriver // configured dialect.
-	// args 查询的参数
-	args []any
-	// total 查询树中总共出现的参数数量，在复杂的查询中，可能会出现多个相同的参数。
-	// 所以数量可能会大于len(args)。
-	total int
-	// qualifier 限定符作为标识符（如表名）的前缀。
-	qualifier string
-	// isAs 是否使用别名
-	isAs bool
-}
-
 type (
 	// Identifier 标识符的类型。
 	Identifier string
@@ -74,6 +57,48 @@ type state interface {
 	SetTotal(int)
 }
 
+// Builder 用于构建SQL查询的字符串构建器。
+type Builder struct {
+	// sb 用于构建查询的字符串构建器。
+	sb *strings.Builder
+	// dialect 使用的数据库驱动
+	dialect dialect.DbDriver // configured dialect.
+	// args 查询的参数
+	args []any
+	// total 查询树中总共出现的参数数量，在复杂的查询中，可能会出现多个相同的参数。
+	// 所以数量可能会大于len(args)。
+	total int
+	// qualifier 限定符作为标识符（如表名）的前缀。
+	qualifier string
+	// isAs 是否使用别名
+	isAs bool
+}
+
+// new 复制一个新的查询构建器。
+//
+// Returns:
+//
+//	0: sql生成器。
+func (b Builder) new() *Builder {
+	return &Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}, isAs: b.isAs}
+}
+
+// clone 克隆查询构建器。
+//
+// Returns:
+//
+//	0: sql生成器。
+func (b Builder) clone() *Builder {
+	c := b.new()
+	if len(b.args) > 0 {
+		c.args = append(c.args, b.args...)
+	}
+	if b.sb != nil {
+		c.sb.WriteString(b.sb.String())
+	}
+	return c
+}
+
 // String 把生成器中的查询语句转换为字符串。。
 //
 // Returns:
@@ -112,6 +137,10 @@ func (b *Builder) Reset() {
 //   - dialect: 数据库驱动。
 func (b *Builder) SetDialect(dialect dialect.DbDriver) {
 	b.dialect = dialect
+}
+
+func (b *Builder) SetQualifier(qualifier string) {
+	b.qualifier = qualifier
 }
 
 // Dialect 返回生成器使用的数据库驱动。满足state接口。
@@ -476,31 +505,6 @@ func (b *Builder) join(qs []Querier, sep string) *Builder {
 		b.total += len(spec.Args)
 	}
 	return b
-}
-
-// clone 克隆查询构建器。
-//
-// Returns:
-//
-//	0: sql生成器。
-func (b Builder) clone() Builder {
-	c := Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}}
-	if len(b.args) > 0 {
-		c.args = append(c.args, b.args...)
-	}
-	if b.sb != nil {
-		c.sb.WriteString(b.sb.String())
-	}
-	return c
-}
-
-// new 复制一个新的查询构建器。
-//
-// Returns:
-//
-//	0: sql生成器。
-func (b Builder) new() Builder {
-	return Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}}
 }
 
 // WriteQuery 添加一个查询语句到生成器中。

@@ -13,7 +13,7 @@ type UpdateSpec struct {
 	// Sets 更新中Set部分，根据不同的列设置不同的值。
 	Sets []map[string][]CaseSpec
 	// Predicate 更新中Where部分，根据不同的行设置不同的条件。
-	Predicate []func(*Predicate)
+	Predicate []PredicateFunc
 }
 
 // NewUpdateSpec 创建一个UpdateSpec。
@@ -95,6 +95,7 @@ func (b *updateBuilder) update(ctx context.Context, drv dialect.Tx) error {
 //	 1: 错误信息。
 func (b *updateBuilder) updater(ctx context.Context) (*Updater, error) {
 	updater := NewUpdater(ctx)
+	t := b.entityBuilder.builder.Table(b.Entity.Name)
 	updater.SetDialect(b.builder.dialect)
 	updater.SetEntity(b.Entity.Name)
 	for row, cs := range b.Sets {
@@ -104,8 +105,8 @@ func (b *updateBuilder) updater(ctx context.Context) (*Updater, error) {
 		}
 		pred := b.Predicate[row]
 		if pred != nil {
-			w := P()
-			pred(w)
+			w := P(updater.Builder)
+			pred(w, t.as)
 			updater.wheres = append(updater.wheres, w)
 		} else {
 			updater.wheres = append(updater.wheres, nil)

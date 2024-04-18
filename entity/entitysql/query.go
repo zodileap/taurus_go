@@ -24,7 +24,7 @@ type (
 
 	RelationDesc struct {
 		Orders     []OrderFunc
-		Predicates []func(*Predicate)
+		Predicates []PredicateFunc
 		To         RelationTable
 		Join       RelationTable
 	}
@@ -41,7 +41,7 @@ type (
 
 func (r *RelationDesc) Reset() {
 	r.Orders = []OrderFunc{}
-	r.Predicates = []func(*Predicate){}
+	r.Predicates = []PredicateFunc{}
 }
 
 func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTable {
@@ -59,6 +59,12 @@ func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTab
 			o.SetAs(joinT.as)
 			order(o)
 			s.SetOrder(o)
+		}
+	}
+
+	if ps := desc.Predicates; len(ps) > 0 {
+		for _, p := range ps {
+			p(s.where, joinT.as)
 		}
 	}
 
@@ -104,10 +110,10 @@ type QuerySpec struct {
 	// Limit 限制查询语句返回的记录数。
 	Limit int
 	// Predicate 查询语句的条件，用于生成where子句。
-	Predicate func(*Predicate)
+	Predicate PredicateFunc
 	// Rels 用于生成联表查询。
 	Rels   []Relation
-	Orders []func(*Order)
+	Orders []OrderFunc
 }
 
 // NewQuerySpec 创建一个QuerySpec。
@@ -187,16 +193,17 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 //	0: 选择语句生成器。
 func (b *queryBuilder) selector(ctx context.Context) (*Selector, error) {
 	selector := b.builder.Select()
-	t := b.entityBuilder.builder.Table(b.Entity.Name)
+	t := b.builder.Table(b.Entity.Name)
 	selector.SetFrom(t)
 	selector.SetSelect(t.as, selector.Rows(b.Entity.Columns...)...)
 	selector.SetContext(ctx)
 	if b.Limit != 0 {
 		selector.SetLimit(b.Limit)
 	}
+
+	selector.where = P(selector.Builder)
 	if pred := b.Predicate; pred != nil {
-		selector.where = P()
-		pred(selector.where)
+		pred(selector.where, t.as)
 	}
 	if orders := b.Orders; len(orders) > 0 {
 		for _, order := range orders {

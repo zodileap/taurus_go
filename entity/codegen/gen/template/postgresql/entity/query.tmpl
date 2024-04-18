@@ -11,7 +11,7 @@
 type {{ $entity }}Query struct {
 	config     *{{ toFirstLower $entity}}Config
 	ctx        *entitysql.QueryContext
-	predicates []func(*entitysql.Predicate)
+	predicates []entitysql.PredicateFunc
 	rels 	 []{{ $entity }}Rel
 	order	  []{{ $.Entity.AttrName }}.OrderTerm
 	scanner	[]*internal.QueryScanner
@@ -35,7 +35,7 @@ func New{{ $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ toFirstL
 			{{ toFirstLower $entity }}Mutations: ms,
 		},
 		ctx:    &entitysql.QueryContext{},
-		predicates: []func(*entitysql.Predicate){},
+		predicates: []entitysql.PredicateFunc{},
 		rels: []{{ $entity }}Rel{},
 		order: []{{ $.Entity.AttrName }}.OrderTerm{},
 		scanner: []*internal.QueryScanner{},
@@ -43,7 +43,7 @@ func New{{ $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ toFirstL
 	}
 }
 
-func (o *{{ $entity }}Query) Where(predicates ...func(*entitysql.Predicate)) *{{ $entity }}Query {
+func (o *{{ $entity }}Query) Where(predicates ...entitysql.PredicateFunc) *{{ $entity }}Query {
 	o.predicates = append(o.predicates, predicates...)
 	return o
 }
@@ -157,9 +157,9 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 		s.Entity.Columns = append(s.Entity.Columns, fields...)
 	}
 	if ps := o.predicates; len(ps) > 0 {
-		s.Predicate = func(p *entitysql.Predicate) {
+		s.Predicate = func(p *entitysql.Predicate, as string) {
 			for _, f := range ps {
-				f(p)
+				f(p,as)
 			}
 		}
 	}
