@@ -89,7 +89,7 @@ func (d *{{ $db }}) init() {
 		d.tracker,
 		{{- range $rel := $entity.Relations }}
 		{{- $res := getEntityRelDirection $rel $entity }}
-		*rel.New{{ $res.Join.Name }}Relation(
+		*New{{ $res.Join.Name }}Relation(
 			{{ toFirstLower $res.Join.Name }}Config, 
 			entitysql.RelationDesc{
 				Orders: []entitysql.OrderFunc{

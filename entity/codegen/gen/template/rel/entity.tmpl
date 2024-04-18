@@ -2,7 +2,7 @@
 {{ $entity := .Entity.Name }}
 {{ $entityAttr := .Entity.AttrName }}
 
-{{ $header := dict "Package" "rel" }}
+{{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
 
 {{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
@@ -11,18 +11,18 @@
 type {{ $entity }}Relation struct {
 	{{- range $rel := .Entity.Relations }}
 	{{- $res := getEntityRelDirection $rel $.Entity }}
-	internal.{{ $res.Join.Name }}Rel
+	{{ $res.Join.Name }}Rel
 	{{ end -}}
 	Config   internal.EntityConfig
 	relation entitysql.RelationDesc
-	children []internal.Rel
+	children []Rel
 }
 
 func New{{ $entity }}Relation(config internal.EntityConfig, desc entitysql.RelationDesc) * {{ $entity }}Relation {
 	return & {{ $entity }}Relation{
 		Config:   config,
 		relation: desc,
-		children: []internal.Rel{},
+		children: []Rel{},
 	}
 }
 
@@ -31,20 +31,27 @@ func (r * {{ $entity }}Relation) Where(predicates ...func(*entitysql.Predicate))
 	return r
 }
 
-func (r * {{ $entity }}Relation) Include(rels ...internal.{{ $entity }}Rel) * {{ $entity }}Relation {
+func (r * {{ $entity }}Relation) Include(rels ...{{ $entity }}Rel) * {{ $entity }}Relation {
     // Create a slice of type Rel with the same length as r.children
-    newRels := make([]internal.Rel, len(rels)) 
+    newRels := make([]Rel, len(rels)) 
 	for i, r := range rels {
         // Convert each {{ $entity }}Rel to Rel and store it in the new slice
-        newRels[i] = internal.Rel(r) 
+        newRels[i] = Rel(r) 
 	}
 	r.children = append(r.children, newRels...)
 	return r
 }
 
-func (r  {{ $entity }}Relation) Desc() (entitysql.RelationDesc, []internal.Rel, internal.EntityConfig) {
+func (r  *{{ $entity }}Relation) Desc() (entitysql.RelationDesc, []Rel, internal.EntityConfig) {
 	return r.relation, r.children, r.Config
 }
 
+func (r *{{ $entity }}Relation) reset() {
+	for _, child := range r.children {
+		child.reset()
+	}
+	r.relation.Reset()
+	r.children = []Rel{}
+}
 
 {{ end }}

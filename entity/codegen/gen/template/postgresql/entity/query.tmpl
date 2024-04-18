@@ -12,7 +12,7 @@ type {{ $entity }}Query struct {
 	config     *{{ toFirstLower $entity}}Config
 	ctx        *entitysql.QueryContext
 	predicates []func(*entitysql.Predicate)
-	rels 	 []internal.{{ $entity }}Rel
+	rels 	 []{{ $entity }}Rel
 	order	  []{{ $.Entity.AttrName }}.OrderTerm
 	scanner	[]*internal.QueryScanner
 	scannerTotal int
@@ -36,7 +36,7 @@ func New{{ $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ toFirstL
 		},
 		ctx:    &entitysql.QueryContext{},
 		predicates: []func(*entitysql.Predicate){},
-		rels: []internal.{{ $entity }}Rel{},
+		rels: []{{ $entity }}Rel{},
 		order: []{{ $.Entity.AttrName }}.OrderTerm{},
 		scanner: []*internal.QueryScanner{},
 		scannerTotal: 0,
@@ -59,7 +59,7 @@ func (o *{{ $entity }}Query) Order(term ...{{ $entityAttr }}.OrderTerm) *{{ $ent
 	return o
 }
 
-func (o *{{ $entity }}Query) Include(rels ...internal.{{ $entity }}Rel) *{{ $entity }}Query {
+func (o *{{ $entity }}Query) Include(rels ...{{ $entity }}Rel) *{{ $entity }}Query {
 	o.rels = append(o.rels, rels...)
 	return o
 }
@@ -97,6 +97,9 @@ func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ $entity }}, err
 		}
 		if err := res.setUnchanged(); err != nil {
 			return nil, err
+		}
+		for _, r := range o.rels {
+			r.reset()
 		}
 		return res, nil
 	default:
@@ -137,6 +140,10 @@ func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ $entity }}, erro
 			return nil, err
 		}
 	}
+	for _, r := range o.rels {
+		rel := r
+		rel.reset()
+	}
 	return res, nil
 }
 
@@ -160,8 +167,9 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 		s.Rels = make([]entitysql.Relation, 0, len(rs))
 		s.Orders = append(s.Orders, {{ $entityAttr }}.ByPrimary)
 		for _, r := range rs {
+			rel := r
 			s.Rels = append(s.Rels, func (s *entitysql.Selector)  {
-				o.scanner =  o.addRels(s, s.Table(), r, o.scanner)
+				o.scanner =  o.addRels(s, s.Table(), rel, o.scanner)
 			})
 		}
 	}
@@ -173,7 +181,7 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 	return s
 }
 
-func (o *{{ $entity }}Query) addRels(s *entitysql.Selector,t *entitysql.SelectTable, rel internal.Rel, scanner []*internal.QueryScanner)  []*internal.QueryScanner {
+func (o *{{ $entity }}Query) addRels(s *entitysql.Selector,t *entitysql.SelectTable, rel Rel, scanner []*internal.QueryScanner)  []*internal.QueryScanner {
 	desc, children, config := rel.Desc()
 	join := entitysql.AddRelBySelector(s, t, desc)
 	_, tableNum := join.GetAs()

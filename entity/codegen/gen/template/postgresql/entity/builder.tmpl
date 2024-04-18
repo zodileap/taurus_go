@@ -35,7 +35,7 @@ type {{ $BuilderName }} struct {
 	// {{ toFirstCap $result.Name}} configures the query to include data from the '{{$result.AttrName}}' table.
 	// The method modifies the existing query to include a LEFT JOIN clause.
 	// {{ toFirstCap $result.Name }} be used as an argument to the Include method。
-	{{ toFirstCap $result.Name}} {{ $result.RelType }}
+	{{ toFirstCap $result.Name}} *{{ $result.RelType }}
 	{{ end }}
 	{{- end }}
 }
@@ -48,7 +48,7 @@ func new{{ $BuilderName }}(c *{{ toFirstLower $entity}}Config, t entity.Tracker 
 		{{ range $relation :=  .Entity.Relations }}
 		{{- $result := getEntityRel $relation $.Entity  }}
 		{{- with $result }} 
-		{{- toFirstCap $result.Name }}: {{ $result.Name }},
+		{{- toFirstCap $result.Name }}: &{{ $result.Name }},
 		{{- end }}
 		{{- end }}
 	}
@@ -85,7 +85,7 @@ func (s *{{ $BuilderName }}) ToList(ctx context.Context) ([]*{{ $entity }}, erro
 	return query.ToList(ctx)
 }
 
-func (s *{{ $BuilderName }}) Include(rels ...internal.{{ $entity }}Rel) *{{ $entity }}Query {
+func (s *{{ $BuilderName }}) Include(rels ...{{ $entity }}Rel) *{{ $entity }}Query {
 	query := s.initQuery()
 	return query.Include(rels...)
 }

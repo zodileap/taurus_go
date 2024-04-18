@@ -78,7 +78,7 @@ var (
 		},
 		{
 			Name:   "rel/entity",
-			Format: pkgf("rel/%s.go"),
+			Format: pkgf("e_%s_rel.go"),
 		},
 	}
 	// InstanceTemplates 内部使用的模版
@@ -88,12 +88,8 @@ var (
 			Format: "internal/core.go",
 		},
 		{
-			Name:   "internal/rels",
-			Format: "internal/rels.go",
-		},
-		{
-			Name:   "rel/rel",
-			Format: "rel/rel.go",
+			Name:   "rel/rels",
+			Format: "rels.go",
 		},
 	}
 	// ExtraCodesTemplates 额外的代码模版

@@ -39,6 +39,11 @@ type (
 	Relation func(*Selector)
 )
 
+func (r *RelationDesc) Reset() {
+	r.Orders = []OrderFunc{}
+	r.Predicates = []func(*Predicate){}
+}
+
 func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTable {
 	var (
 		build = NewDialect(s.Dialect())

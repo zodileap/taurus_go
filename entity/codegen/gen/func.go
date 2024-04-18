@@ -192,7 +192,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Dependent.AttrName, "_", ""), "", 1),
 				AttrName:   rel.Dependent.AttrName,
-				RelType:    fmt.Sprintf("rel.%sRelation", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
 				EntityType: fmt.Sprintf("*%s", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
 				Rel:        rel.Dependent,
 			}
@@ -200,7 +200,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Dependent.AttrName, "_", ""), "", 1) + "s",
 				AttrName:   rel.Dependent.AttrName,
-				RelType:    fmt.Sprintf("rel.%sRelation", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
 				EntityType: fmt.Sprintf("[]*%s", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
 				Rel:        rel.Dependent,
 			}
@@ -210,7 +210,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Principal.Name, "_", ""), "", 1),
 				AttrName:   rel.Principal.AttrName,
-				RelType:    fmt.Sprintf("rel.%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				EntityType: fmt.Sprintf("*%s", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				Rel:        rel.Principal,
 			}
@@ -218,7 +218,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(strings.ReplaceAll(rel.Principal.Name, "_", ""), "", 1) + "s",
 				AttrName:   rel.Principal.AttrName,
-				RelType:    fmt.Sprintf("rel.%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				EntityType: fmt.Sprintf("[]*%s", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				Rel:        rel.Principal,
 			}
