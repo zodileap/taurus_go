@@ -5,31 +5,6 @@
     Schema: public
 */
 
--- ********
--- Sequence leapnote_tier_id_seq
--- ********
-DO $$
-BEGIN
-{{ range $key, $entity := $.Database.Entities }}
-{{ $schema := `"public"` }}
-{{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
-{{- range $i,$rel := $entity.Relations }}
-IF EXISTS (
-    SELECT 1
-    FROM information_schema.table_constraints
-    WHERE table_schema = 'public'
-    AND table_name = '{{ $rel.Dependent.AttrName }}'
-    AND constraint_name = '{{ $rel.Desc.Constraint }}'
-) THEN
-    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT "{{ $rel.Desc.Constraint }}";
-END IF;
-{{- end }}
-{{- end }}
-END
-$$;
-
 {{ range $key, $entity := $.Database.Entities }}
 {{ $schema := `"public"` }}
 {{- $schemaV := `'public'` }}
@@ -117,21 +92,57 @@ BEGIN
     -- Primary Key.
      -- 主键。
     ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
-
-    {{ if gt (len $entity.Relations) 0 }}
-    -- Foreign Key.
-    -- 外键。
-    {{- range $i,$rel := $entity.Relations }}
-    {{ if eq $rel.Dependent.AttrName $entity.AttrName }}
-    ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
-    ADD CONSTRAINT {{ $rel.Desc.Constraint }} FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
-    REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
-    {{ end }}
-    {{- end }}
-    {{- end }}
 END
 $$;
 {{ end }}
+
+-- ********
+-- Delete Foreign Key
+-- ********
+DO $$
+BEGIN
+{{ range $key, $entity := $.Database.Entities }}
+{{- $schema := `"public"` }}
+{{- $schemaV := `'public'` }}
+{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
+{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- range $i,$rel := $entity.Relations }}
+IF EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE table_schema = 'public'
+    AND table_name = '{{ $rel.Dependent.AttrName }}'
+    AND constraint_name = '{{ $rel.Desc.Constraint }}'
+) THEN
+    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT "{{ $rel.Desc.Constraint }}";
+END IF;
+{{ end }}
+{{- end }}
+END
+$$;
+
+
+-- ********
+-- Add Foreign Key
+-- ********
+DO $$
+BEGIN
+{{ range $key, $entity := $.Database.Entities }}
+{{- $schema := `"public"` }}
+{{- $schemaV := `'public'` }}
+{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
+{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- range $i,$rel := $entity.Relations }}
+{{- if eq $rel.Dependent.AttrName $entity.AttrName }}
+ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
+ADD CONSTRAINT {{ $rel.Desc.Constraint }} FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
+REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
+{{ end }}
+{{- end }}
+{{- end }}
+END
+$$;
+
 {{ end }}
 
 {{- define "init_table_field" }}
