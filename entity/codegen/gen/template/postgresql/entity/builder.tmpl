@@ -3,7 +3,7 @@
 {{ $entityAttr := .Entity.AttrName }}
 {{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
-{{ $BuilderName := joinStrings $entity "Builder" }}
+{{ $BuilderName := joinStrings ( toFirstLower  $entity ) "Builder" }}
 
 
 {{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
@@ -35,13 +35,13 @@ type {{ $BuilderName }} struct {
 	// {{ toFirstCap $result.Name}} configures the query to include data from the '{{$result.AttrName}}' table.
 	// The method modifies the existing query to include a LEFT JOIN clause.
 	// {{ toFirstCap $result.Name }} be used as an argument to the Include method。
-	{{ toFirstCap $result.Name}} *{{ $result.RelType }}
+	{{ toFirstCap $result.Name}} *{{ toFirstLower $result.RelType }}
 	{{ end }}
 	{{- end }}
 }
 
 // new{{ $BuilderName }} creates a new {{ $BuilderName }}.
-func new{{ $BuilderName }}(c *{{ toFirstLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
+func new{{ toFirstCap $BuilderName }}(c *{{ toFirstLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ toFirstLower $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
 	return &{{ $BuilderName }}{
 		config:  c,
 		tracker: t,
@@ -85,17 +85,17 @@ func (s *{{ $BuilderName }}) ToList(ctx context.Context) ([]*{{ $entity }}, erro
 	return query.ToList(ctx)
 }
 
-func (s *{{ $BuilderName }}) Include(rels ...{{ $entity }}Rel) *{{ $entity }}Query {
+func (s *{{ $BuilderName }}) Include(rels ...{{ toFirstLower $entity }}Rel) *{{ toFirstLower $entity }}Query {
 	query := s.initQuery()
 	return query.Include(rels...)
 }
 
-func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ $entity }}Query {
+func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ toFirstLower $entity }}Query {
 	query := s.initQuery()
 	return query.Order(o...)
 }
 
-func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ $entity }}Query {
+func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ toFirstLower $entity }}Query {
 	query := s.initQuery()
 	return query.Where(conditions...)
 }
@@ -109,21 +109,21 @@ func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ $e
 func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
 	if len(s.config.{{ toFirstLower $entity }}Mutations.Addeds) > 0 {
 		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Added)
-		n := New{{ $entity }}Create(s.config.Dialect, e...)
+		n := new{{ $entity }}Create(s.config.Dialect, e...)
 		if err := n.create(ctx, tx); err != nil {
 			return err
 		}
 	}
 	if len(s.config.{{ toFirstLower $entity }}Mutations.Modifieds) > 0 {
 		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Modified)
-		n := New{{ $entity }}Update(s.config.Dialect, e...)
+		n := new{{ $entity }}Update(s.config.Dialect, e...)
 		if err := n.update(ctx, tx); err != nil {
 			return err
 		}
 	}
 	if len(s.config.{{ toFirstLower $entity }}Mutations.Deleteds) > 0 {
 		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Deleted)
-		n := New{{ $entity }}Delete(s.config.Dialect, e...)
+		n := new{{ $entity }}Delete(s.config.Dialect, e...)
 		if err := n.delete(ctx, tx); err != nil {
 			return err
 		}
@@ -131,8 +131,8 @@ func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
 	return nil
 }
 
-func (s *{{ $BuilderName }}) initQuery() *{{ $entity }}Query {
-	return New{{ $entity }}Query(s.config.Dialect, s.tracker, s.config.{{ toFirstLower $entity }}Mutations)
+func (s *{{ $BuilderName }}) initQuery() *{{ toFirstLower $entity }}Query {
+	return new{{ $entity }}Query(s.config.Dialect, s.tracker, s.config.{{ toFirstLower $entity }}Mutations)
 }
 
 // {{ toFirstLower $entity }}Mutations is a collection of {{ $entity }} mutation.

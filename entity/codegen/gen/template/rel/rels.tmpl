@@ -7,14 +7,14 @@ import (
 	"github.com/yohobala/taurus_go/entity/entitysql"
 )
 
-type Rel interface {
-	Desc() (entitysql.RelationDesc, []Rel, internal.EntityConfig)
+type rel interface {
+	Desc() (entitysql.RelationDesc, []rel, internal.EntityConfig)
    reset()
 }
 
 {{ range $key,$entityName := .EntityMap }}
-type {{ toFirstCap $entityName }}Rel interface {
-   Rel
+type {{ toFirstLower $entityName }}Rel interface {
+   rel
 }
 {{ end }}
 

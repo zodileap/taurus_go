@@ -1,5 +1,5 @@
 {{ define "rel/entity" }}
-{{ $entity := .Entity.Name }}
+{{ $entity :=  toFirstLower .Entity.Name }}
 {{ $entityAttr := .Entity.AttrName }}
 
 {{ $header := dict "Package" .Config.Package }}
@@ -11,18 +11,18 @@
 type {{ $entity }}Relation struct {
 	{{- range $rel := .Entity.Relations }}
 	{{- $res := getEntityRelDirection $rel $.Entity }}
-	{{ $res.Join.Name }}Rel
+	{{ toFirstLower $res.Join.Name }}Rel
 	{{ end -}}
 	Config   internal.EntityConfig
 	relation entitysql.RelationDesc
-	children []Rel
+	children []rel
 }
 
-func New{{ $entity }}Relation(config internal.EntityConfig, desc entitysql.RelationDesc) * {{ $entity }}Relation {
+func new{{ toFirstCap $entity }}Relation(config internal.EntityConfig, desc entitysql.RelationDesc) * {{ $entity }}Relation {
 	return & {{ $entity }}Relation{
 		Config:   config,
 		relation: desc,
-		children: []Rel{},
+		children: []rel{},
 	}
 }
 
@@ -33,16 +33,16 @@ func (r * {{ $entity }}Relation) Where(predicates ...entitysql.PredicateFunc) * 
 
 func (r * {{ $entity }}Relation) Include(rels ...{{ $entity }}Rel) * {{ $entity }}Relation {
     // Create a slice of type Rel with the same length as r.children
-    newRels := make([]Rel, len(rels)) 
+    newRels := make([]rel, len(rels)) 
 	for i, r := range rels {
         // Convert each {{ $entity }}Rel to Rel and store it in the new slice
-        newRels[i] = Rel(r) 
+        newRels[i] = rel(r) 
 	}
 	r.children = append(r.children, newRels...)
 	return r
 }
 
-func (r  *{{ $entity }}Relation) Desc() (entitysql.RelationDesc, []Rel, internal.EntityConfig) {
+func (r  *{{ $entity }}Relation) Desc() (entitysql.RelationDesc, []rel, internal.EntityConfig) {
 	return r.relation, r.children, r.Config
 }
 
@@ -51,7 +51,7 @@ func (r *{{ $entity }}Relation) reset() {
 		child.reset()
 	}
 	r.relation.Reset()
-	r.children = []Rel{}
+	r.children = []rel{}
 }
 
 {{ end }}

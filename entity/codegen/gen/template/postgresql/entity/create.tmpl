@@ -1,5 +1,5 @@
 {{ define "entity/create" }}
-{{ $entity := $.Entity.Name}}
+{{ $entity := toFirstLower $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
 {{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
@@ -10,11 +10,11 @@
 // {{ $entity }}Create is the create action for the {{ $entity }}.
 type {{ $entity }}Create struct {
 	config *internal.Dialect
-	es []*{{ $entity }}
+	es []*{{toFirstCap $entity }}
 }
 
-// New{{ $entity }}Create creates a new {{ $entity }}Create.
-func New{{ $entity }}Create(c *internal.Dialect, es ...*{{ $entity }}) *{{ $entity }}Create {
+// new{{ toFirstCap $entity }}Create creates a new {{ $entity }}Create.
+func new{{ toFirstCap $entity }}Create(c *internal.Dialect, es ...*{{toFirstCap $entity }}) *{{ $entity }}Create {
 	return &{{ $entity }}Create{
 		config: c,
 		es:      es,

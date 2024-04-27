@@ -1,5 +1,5 @@
 {{ define "entity/update" }}
-{{ $entity := $.Entity.Name}}
+{{ $entity := toFirstLower $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
 {{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
@@ -12,15 +12,15 @@ type {{ $entity }}Update struct {
 	config *internal.Dialect
 	ctx *entitysql.QueryContext
 	tracker entity.Tracker
-	es  []*{{ $entity }}
+	es  []*{{ toFirstCap $entity }}
 	predicates [][]entitysql.PredicateFunc
 	sets       []map[string]entitysql.CaseSpec
 	total      int
 	batchIndex []int
 }
 
-// New{{ $entity }}Update creates a new {{ $entity }}Update.
-func New{{ $entity }}Update(c *internal.Dialect, es ...*{{ $entity }}) *{{ $entity }}Update {
+// new{{ toFirstCap $entity }}Update creates a new {{ $entity }}Update.
+func new{{ toFirstCap $entity }}Update(c *internal.Dialect, es ...*{{ toFirstCap $entity }}) *{{ $entity }}Update {
 	return &{{ $entity }}Update{
 		config: c,
 		ctx:    &entitysql.QueryContext{},

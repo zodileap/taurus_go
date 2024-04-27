@@ -1,5 +1,5 @@
 {{ define "entity/delete" }}
-{{ $entity := $.Entity.Name}}
+{{ $entity := toFirstLower $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
 {{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
@@ -10,12 +10,12 @@
 // {{ $entity }}Delete is the delete action for the {{ $entity }}.
 type {{ $entity }}Delete struct {
 	config *internal.Dialect
-	es         []*{{ $entity }}
+	es         []*{{toFirstCap $entity }}
 	predicates []entitysql.PredicateFunc
 }
 
-// New{{ $entity }}Delete creates a new {{ $entity }}Delete.
-func New{{ $entity }}Delete(c *internal.Dialect, es ...*{{ $entity }}) *{{ $entity }}Delete {
+// new{{toFirstCap $entity }}Delete creates a new {{ $entity }}Delete.
+func new{{toFirstCap $entity }}Delete(c *internal.Dialect, es ...*{{toFirstCap $entity }}) *{{ $entity }}Delete {
 	return &{{ $entity }}Delete{
 		config: c,
 		es: es,

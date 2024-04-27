@@ -33,7 +33,7 @@ type {{ $db }} struct {
 		{{- if $entity.Comment }}
 		// {{ $key }}s {{ $entity.Comment }}
 		{{- end }}
-        {{ $key }}s *{{ $entityName }}{{ $builder}}
+        {{ $key }}s *{{toFirstLower $entityName }}{{ $builder}}
     {{- end }}
 }
 
@@ -89,7 +89,7 @@ func (d *{{ $db }}) init() {
 		d.tracker,
 		{{- range $rel := $entity.Relations }}
 		{{- $res := getEntityRelDirection $rel $entity }}
-		*New{{ $res.Join.Name }}Relation(
+		*new{{ $res.Join.Name }}Relation(
 			{{ toFirstLower $res.Join.Name }}Config, 
 			entitysql.RelationDesc{
 				Orders: []entitysql.OrderFunc{

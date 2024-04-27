@@ -1,5 +1,5 @@
 {{ define "entity/query" }}
-{{ $entity := $.Entity.Name}}
+{{ $entity := toFirstLower $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
 {{ $header := dict "Package" .Config.Package }}
 {{ template "header" $header }}
@@ -19,7 +19,7 @@ type {{ $entity }}Query struct {
 }
 
 // First returns the first result of the query.
-func (o *{{ $entity }}Query) First(ctx context.Context) (*{{ $entity }}, error) {
+func (o *{{ $entity }}Query) First(ctx context.Context) (*{{toFirstCap $entity }}, error) {
 	result, err := o.Single(ctx)
 	if err != nil {
 		return nil, err
@@ -27,8 +27,8 @@ func (o *{{ $entity }}Query) First(ctx context.Context) (*{{ $entity }}, error) 
 	return result, nil
 }
 
-// New{{ $entity }}Query creates a new {{ $entity }}Query.
-func New{{ $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ toFirstLower $entity  }}Mutations) *{{ $entity }}Query {
+// new{{ toFirstCap $entity }}Query creates a new {{ $entity }}Query.
+func new{{ toFirstCap $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ toFirstLower $entity  }}Mutations) *{{ $entity }}Query {
 	return &{{ $entity }}Query{
 		config: &{{ toFirstLower $entity }}Config{
 			Dialect:    c,
@@ -59,30 +59,30 @@ func (o *{{ $entity }}Query) Order(term ...{{ $entityAttr }}.OrderTerm) *{{ $ent
 	return o
 }
 
-func (o *{{ $entity }}Query) Include(rels ...{{ $entity }}Rel) *{{ $entity }}Query {
+func (o *{{ $entity }}Query) Include(rels ...{{ $entity }}Rel) *{{  $entity }}Query {
 	o.rels = append(o.rels, rels...)
 	return o
 }
 
 // ToList returns the list of results of the query.
-func (o *{{ $entity }}Query) ToList(ctx context.Context) ([]*{{ $entity }}, error) {
+func (o *{{ $entity }}Query) ToList(ctx context.Context) ([]*{{ toFirstCap $entity }}, error) {
 	return o.sqlAll(ctx)
 }
 
 // Single returns the single result of the query.
-func (o *{{ $entity }}Query) Single(ctx context.Context) (*{{ $entity }}, error) {
+func (o *{{ $entity }}Query) Single(ctx context.Context) (*{{ toFirstCap $entity }}, error) {
 	limit := 1
 	o.ctx.Limit = &limit
 	return o.sqlSingle(ctx)
 }
 
-func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ $entity }}, error) {
+func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ toFirstCap $entity }}, error) {
 	var (
 		spec   = o.querySpec()
 		res  = o.config.New()
 	)
 	switch res := res.(type) {
-	case *{{ $entity }}:
+	case *{{ toFirstCap $entity }}:
 		spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
 			builder := entitysql.NewScannerBuilder(o.scannerTotal)
 			builder.Append(0,res.scan(fields)...)
@@ -107,15 +107,15 @@ func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ $entity }}, err
 	}
 }
 
-func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ $entity }}, error) {
+func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ toFirstCap $entity }}, error) {
 	var (
 		spec = o.querySpec()
-		res  = []*{{ $entity }}{}
+		res  = []*{{ toFirstCap $entity }}{}
 	)
 	spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
 		e := o.config.New()
 		switch e := e.(type) {
-		case *{{ $entity }}:
+		case *{{ toFirstCap $entity }}:
 			builder := entitysql.NewScannerBuilder(o.scannerTotal + 1)
 			builder.Append(0,e.scan([]entitysql.ScannerField{})...)
 			for _, s := range o.scanner {
@@ -125,7 +125,7 @@ func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ $entity }}, erro
 			if err := rows.Scan(builder.Flatten()...); err != nil {
 				return err
 			} else {
-				res = merge{{ $entity }}(res, e)
+				res = merge{{ toFirstCap $entity }}(res, e)
 				return nil
 			}
 		default:
@@ -181,7 +181,7 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 	return s
 }
 
-func (o *{{ $entity }}Query) addRels(s *entitysql.Selector,t *entitysql.SelectTable, rel Rel, scanner []*internal.QueryScanner)  []*internal.QueryScanner {
+func (o *{{ $entity }}Query) addRels(s *entitysql.Selector,t *entitysql.SelectTable, rel rel, scanner []*internal.QueryScanner)  []*internal.QueryScanner {
 	desc, children, config := rel.Desc()
 	join := entitysql.AddRelBySelector(s, t, desc)
 	_, tableNum := join.GetAs()
