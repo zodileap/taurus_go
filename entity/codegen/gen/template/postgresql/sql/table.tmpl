@@ -5,6 +5,31 @@
     Schema: public
 */
 
+-- ********
+-- Delete Foreign Key
+-- ********
+DO $$
+BEGIN
+{{ range $key, $entity := $.Database.Entities }}
+{{- $schema := `"public"` }}
+{{- $schemaV := `'public'` }}
+{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
+{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- range $i,$rel := $entity.Relations }}
+IF EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE table_schema = 'public'
+    AND table_name = '{{ $rel.Dependent.AttrName }}'
+    AND constraint_name = '{{ $rel.Desc.Constraint }}'
+) THEN
+    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT "{{ $rel.Desc.Constraint }}";
+END IF;
+{{ end }}
+{{- end }}
+END
+$$;
+
 {{ range $key, $entity := $.Database.Entities }}
 {{ $schema := `"public"` }}
 {{- $schemaV := `'public'` }}
@@ -96,30 +121,7 @@ END
 $$;
 {{ end }}
 
--- ********
--- Delete Foreign Key
--- ********
-DO $$
-BEGIN
-{{ range $key, $entity := $.Database.Entities }}
-{{- $schema := `"public"` }}
-{{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
-{{- range $i,$rel := $entity.Relations }}
-IF EXISTS (
-    SELECT 1
-    FROM information_schema.table_constraints
-    WHERE table_schema = 'public'
-    AND table_name = '{{ $rel.Dependent.AttrName }}'
-    AND constraint_name = '{{ $rel.Desc.Constraint }}'
-) THEN
-    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT "{{ $rel.Desc.Constraint }}";
-END IF;
-{{ end }}
-{{- end }}
-END
-$$;
+
 
 
 -- ********
