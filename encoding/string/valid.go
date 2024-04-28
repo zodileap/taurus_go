@@ -45,3 +45,12 @@ func HasSuffix(filename string) string {
 	// 如果扩展名不为空，则表示文件名带有后缀
 	return ext
 }
+
+func Container(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
