@@ -11,7 +11,7 @@ import (
 func RunGo(target string, buildFlags []string) (string, error) {
 	s, err := gocmd("run", target, buildFlags)
 	if err != nil {
-		return "", fmt.Errorf("taurus_go/cmd run error: %s", err)
+		return "", fmt.Errorf("taurus_go/cmd run error:\n%s", err)
 	}
 	return s, nil
 }
