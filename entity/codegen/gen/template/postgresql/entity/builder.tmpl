@@ -1,7 +1,7 @@
 {{ define "entity/builder" }}
 {{ $entity := .Entity.Name }}
 {{ $entityAttr := .Entity.AttrName }}
-{{ $header := dict "Package" .Config.Package }}
+{{ $header := dict "Package" "entity" }}
 {{ template "header" $header }}
 {{ $BuilderName := joinStrings ( toFirstLower  $entity ) "Builder" }}
 

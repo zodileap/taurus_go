@@ -1,5 +1,5 @@
 {{ define "database" }}
-{{ $header := dict "Package" .Config.Package }}
+{{ $header := dict "Package" "entity" }}
 {{ template "header" $header }}
 {{ $db := toFirstCap $.Database.Name}}
 {{ $lowerDb := toLower $db }} 

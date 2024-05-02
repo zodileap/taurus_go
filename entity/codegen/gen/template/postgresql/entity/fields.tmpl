@@ -1,7 +1,7 @@
 {{ define "entity/fields"  }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" .Config.Package }}
+{{ $header := dict "Package" "entity" }}
 {{ template "header" $header }}
 
 {{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
