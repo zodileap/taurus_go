@@ -14,7 +14,7 @@ type {{ toFirstCap . }} struct {
 
 func (d *{{ toFirstCap .}}) Config() entity.DbConfig {
     return entity.DbConfig{
-        Tag: "{{.}}",
+        Tag: "{{ toFirstLower .}}",
 		Type: dialect.PostgreSQL,
     }
 }
