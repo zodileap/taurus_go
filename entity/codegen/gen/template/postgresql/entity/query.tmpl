@@ -79,32 +79,39 @@ func (o *{{ $entity }}Query) Single(ctx context.Context) (*{{ toFirstCap $entity
 func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ toFirstCap $entity }}, error) {
 	var (
 		spec   = o.querySpec()
-		res  = o.config.New()
+		res  *{{ toFirstCap $entity }}
 	)
-	switch res := res.(type) {
-	case *{{ toFirstCap $entity }}:
-		spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
+	spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
+		e := o.config.New()
+		switch e := e.(type) {
+		case *{{ toFirstCap $entity }}:
 			builder := entitysql.NewScannerBuilder(o.scannerTotal)
-			builder.Append(0,res.scan(fields)...)
+			builder.Append(0, e.scan(fields)...)
 			for _, s := range o.scanner {
-				res.createRel(builder, s)
+				e.createRel(builder, s)
 			}
-
-			return rows.Scan(builder.Flatten()...)
+			if err := rows.Scan(builder.Flatten()...); err != nil {
+				return err
+			} else {
+				res = e
+				return nil
+			} 
+		default:
+			return entity.Err_0100030006
 		}
-		if err := entitysql.NewQuery(ctx, o.config.Driver, spec); err != nil {
-			return nil, err
-		}
+	}
+	if err := entitysql.NewQuery(ctx, o.config.Driver, spec); err != nil {
+		return nil, err
+	}
+	if res != nil {
 		if err := res.setUnchanged(); err != nil {
 			return nil, err
 		}
-		for _, r := range o.rels {
-			r.reset()
-		}
-		return res, nil
-	default:
-		return nil, entity.Err_0100030006
 	}
+	for _, r := range o.rels {
+		r.reset()
+	}
+	return res, nil
 }
 
 func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ toFirstCap $entity }}, error) {
