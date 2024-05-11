@@ -85,7 +85,7 @@ func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ toFirstCap $ent
 		e := o.config.New()
 		switch e := e.(type) {
 		case *{{ toFirstCap $entity }}:
-			builder := entitysql.NewScannerBuilder(o.scannerTotal)
+			builder := entitysql.NewScannerBuilder(o.scannerTotal + 1)
 			builder.Append(0, e.scan(fields)...)
 			for _, s := range o.scanner {
 				e.createRel(builder, s)
