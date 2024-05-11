@@ -173,6 +173,9 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 	}
 	for rows.Next() {
 		ScannerFields := make([]ScannerField, len(b.Entity.Columns))
+		for i, c := range b.Entity.Columns {
+			ScannerFields[i] = c
+		}
 		err := b.Scan(rows, ScannerFields)
 		if err != nil {
 			return err
