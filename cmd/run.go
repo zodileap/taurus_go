@@ -145,7 +145,7 @@ func (c *Cmd) SetDir(dir string) *Cmd {
 //
 // Example:
 //
-//	cmd.New("go", "build").SetEnv("GOOS=linux", "GOARCH=amd64").Must()
+//	cmd.New("go", "build").SetEnv(append(os.Environ(), "GOOS=linux", "GOARCH=amd64")).Must()
 func (c *Cmd) SetEnv(env []string) *Cmd {
 	c.cmd.Env = env
 	return c
