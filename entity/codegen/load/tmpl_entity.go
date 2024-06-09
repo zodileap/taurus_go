@@ -525,6 +525,10 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	if ed.AttrType == "" {
 		ed.AttrType = attrType
 	}
+	valueType := f.ValueType()
+	if valueType == "" {
+		panic(fmt.Sprintf("Unsupported value type for entity %q in database %s: attribute %q", ed.EntityName, db.Name, ed.AttrName))
+	}
 
 	ef := &Field{}
 	ef.EntityName = ed.EntityName
@@ -543,7 +547,7 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	ef.Locked = ed.Locked
 	ef.Sequence = ed.Sequence
 	ef.Validators = len(ed.Validators)
-	ef.ValueType = f.ValueType()
+	ef.ValueType = valueType
 
 	err := checkSequence(ef.Sequence)
 	if err != nil {
