@@ -520,7 +520,7 @@ func checkFields(fd interface {
 func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	attrType := f.AttrType(db.Type)
 	if attrType == "" {
-		panic(fmt.Sprintf("%T.AttrType in Database %s: empty string", db.Type, f))
+		panic(fmt.Sprintf("Unsupported attribute type for entity %q in database %s: attribute %q", ed.EntityName, db.Name, ed.AttrName))
 	}
 	if ed.AttrType == "" {
 		ed.AttrType = attrType
