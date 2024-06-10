@@ -1765,7 +1765,7 @@ func (c *Caser) Query() (SqlSpec, error) {
 //	0: CASE语句生成器。
 func (c *Caser) When(pred PredicateFunc) *Caser {
 	c.WriteString(" WHEN ")
-	p := P(c.Builder)
+	p := P(c.Builder.clone())
 	pred(p, c.as)
 	c.Join(p)
 	return c
