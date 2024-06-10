@@ -1041,7 +1041,7 @@ func (u *Updater) writeSetter(b *Builder, row int) {
 			b.Comma()
 		}
 		b.Ident(column).WriteString(" = ")
-		b.Join(NewCaser(column, u.values[row][i], t.as))
+		b.Join(NewCaser(u.Builder.clone(), column, u.values[row][i], t.as))
 	}
 }
 
@@ -1703,11 +1703,12 @@ type (
 // Returns:
 //
 //	0: CASE语句生成器。
-func NewCaser(column string, cases []CaseSpec, as string) *Caser {
+func NewCaser(buider *Builder, column string, cases []CaseSpec, as string) *Caser {
 	return &Caser{
-		Cases:  cases,
-		column: column,
-		as:     as,
+		Builder: buider,
+		Cases:   cases,
+		column:  column,
+		as:      as,
 	}
 }
 
