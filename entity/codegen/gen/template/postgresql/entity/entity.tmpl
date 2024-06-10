@@ -122,7 +122,9 @@ func (e *{{ $entity }}) scan(fields []entitysql.ScannerField) []any {
 			switch c.String() {
 			{{- range $field := $.Entity.Fields }}
 			case {{ $entityAttr }}.Field{{ $field.Name }}.Name.String():
-				args[i] = e.{{ $field.Name }}
+				v := e.{{ $field.Name }}
+				v.Set(*new({{ $field.ValueType }}))
+				args[i] = v
 			{{- end }}
 			}
 		}
@@ -133,7 +135,9 @@ func (e *{{ $entity }}) scan(fields []entitysql.ScannerField) []any {
 			switch fields[i].String() {
 			{{- range $field := $.Entity.Fields }}
 			case {{ $entityAttr }}.Field{{ $field.Name }}.Name.String():
-				args[i] = e.{{ $field.Name }}
+				v := e.{{ $field.Name }}
+				v.Set(*new({{ $field.ValueType }}))
+				args[i] = v
 			{{- end }}
 			}
 		}

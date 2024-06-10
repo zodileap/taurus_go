@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
 // Int16 用于定义int16类型的字段。
@@ -14,10 +13,70 @@ type Int16 struct {
 	IntBuilder[int16]
 }
 
+// Int16A1 用于定义int16类型的数组字段。1维数组。
+type Int16A1 struct {
+	IntStorage[[]int16]
+	IntBuilder[[]int16]
+}
+
+// Int16A2 用于定义int16类型的数组字段。2维数组。
+type Int16A2 struct {
+	IntStorage[[][]int16]
+	IntBuilder[[][]int16]
+}
+
+// Int16A3 用于定义int16类型的数组字段。3维数组。
+type Int16A3 struct {
+	IntStorage[[][][]int16]
+	IntBuilder[[][][]int16]
+}
+
+// Int16A4 用于定义int16类型的数组字段。4维数组。
+type Int16A4 struct {
+	IntStorage[[][][][]int16]
+	IntBuilder[[][][][]int16]
+}
+
+// Int16A5 用于定义int16类型的数组字段。5维数组。
+type Int16A5 struct {
+	IntStorage[[][][][][]int16]
+	IntBuilder[[][][][][]int16]
+}
+
 // Int32 用于定义int32类型的字段。
 type Int32 struct {
 	IntStorage[int32]
 	IntBuilder[int32]
+}
+
+// Int32A1 用于定义int32类型的数组字段。1维数组。
+type Int32A1 struct {
+	IntStorage[[]int32]
+	IntBuilder[[]int32]
+}
+
+// Int32A2 用于定义int32类型的数组字段。2维数组。
+type Int32A2 struct {
+	IntStorage[[][]int32]
+	IntBuilder[[][]int32]
+}
+
+// Int32A3 用于定义int32类型的数组字段。3维数组。
+type Int32A3 struct {
+	IntStorage[[][][]int32]
+	IntBuilder[[][][]int32]
+}
+
+// Int32A4 用于定义int32类型的数组字段。4维数组。
+type Int32A4 struct {
+	IntStorage[[][][][]int32]
+	IntBuilder[[][][][]int32]
+}
+
+// Int32A5 用于定义int32类型的数组字段。5维数组。
+type Int32A5 struct {
+	IntStorage[[][][][][]int32]
+	IntBuilder[[][][][][]int32]
 }
 
 // Int64 用于定义int64类型的字段。
@@ -26,48 +85,43 @@ type Int64 struct {
 	IntBuilder[int64]
 }
 
+// Int64A1 用于定义int64类型的数组字段。1维数组。
+type Int64A1 struct {
+	IntStorage[[]int64]
+	IntBuilder[[]int64]
+}
+
+// Int64A2 用于定义int64类型的数组字段。2维数组。
+type Int64A2 struct {
+	IntStorage[[][]int64]
+	IntBuilder[[][]int64]
+}
+
+// Int64A3 用于定义int64类型的数组字段。3维数组。
+type Int64A3 struct {
+	IntStorage[[][][]int64]
+	IntBuilder[[][][]int64]
+}
+
+// Int64A4 用于定义int64类型的数组字段。4维数组。
+type Int64A4 struct {
+	IntStorage[[][][][]int64]
+	IntBuilder[[][][][]int64]
+}
+
+// Int64A5 用于定义int64类型的数组字段。5维数组。
+type Int64A5 struct {
+	IntStorage[[][][][][]int64]
+	IntBuilder[[][][][][]int64]
+}
+
+type IntStorage[T any] struct {
+	BaseStorage[T]
+}
+
 // IntBuilder 用于构建int类型的字段。
 type IntBuilder[T any] struct {
-	desc *entity.Descriptor
-}
-
-// Init 初始化字段的描述信息，在代码生成阶段初始化时调用。
-//
-// Params:
-//
-//   - desc: 字段的描述信息。
-func (i *IntBuilder[T]) Init(desc *entity.Descriptor) error {
-	i.desc = desc
-	return nil
-}
-
-// Descriptor 获取字段的描述信息。
-func (i *IntBuilder[T]) Descriptor() *entity.Descriptor {
-	return i.desc
-}
-
-// AttrType 获取字段的数据库中的类型名，如果返回空字符串，会出现错误。
-//
-// Params:
-//
-//   - dbType: 数据库类型。
-//
-// Returns:
-//
-//   - 字段的数据库中的类型名。
-func (i *IntBuilder[T]) AttrType(dbType dialect.DbDriver) string {
-	var t T
-	return attrType(t)
-}
-
-// ValueType 用于设置字段的值在go中类型名称。例如entity.Int64的ValueType为"int64"。
-//
-// Returns:
-//
-//   - 字段的值在go中类型名称。
-func (i *IntBuilder[T]) ValueType() string {
-	var t T
-	return intType(t)
+	BaseBuilder[T]
 }
 
 // Name 用于设置字段在数据库中的名称。
@@ -130,9 +184,9 @@ func (i *IntBuilder[T]) Comment(comment string) *IntBuilder[T] {
 // Params:
 //
 //   - value: 字段的默认值。
-func (i *IntBuilder[T]) Default(value int) *IntBuilder[T] {
+func (i *IntBuilder[T]) Default(value T) *IntBuilder[T] {
 	i.desc.Default = true
-	i.desc.DefaultValue = fmt.Sprintf("%d", value)
+	i.desc.DefaultValue = fmt.Sprintf("%v", value)
 	return i
 }
 
@@ -154,72 +208,4 @@ func (i *IntBuilder[T]) Sequence(s entity.Sequence) *IntBuilder[T] {
 func (i *IntBuilder[T]) Locked() *IntBuilder[T] {
 	i.desc.Locked = true
 	return i
-}
-
-type IntStorage[T any] struct {
-	value *T
-}
-
-// Set 设置字段的值。
-func (i *IntStorage[T]) Set(value T) error {
-	i.value = &value
-	return nil
-}
-
-// Get 获取字段的值。
-func (i *IntStorage[T]) Get() *T {
-	return i.value
-}
-
-// Scan 从数据库中读取字段的值。
-func (i *IntStorage[T]) Scan(value interface{}) error {
-	if value == nil {
-		i.value = nil
-		return nil
-	}
-	return convertAssign(&i.value, value)
-}
-
-// String 返回字段的字符串表示。
-func (i IntStorage[T]) String() string {
-	if i.value == nil {
-		return "nil"
-	}
-	return fmt.Sprintf("%d", *i.value)
-}
-
-// Value 返回字段的值，和Get方法不同的是，Value方法返回的是接口类型。
-func (i *IntStorage[T]) Value() entity.FieldValue {
-	if i.value == nil {
-		return nil
-	}
-	return *i.value
-}
-
-// attrType 返回字段的数据库中的类型名。
-func attrType(t any) string {
-	switch t.(type) {
-	case int16:
-		return "int2"
-	case int32:
-		return "int4"
-	case int64:
-		return "int8"
-	default:
-		return "int"
-	}
-}
-
-// intType 返回字段的值在go中类型名称。
-func intType(t any) string {
-	switch t.(type) {
-	case int16:
-		return "int16"
-	case int32:
-		return "int32"
-	case int64:
-		return "int64"
-	default:
-		return "int"
-	}
 }

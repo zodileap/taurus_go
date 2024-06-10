@@ -135,7 +135,7 @@ type (
 		// 用于打印字段的值。
 		String() string
 		// 用于内部sql中获取字段的值。如果需要获得值，推荐通过Get()方法获得。
-		Value() FieldValue
+		Value(dbType dialect.DbDriver) (FieldValue, error)
 	}
 
 	// 包含了关于字段的描述，配置信息等。

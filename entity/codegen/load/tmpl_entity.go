@@ -574,17 +574,7 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 	_, ok = assertFieldStrager(v)
 	if ok {
 		typeName := s.Type.String()
-		OrigTypeName := typeName
-		// 提取非泛型部分
-		split := strings.Split(typeName, ".")
-		if len(split) == 1 {
-			OrigTypeName = typeName
-		} else {
-			OrigTypeName = split[1]
-		}
-		if strings.Contains(OrigTypeName, "[") && strings.Contains(OrigTypeName, "]") {
-			OrigTypeName = OrigTypeName[:strings.Index(OrigTypeName, "[")]
-		}
+		OrigTypeName := extractOrigTypeName(typeName)
 		return &fieldInfoStorager{
 			Pkg:      v.Type().PkgPath(),
 			Name:     s.Name,
@@ -594,6 +584,21 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 
 	}
 	return nil
+}
+
+func extractOrigTypeName(typeName string) string {
+	// 先移除泛型参数
+	if genIndex := strings.Index(typeName, "["); genIndex != -1 {
+		typeName = typeName[:genIndex]
+	}
+
+	// 提取最后一个点号之后的部分，以处理可能的包名
+	lastDotIndex := strings.LastIndex(typeName, ".")
+	if lastDotIndex != -1 {
+		typeName = typeName[lastDotIndex+1:]
+	}
+
+	return typeName
 }
 
 // checkSequence 检查序列的值。

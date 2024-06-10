@@ -3,6 +3,7 @@ package field
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/yohobala/taurus_go/entity"
@@ -11,54 +12,87 @@ import (
 
 // Timestamp 时间戳类型的字段。
 type Timestamptz struct {
-	TimestamptzBuilder
-	TimestampStorage
+	TimestampStorage[time.Time]
+	TimestamptzBuilder[time.Time]
+}
+
+type TimestamptzA1 struct {
+	TimestampStorage[[]time.Time]
+	TimestamptzBuilder[[]time.Time]
+}
+
+type TimestamptzA2 struct {
+	TimestampStorage[[][]time.Time]
+	TimestamptzBuilder[[][]time.Time]
+}
+
+type TimestamptzA3 struct {
+	TimestampStorage[[][][]time.Time]
+	TimestamptzBuilder[[][][]time.Time]
+}
+
+type TimestamptzA4 struct {
+	TimestampStorage[[][][][]time.Time]
+	TimestamptzBuilder[[][][][]time.Time]
+}
+
+type TimestamptzA5 struct {
+	TimestampStorage[[][][][][]time.Time]
+	TimestamptzBuilder[[][][][][]time.Time]
 }
 
 // TimestampStorage 时间戳类型的字段存储。
-type TimestampStorage struct {
-	value *time.Time
+type TimestampStorage[T any] struct {
+	BaseStorage[T]
 }
 
-// Set 设置字段的值。
-func (t *TimestampStorage) Set(value time.Time) error {
-	t.value = &value
-	return nil
-}
-
-// Get 获取字段的值。
-func (t *TimestampStorage) Get() *time.Time {
-	return t.value
-}
-
-// Scan 从数据库中读取字段的值。
-func (t *TimestampStorage) Scan(value interface{}) error {
-	if value == nil {
-		t.value = nil
-		return nil
+func (i *TimestampStorage[T]) Value(dbType dialect.DbDriver) (entity.FieldValue, error) {
+	if i.value == nil {
+		return nil, nil
 	}
-	return convertAssign(&t.value, value)
+	return i.toValue(*i.value, dbType)
 }
 
-// String 返回字段的字符串表示。
-func (t TimestampStorage) String() string {
-	if t.value == nil {
-		return "nil"
+func (b *TimestampStorage[T]) toValue(v any, dbType dialect.DbDriver) (entity.FieldValue, error) {
+	switch dbType {
+	case dialect.PostgreSQL:
+		if b.value == nil {
+			return nil, nil
+		}
+		switch val := v.(type) {
+		case time.Time:
+			return val.Format("2006-01-02 15:04:05.999999-07:00"), nil
+		case []time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][][][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][][][][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		default:
+			return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(v))
+		}
+	default:
+		return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(v))
 	}
-	return t.value.String()
-}
-
-// Value 返回字段的值，和Get方法不同的是，Value方法返回的是接口类型。
-func (t *TimestampStorage) Value() entity.FieldValue {
-	if t.value == nil {
-		return nil
-	}
-	return *t.value
 }
 
 // TimestamptzBuilder 时间戳类型的字段构建器。
-type TimestamptzBuilder struct {
-	desc *entity.Descriptor
+type TimestamptzBuilder[T any] struct {
+	BaseBuilder[T]
 	// 精度
 	precision int
 }
@@ -68,17 +102,12 @@ type TimestamptzBuilder struct {
 // Params:
 //
 //   - desc: 字段的描述信息。
-func (t *TimestamptzBuilder) Init(desc *entity.Descriptor) error {
+func (t *TimestamptzBuilder[T]) Init(desc *entity.Descriptor) error {
 	if t == nil {
 		panic("taurus_go/entity Timestamptz init: nil pointer dereference.")
 	}
 	t.desc = desc
 	return nil
-}
-
-// Descriptor 获取字段的描述信息。
-func (t *TimestamptzBuilder) Descriptor() *entity.Descriptor {
-	return t.desc
 }
 
 // AttrType 获取字段的数据库中的类型名，如果返回空字符串，会出现错误。
@@ -90,25 +119,36 @@ func (t *TimestamptzBuilder) Descriptor() *entity.Descriptor {
 // Returns:
 //
 //   - 字段的数据库中的类型名。
-func (t *TimestamptzBuilder) AttrType(dbType dialect.DbDriver) string {
-	if t.precision == 0 {
-		t.precision = 6
-	}
+func (t *TimestamptzBuilder[T]) AttrType(dbType dialect.DbDriver) string {
+	var v T
+	return t.attrType(v, dbType)
+}
+
+func (t *TimestamptzBuilder[T]) attrType(v any, dbType dialect.DbDriver) string {
 	switch dbType {
 	case dialect.PostgreSQL:
-		return fmt.Sprintf("timestamptz(%d)", t.precision)
+		switch v.(type) {
+		case time.Time:
+			if t.precision == 0 {
+				t.precision = 6
+			}
+			return fmt.Sprintf("timestamptz(%d)", t.precision)
+		case []time.Time:
+			return "timestamptz[]"
+		case [][]time.Time:
+			return "timestamptz[][]"
+		case [][][]time.Time:
+			return "timestamptz[][][]"
+		case [][][][]time.Time:
+			return "timestamptz[][][][]"
+		case [][][][][]time.Time:
+			return "timestamptz[][][][][]"
+		default:
+			return ""
+		}
 	default:
 		return ""
 	}
-}
-
-// ValueType 用于设置字段的值在go中类型名称。例如entity.Int64的ValueType为"int64"。
-//
-// Returns:
-//
-//   - 字段的值在go中类型名称。
-func (t *TimestamptzBuilder) ValueType() string {
-	return "time.Time"
 }
 
 // Name 用于设置字段在数据库中的名称。
@@ -118,7 +158,7 @@ func (t *TimestamptzBuilder) ValueType() string {
 // Params:
 //
 //   - name: 字段在数据库中的名称。
-func (t *TimestamptzBuilder) Name(name string) *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) Name(name string) *TimestamptzBuilder[T] {
 	t.desc.AttrName = name
 	return t
 }
@@ -128,7 +168,7 @@ func (t *TimestamptzBuilder) Name(name string) *TimestamptzBuilder {
 // Params:
 //
 //   - size: 字段的最小长度。
-func (t *TimestamptzBuilder) MinLen(size int) *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) MinLen(size int) *TimestamptzBuilder[T] {
 	t.desc.Validators = append(t.desc.Validators, func(b []byte) error {
 		if len(b) < size {
 			return errors.New("value is less than the required length.")
@@ -139,7 +179,7 @@ func (t *TimestamptzBuilder) MinLen(size int) *TimestamptzBuilder {
 }
 
 // Required 是否非空,默认可以为null,如果调用[Required],则字段为非空字段。
-func (t *TimestamptzBuilder) Required() *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) Required() *TimestamptzBuilder[T] {
 	t.desc.Required = true
 	return t.MinLen(1)
 }
@@ -149,7 +189,7 @@ func (t *TimestamptzBuilder) Required() *TimestamptzBuilder {
 // Params:
 //
 //   - index: 主键的索引，从1开始，对于多个主键，需要设置不同大小的索引。
-func (t *TimestamptzBuilder) Primary(index int) *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) Primary(index int) *TimestamptzBuilder[T] {
 	t.desc.Required = true
 	t.desc.Primary = index
 	return t
@@ -160,7 +200,7 @@ func (t *TimestamptzBuilder) Primary(index int) *TimestamptzBuilder {
 // Params:
 //
 //   - comment: 字段的注释。
-func (t *TimestamptzBuilder) Comment(comment string) *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) Comment(comment string) *TimestamptzBuilder[T] {
 	t.desc.Comment = comment
 	return t
 }
@@ -171,20 +211,20 @@ func (t *TimestamptzBuilder) Comment(comment string) *TimestamptzBuilder {
 // Params:
 //
 //   - value: 字段的默认值。
-func (t *TimestamptzBuilder) Default(value string) *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) Default(value string) *TimestamptzBuilder[T] {
 	t.desc.Default = true
 	t.desc.DefaultValue = value
 	return t
 }
 
 // Precision 设置时间精度。
-func (t *TimestamptzBuilder) Precision(precision int) *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) Precision(precision int) *TimestamptzBuilder[T] {
 	t.precision = precision
 	return t
 }
 
 // Locked 设置字段是否为只读。
-func (t *TimestamptzBuilder) Locked() *TimestamptzBuilder {
+func (t *TimestamptzBuilder[T]) Locked() *TimestamptzBuilder[T] {
 	t.desc.Locked = true
 	return t
 }

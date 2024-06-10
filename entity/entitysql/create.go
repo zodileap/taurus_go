@@ -60,8 +60,9 @@ func NewCreate(ctx context.Context, drv dialect.Tx, spec *CreateSpec) error {
 //
 //   - name: 字段名称。
 //   - f: 字段。
-func (s *CreateSpec) CheckRequired(name FieldName, f entity.FieldStorager) error {
-	if f.Value() == nil {
+func (s *CreateSpec) CheckRequired(dbDriver dialect.DbDriver, name FieldName, f entity.FieldStorager) error {
+	v, err := f.Value(dbDriver)
+	if v == nil || err != nil {
 		return entity.Err_0100030001.Sprintf(s.Entity.Name, name)
 	}
 	return nil

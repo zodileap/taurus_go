@@ -3,11 +3,17 @@ package field
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
+
+	_ "github.com/lib/pq"
+	byteutil "github.com/yohobala/taurus_go/encoding/byte"
+	"github.com/yohobala/taurus_go/tlog"
 )
 
 // errNilPtr 新建一个错误，表示目标指针为空。
@@ -33,6 +39,8 @@ func convertAssign(dest, src any) error {
 //   - dest: 目标值。
 //   - src: 源值。
 func convertAssignRows(dest, src any) error {
+	tlog.Print(reflect.TypeOf(dest))
+	tlog.Print(reflect.TypeOf(src))
 	// 类型断言和赋值来实现.
 	switch s := src.(type) {
 	case string:
@@ -82,6 +90,8 @@ func convertAssignRows(dest, src any) error {
 			}
 			*d = s
 			return nil
+		default:
+			return BytesToSlice(d, s)
 		}
 	case time.Time:
 		switch d := dest.(type) {
@@ -298,6 +308,8 @@ func asString(src any) string {
 }
 
 func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
+	tlog.Print(buf)
+	tlog.Print(string(buf))
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.AppendInt(buf, rv.Int(), 10), true
@@ -327,4 +339,128 @@ type decimalCompose interface {
 	// Compose sets the internal decimal value from parts. If the value cannot be
 	// represented then an error should be returned.
 	Compose(form byte, negative bool, coefficient []byte, exponent int32) error
+}
+
+type arrayToPGStringCallBack func(any) (string, error)
+
+// arrayToPGString 将任何维度的数组转换为 PostgreSQL 数组格式的字符串
+func arrayToPGString(value interface{}, callback arrayToPGStringCallBack) (string, error) {
+	val := reflect.ValueOf(value)
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		return callback(value)
+	}
+
+	var result strings.Builder
+	result.WriteString("{")
+	for i := 0; i < val.Len(); i++ {
+		if i > 0 {
+			result.WriteString(", ")
+		}
+		element, err := arrayToPGString(val.Index(i).Interface(), callback)
+		if err != nil {
+			return "", err
+		}
+		result.WriteString(element)
+	}
+	result.WriteString("}")
+
+	return result.String(), nil
+}
+
+type sliceType int
+
+const (
+	sliceTypeCommon sliceType = 0
+	sliceTypeBool   sliceType = 1
+	sliceTypeTime   sliceType = 2
+)
+
+// BytesToSlice 处理通用切片类型的转换
+func BytesToSlice(dest any, src []byte) error {
+	tlog.Print(src)
+	src = byteutil.ReplaceAll(src, 123, []byte{91})
+	src = byteutil.ReplaceAll(src, 125, []byte{93})
+	// 获取dest的反射值对象
+	v := reflect.ValueOf(dest)
+
+	// 检查传入的dest是否是指针
+	if v.Kind() != reflect.Ptr {
+		return fmt.Errorf("dest must be a pointer")
+	}
+
+	// 获取指针指向的元素
+	e := v.Elem()
+	if e.Kind() != reflect.Slice {
+		return fmt.Errorf("dest must be a slice pointer")
+	}
+	t := validSliceType(e)
+	if t == sliceTypeBool {
+		tlog.Print("切片")
+		src = byteutil.ReplaceAll(src, 116, []byte{116, 114, 117, 101})
+		src = byteutil.ReplaceAll(src, 102, []byte{102, 97, 108, 115, 101})
+	} else if t == sliceTypeTime {
+		tlog.Print("时间")
+		var data interface{}
+		if err := json.Unmarshal(src, &data); err != nil {
+			return fmt.Errorf("slice parse error: %v", err)
+		}
+		if err := parseTimeRecursive(data, e.Addr().Interface().(*[]time.Time)); err != nil {
+			return fmt.Errorf("slice parse error: %v", err)
+		}
+		return nil
+	}
+
+	if err := json.Unmarshal(src, e.Addr().Interface()); err != nil {
+		return fmt.Errorf("slice parse error: %v", err)
+	}
+
+	return nil
+}
+
+// validSliceType 检查切片的类型
+func validSliceType(v reflect.Value) sliceType {
+	for v.Kind() == reflect.Slice {
+		v = reflect.New(v.Type().Elem()).Elem()
+		// 当不再是切片时，检查是否为布尔类型
+		if v.Kind() != reflect.Slice {
+			if v.Kind() == reflect.Bool {
+				return sliceTypeBool
+			} else if v.Kind() == reflect.TypeOf(time.Time{}).Kind() {
+				return sliceTypeTime
+			} else {
+				return sliceTypeCommon
+			}
+		}
+	}
+	return sliceTypeCommon
+}
+
+// parseTimeRecursive 递归解析时间字符串
+func parseTimeRecursive(data interface{}, result *[]time.Time) error {
+	// 检查数据类型
+	rt := reflect.TypeOf(data)
+	rv := reflect.ValueOf(data)
+
+	switch rt.Kind() {
+	case reflect.Slice, reflect.Array:
+		// 迭代数组或切片中的每个元素
+		for i := 0; i < rv.Len(); i++ {
+			item := rv.Index(i).Interface()
+			if err := parseTimeRecursive(item, result); err != nil {
+				return err
+			}
+		}
+	case reflect.String:
+		// 解析字符串为 time.Time
+		timeStr := data.(string)
+		parsedTime, err := time.Parse("2006-01-02 15:04:05.999999-07", timeStr)
+		if err != nil {
+			return fmt.Errorf("error parsing time '%s': %w", timeStr, err)
+		}
+		*result = append(*result, parsedTime)
+	default:
+		return fmt.Errorf("unsupported data type: %s", rt.Kind())
+	}
+
+	return nil
 }
