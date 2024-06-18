@@ -159,6 +159,16 @@ func MarshalEntity(ei entity.EntityInterface) (ent *Entity, err error) {
 		return nil, entity.Err_0100020018.Sprintf(ent.Name, err)
 	}
 
+	for _, f := range ent.Fields {
+		ImportPkgs = append(ImportPkgs, f.StoragerPkg)
+	}
+	for _, pkgName := range ImportPkgs {
+		ps := strings.Split(pkgName, "/")
+		p := ps[len(ps)-1]
+		if entityName == p {
+			return nil, entity.Err_0100020018.Sprintf(ent.Name, fmt.Sprintf("entity name %q is the same as package name %q", entityName, pkgName))
+		}
+	}
 	ent.ImportPkgs = ImportPkgs
 	return ent, nil
 }
@@ -411,8 +421,8 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 			continue
 		}
 		fy := fe.Type()
-		for i := 0; i < fe.NumField(); i++ {
-			storager := analyseField(fe.Field(i), fy.Field(i))
+		for j := 0; j < fe.NumField(); j++ {
+			storager := analyseField(fe.Field(j), fy.Field(j))
 			if storager != nil {
 				initDesc := &entity.Descriptor{
 					Name:       fieldName,
@@ -578,7 +588,7 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 		return &fieldInfoStorager{
 			Pkg:      v.Type().PkgPath(),
 			Name:     s.Name,
-			Type:     typeName,
+			Type:     extractTypeName(s.Type),
 			OrigType: OrigTypeName,
 		}
 
@@ -586,6 +596,47 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 	return nil
 }
 
+// extractOrigTypeName 提取字段的类型的类型名称。含有泛型参数。
+//
+// 例如: geo.GeometryStorage[github.com/yohobala/taurus_go/encoding/geo.LineString,github.com/yohobala/taurus_go/encoding/geo.SDefault]
+// -> geo.GeometryStorage[geo.LineString,geo.SDefault]
+func extractTypeName(t reflect.Type) string {
+	typeName := t.String()
+
+	// 自定义函数来处理单个类型名称，保留最后的包名
+	trimPackagePath := func(fullTypeName string) string {
+		parts := strings.Split(fullTypeName, "/")
+		simpleName := parts[len(parts)-1] // 获取最后一部分，可能包含包名和类型名
+		return simpleName
+	}
+
+	// 检查是否有泛型参数
+	if start := strings.Index(typeName, "["); start != -1 {
+		// 基本类型部分
+		base := trimPackagePath(typeName[:start])
+
+		// 泛型参数部分
+		end := strings.LastIndex(typeName, "]")
+		params := typeName[start+1 : end]
+
+		// 处理泛型参数，这可能是逗号分隔的列表
+		paramTypes := strings.Split(params, ",")
+		for i, paramType := range paramTypes {
+			trimmedParam := strings.TrimSpace(paramType)
+			paramTypes[i] = trimPackagePath(trimmedParam)
+		}
+
+		// 重组类型名称
+		return base + "[" + strings.Join(paramTypes, ", ") + "]"
+	} else {
+		// 非泛型类型，直接处理类型名称
+		return trimPackagePath(typeName)
+	}
+}
+
+// extractOrigTypeName 提取字段的类型的原始类型名称。不含泛型参数和包名。
+//
+// 例如: field.IntStorage[int16] -> field.IntStorage
 func extractOrigTypeName(typeName string) string {
 	// 先移除泛型参数
 	if genIndex := strings.Index(typeName, "["); genIndex != -1 {
