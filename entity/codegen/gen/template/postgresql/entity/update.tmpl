@@ -106,7 +106,7 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 			switch f {
 			{{- range $i, $f := $.Entity.Fields }}
 			case {{ $entityAttr }}.Field{{ $f.Name }}.Name.String():
-				v, err := e.{{ $f.Name }}.Value(o.config.Driver.Dialect())
+				v, err := e.{{ $f.Name }}.SqlValue(o.config.Driver.Dialect())
 				if err != nil {
 					return err
 				}

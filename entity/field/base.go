@@ -41,8 +41,8 @@ func (b BaseStorage[T]) String() string {
 	return fmt.Sprintf("%d", *b.value)
 }
 
-// Value 返回字段的值，和Get方法不同的是，Value方法返回的是接口类型。
-func (i *BaseStorage[T]) Value(dbType dialect.DbDriver) (entity.FieldValue, error) {
+// SqlValue 返回字段的值，和Get方法不同的是，SqlValue方法是用于在sql语句中给字段参数赋值。
+func (i *BaseStorage[T]) SqlValue(dbType dialect.DbDriver) (entity.FieldValue, error) {
 	var t T
 	return i.toValue(t, dbType)
 }

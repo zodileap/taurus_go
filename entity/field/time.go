@@ -46,7 +46,7 @@ type TimestampStorage[T any] struct {
 	BaseStorage[T]
 }
 
-func (i *TimestampStorage[T]) Value(dbType dialect.DbDriver) (entity.FieldValue, error) {
+func (i *TimestampStorage[T]) SqlValue(dbType dialect.DbDriver) (entity.FieldValue, error) {
 	if i.value == nil {
 		return nil, nil
 	}
