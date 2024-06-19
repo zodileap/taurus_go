@@ -163,6 +163,19 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 		s.Entity.Columns = make([]entitysql.FieldName, 0, len(fields))
 		s.Entity.Columns = append(s.Entity.Columns, fields...)
 	}
+	for i := range s.Entity.Columns {
+		switch {{ $entityAttr }}.Columns[i] {
+			{{- range $i, $field := $.Entity.Fields }}
+			case {{ $entityAttr }}.Field{{ $field.Name }}.Name:
+				var a *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} = new({{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }})
+				c ,err := a.SqlSelectClause(string({{ $entityAttr }}.Field{{ $field.Name }}.Name), o.config.Driver.Dialect())
+				if err != nil {
+					return nil
+				}
+				s.Entity.Columns[i] = entitysql.FieldName(c)
+			{{- end }}
+		} 
+	}
 	if ps := o.predicates; len(ps) > 0 {
 		s.Predicate = func(p *entitysql.Predicate, as string) {
 			for _, f := range ps {

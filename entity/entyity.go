@@ -134,8 +134,12 @@ type (
 		Scan(value interface{}) error
 		// 用于打印字段的值。
 		String() string
-		// 用于sql语句中获取字段参数赋值。如果需要获得值，通过Get()方法获得。
-		SqlValue(dbType dialect.DbDriver) (FieldValue, error)
+		// SqlParam 用于sql中获取字段参数并赋值。如 INSERT INTO "blog" ( "desc") VALUES ($1)，给$1传递具体的值。
+		SqlParam(dbType dialect.DbDriver) (FieldValue, error)
+		// SqlFormatParam 用于sql中获取字段的值的格式化字符串，这个是进一步处理SqlParam。如 INSERT INTO "blog" ( "desc" ) VALUES ( ST_GeomFromGeoJSON($1) ) 其中$1是SqlParam返回的，值可能是POINT(1,1), SqlFormatParam在这基础上返回ST_GeomFromGeoJSON($1)
+		SqlFormatParam() func(dbType dialect.DbDriver, param string) string
+		// SqlSelectClause 用于sql语句中获取字段的select子句部分，通过这个能够扩展SELECT部分实现复杂的查询，比如 SELECT id, ST_AsText(point)。
+		SqlSelectClause(name string, dbType dialect.DbDriver) (string, error)
 	}
 
 	// 包含了关于字段的描述，配置信息等。

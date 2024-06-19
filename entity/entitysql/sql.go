@@ -64,14 +64,15 @@ type (
 	// FieldSpec 字段信息。
 	FieldSpec struct {
 		Column  string
-		Value   driver.Value // value to be stored.
+		Param   entity.FieldValue // value to be stored.
 		Default bool
+		Format  func(dbType dialect.DbDriver, param string) string
 	}
 
 	// CaseSpec Case语句信息。
 	CaseSpec struct {
-		// Value Case的值。
-		Value any
+		// Field Case的值。
+		Field FieldSpec
 		// When Case的条件。
 		When PredicateFunc
 	}
@@ -82,16 +83,25 @@ func (e FieldName) String() string {
 	return string(e)
 }
 
+// Value 用于实现driver.Valuer接口。
+func (f FieldSpec) Value() (driver.Value, error) {
+	return f.Param, nil
+}
+
+// FormatParam 格式化字段的值。实现ParamFormatter接口。
+func (f FieldSpec) FormatParam(placeholder string, info *StmtInfo) string {
+	return f.Format(info.Dialect, placeholder)
+}
+
 // setColumns 设置字段的值。
 //
 // Params:
 //
 //   - fields: 字段信息。
 //   - set: 设置字段的值。
-func setColumns(fields []*FieldSpec, set func(column string, value driver.Value)) error {
+func setColumns(fields []*FieldSpec, set func(column string, value FieldSpec)) error {
 	for _, fi := range fields {
-		value := fi.Value
-		set(fi.Column, value)
+		set(fi.Column, *fi)
 	}
 	return nil
 }
@@ -1727,7 +1737,7 @@ func (c *Caser) Query() (SqlSpec, error) {
 		return SqlSpec{}, nil
 
 	} else if len(c.Cases) == 1 && c.Cases[0].When == nil {
-		c.arg(c.Cases[0].Value)
+		c.arg(c.Cases[0].Field)
 		return SqlSpec{
 			Query: c.String(),
 			Args:  c.args,
@@ -1738,10 +1748,10 @@ func (c *Caser) Query() (SqlSpec, error) {
 			// 对于多个没有条件的CASE，只有最后一个会生效，
 			// 如果要做限制或者判断,请在外部实现。
 			if cs.When == nil {
-				c.elser = cs.Value
+				c.elser = cs.Field
 			} else {
 				c.When(cs.When)
-				c.Then(cs.Value)
+				c.Then(cs.Field)
 			}
 		}
 		c.Else()

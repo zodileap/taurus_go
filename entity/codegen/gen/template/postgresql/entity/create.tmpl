@@ -71,7 +71,7 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 				{{- if $field.Required }} 
 				{{- if not $field.Default }}
 				case {{ $entityAttr }}.Field{{ $field.Name }}.Name:
-					v, err := e.{{ $field.Name }}.SqlValue(o.config.Driver.Dialect())
+					v, err := e.{{ $field.Name }}.SqlParam(o.config.Driver.Dialect())
 					if err != nil {
 						return nil, err
 					}
@@ -80,18 +80,20 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					}
 					fields = append(fields, &entitysql.FieldSpec{
 						Column: {{ $entityAttr }}.Field{{ $field.Name }}.Name.String(),
-						Value:  v,
+						Param:  v,
+						Format: e.{{ $field.Name }}.SqlFormatParam(),
 					})
 				{{- end }}
 				{{- else }}
 				case {{ $entityAttr }}.Field{{ $field.Name }}.Name:
-					v, err := e.{{ $field.Name }}.SqlValue(o.config.Driver.Dialect())
+					v, err := e.{{ $field.Name }}.SqlParam(o.config.Driver.Dialect())
 					if err != nil {
 						return nil, err
 					}
 					fields = append(fields, &entitysql.FieldSpec{
 						Column: {{ $entityAttr }}.Field{{ $field.Name }}.Name.String(),
-						Value:  v,
+						Param:  v,
+						Format: e.{{ $field.Name }}.SqlFormatParam(),
 					})
 				{{- end }}
 				{{- end }}

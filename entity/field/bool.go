@@ -6,43 +6,43 @@ import (
 
 // Bool 布尔类型的字段。
 type Bool struct {
-	BoolStorage[bool]
 	BoolBuilder[bool]
+	BoolStorage[bool]
 }
 
 type BoolA1 struct {
-	BoolStorage[[]bool]
 	BoolBuilder[[]bool]
+	BoolStorage[[]bool]
 }
 
 type BoolA2 struct {
-	BoolStorage[[][]bool]
 	BoolBuilder[[][]bool]
+	BoolStorage[[][]bool]
 }
 
 type BoolA3 struct {
-	BoolStorage[[][][]bool]
 	BoolBuilder[[][][]bool]
+	BoolStorage[[][][]bool]
 }
 
 type BoolA4 struct {
-	BoolStorage[[][][][]bool]
 	BoolBuilder[[][][][]bool]
+	BoolStorage[[][][][]bool]
 }
 
 type BoolA5 struct {
-	BoolStorage[[][][][][]bool]
 	BoolBuilder[[][][][][]bool]
-}
-
-// BoolStorage 布尔类型的字段存储。
-type BoolStorage[T any] struct {
-	BaseStorage[T]
+	BoolStorage[[][][][][]bool]
 }
 
 // BoolBuilder 布尔类型的字段构建器。
 type BoolBuilder[T any] struct {
 	BaseBuilder[T]
+}
+
+// BoolStorage 布尔类型的字段存储。
+type BoolStorage[T any] struct {
+	BaseStorage[T]
 }
 
 // Name 用于设置字段在数据库中的名称。

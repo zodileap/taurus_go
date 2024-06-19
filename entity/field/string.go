@@ -12,19 +12,14 @@ type RawBytes []byte
 
 // Varchar 字符串类型的字段。
 type Varchar struct {
-	StringStorage[string]
 	VarcharBuilder[string]
+	StringStorage[string]
 }
 
 // UUID UUID类型的字段。
 type UUID struct {
-	StringStorage[string]
 	UUIDBuilder[string]
-}
-
-// StringStorage[T] 字符串类型的字段存储。
-type StringStorage[T any] struct {
-	BaseStorage[T]
+	StringStorage[string]
 }
 
 // VarcharBuilder 字符串类型的字段构造器。
@@ -178,13 +173,13 @@ func (u *UUIDBuilder[T]) AttrType(dbType dialect.DbDriver) string {
 // Params:
 //
 //   - name: 字段在数据库中的名称。
-func (u *UUID) Name(name string) *UUID {
+func (u *UUIDBuilder[T]) Name(name string) *UUIDBuilder[T] {
 	u.desc.AttrName = name
 	return u
 }
 
 // Required 是否非空,默认可以为null,如果调用[Required],则字段为非空字段。
-func (u *UUID) Required() *UUID {
+func (u *UUIDBuilder[T]) Required() *UUIDBuilder[T] {
 	u.desc.Required = true
 	u.desc.Validators = append(u.desc.Validators, func(v string) error {
 		_, err := uuid.Parse(v)
@@ -201,7 +196,7 @@ func (u *UUID) Required() *UUID {
 // Params:
 //
 //   - index: 主键的索引，从1开始，对于多个主键，需要设置不同大小的索引。
-func (u *UUID) Primary(index int) *UUID {
+func (u *UUIDBuilder[T]) Primary(index int) *UUIDBuilder[T] {
 	u.desc.Required = true
 	u.desc.Primary = index
 	return u
@@ -212,7 +207,7 @@ func (u *UUID) Primary(index int) *UUID {
 // Params:
 //
 //   - comment: 字段的注释。
-func (u *UUID) Comment(comment string) *UUID {
+func (u *UUIDBuilder[T]) Comment(comment string) *UUIDBuilder[T] {
 	u.desc.Comment = comment
 	return u
 }
@@ -223,14 +218,19 @@ func (u *UUID) Comment(comment string) *UUID {
 // Params:
 //
 //   - value: 字段的默认值。
-func (u *UUID) Default(value string) *UUID {
+func (u *UUIDBuilder[T]) Default(value string) *UUIDBuilder[T] {
 	u.desc.Default = true
 	u.desc.DefaultValue = value
 	return u
 }
 
 // Locked 设置字段为只读字段。
-func (u *UUID) Locked() *UUID {
+func (u *UUIDBuilder[T]) Locked() *UUIDBuilder[T] {
 	u.desc.Locked = true
 	return u
+}
+
+// StringStorage[T] 字符串类型的字段存储。
+type StringStorage[T any] struct {
+	BaseStorage[T]
 }

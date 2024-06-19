@@ -106,12 +106,16 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 			switch f {
 			{{- range $i, $f := $.Entity.Fields }}
 			case {{ $entityAttr }}.Field{{ $f.Name }}.Name.String():
-				v, err := e.{{ $f.Name }}.SqlValue(o.config.Driver.Dialect())
+				v, err := e.{{ $f.Name }}.SqlParam(o.config.Driver.Dialect())
 				if err != nil {
 					return err
 				}
 				o.sets[index][{{ $entityAttr }}.Field{{ $f.Name }}.Name.String()] = entitysql.CaseSpec{
-					Value: v,
+					Field: entitysql.FieldSpec{
+						Column: {{ $entityAttr }}.Field{{ $f.Name }}.Name.String(),
+						Param:  v,
+						Format: e.{{ $f.Name }}.SqlFormatParam(),
+					},
 					When:  pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()),
 				}
 				num++

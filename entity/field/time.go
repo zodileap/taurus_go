@@ -12,82 +12,33 @@ import (
 
 // Timestamp 时间戳类型的字段。
 type Timestamptz struct {
-	TimestampStorage[time.Time]
 	TimestamptzBuilder[time.Time]
+	TimestampStorage[time.Time]
 }
 
 type TimestamptzA1 struct {
-	TimestampStorage[[]time.Time]
 	TimestamptzBuilder[[]time.Time]
+	TimestampStorage[[]time.Time]
 }
 
 type TimestamptzA2 struct {
-	TimestampStorage[[][]time.Time]
 	TimestamptzBuilder[[][]time.Time]
+	TimestampStorage[[][]time.Time]
 }
 
 type TimestamptzA3 struct {
-	TimestampStorage[[][][]time.Time]
 	TimestamptzBuilder[[][][]time.Time]
+	TimestampStorage[[][][]time.Time]
 }
 
 type TimestamptzA4 struct {
-	TimestampStorage[[][][][]time.Time]
 	TimestamptzBuilder[[][][][]time.Time]
+	TimestampStorage[[][][][]time.Time]
 }
 
 type TimestamptzA5 struct {
-	TimestampStorage[[][][][][]time.Time]
 	TimestamptzBuilder[[][][][][]time.Time]
-}
-
-// TimestampStorage 时间戳类型的字段存储。
-type TimestampStorage[T any] struct {
-	BaseStorage[T]
-}
-
-func (i *TimestampStorage[T]) SqlValue(dbType dialect.DbDriver) (entity.FieldValue, error) {
-	if i.value == nil {
-		return nil, nil
-	}
-	return i.toValue(*i.value, dbType)
-}
-
-func (b *TimestampStorage[T]) toValue(v any, dbType dialect.DbDriver) (entity.FieldValue, error) {
-	switch dbType {
-	case dialect.PostgreSQL:
-		if b.value == nil {
-			return nil, nil
-		}
-		switch val := v.(type) {
-		case time.Time:
-			return val.Format("2006-01-02 15:04:05.999999-07:00"), nil
-		case []time.Time:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
-			})
-		case [][]time.Time:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
-			})
-		case [][][]time.Time:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
-			})
-		case [][][][]time.Time:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
-			})
-		case [][][][][]time.Time:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
-			})
-		default:
-			return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(v))
-		}
-	default:
-		return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(v))
-	}
+	TimestampStorage[[][][][][]time.Time]
 }
 
 // TimestamptzBuilder 时间戳类型的字段构建器。
@@ -227,4 +178,54 @@ func (t *TimestamptzBuilder[T]) Precision(precision int) *TimestamptzBuilder[T] 
 func (t *TimestamptzBuilder[T]) Locked() *TimestamptzBuilder[T] {
 	t.desc.Locked = true
 	return t
+}
+
+// TimestampStorage 时间戳类型的字段存储。
+type TimestampStorage[T any] struct {
+	BaseStorage[T]
+}
+
+// SqlParam 用于sql中获取字段参数并赋值。如 INSERT INTO "blog" ( "desc") VALUES ($1)，给$1传递具体的值。
+func (i *TimestampStorage[T]) SqlParam(dbType dialect.DbDriver) (entity.FieldValue, error) {
+	if i.value == nil {
+		return nil, nil
+	}
+	return i.toValue(*i.value, dbType)
+}
+
+func (b *TimestampStorage[T]) toValue(v any, dbType dialect.DbDriver) (entity.FieldValue, error) {
+	switch dbType {
+	case dialect.PostgreSQL:
+		if b.value == nil {
+			return nil, nil
+		}
+		switch val := v.(type) {
+		case time.Time:
+			return val.Format("2006-01-02 15:04:05.999999-07:00"), nil
+		case []time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][][][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		case [][][][][]time.Time:
+			return arrayToPGString(*b.value, func(a any) (string, error) {
+				return a.(time.Time).Format("2006-01-02 15:04:05.999999-07:00"), nil
+			})
+		default:
+			return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(v))
+		}
+	default:
+		return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(v))
+	}
 }

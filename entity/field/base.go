@@ -9,44 +9,6 @@ import (
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
-type BaseStorage[T any] struct {
-	value *T
-}
-
-// Set 设置字段的值。
-func (b *BaseStorage[T]) Set(value T) error {
-	b.value = &value
-	return nil
-}
-
-// Get 获取字段的值。
-func (b *BaseStorage[T]) Get() *T {
-	return b.value
-}
-
-// Scan 从数据库中读取字段的值。
-func (b *BaseStorage[T]) Scan(value interface{}) error {
-	if value == nil {
-		b.value = nil
-		return nil
-	}
-	return convertAssign(b.value, value)
-}
-
-// String 返回字段的字符串表示。
-func (b BaseStorage[T]) String() string {
-	if b.value == nil {
-		return "nil"
-	}
-	return fmt.Sprintf("%d", *b.value)
-}
-
-// SqlValue 返回字段的值，和Get方法不同的是，SqlValue方法是用于在sql语句中给字段参数赋值。
-func (i *BaseStorage[T]) SqlValue(dbType dialect.DbDriver) (entity.FieldValue, error) {
-	var t T
-	return i.toValue(t, dbType)
-}
-
 type BaseBuilder[T any] struct {
 	desc *entity.Descriptor
 }
@@ -91,6 +53,56 @@ func (b *BaseBuilder[T]) AttrType(dbType dialect.DbDriver) string {
 func (b *BaseBuilder[T]) ValueType() string {
 	var t T
 	return valueType(t)
+}
+
+type BaseStorage[T any] struct {
+	value *T
+}
+
+// Set 设置字段的值。
+func (b *BaseStorage[T]) Set(value T) error {
+	b.value = &value
+	return nil
+}
+
+// Get 获取字段的值。
+func (b *BaseStorage[T]) Get() *T {
+	return b.value
+}
+
+// Scan 从数据库中读取字段的值。
+func (b *BaseStorage[T]) Scan(value interface{}) error {
+	if value == nil {
+		b.value = nil
+		return nil
+	}
+	return convertAssign(b.value, value)
+}
+
+// String 返回字段的字符串表示。
+func (b BaseStorage[T]) String() string {
+	if b.value == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%d", *b.value)
+}
+
+// SqlParam 用于sql中获取字段参数并赋值。如 INSERT INTO "blog" ( "desc") VALUES ($1)，给$1传递具体的值。
+func (i *BaseStorage[T]) SqlParam(dbType dialect.DbDriver) (entity.FieldValue, error) {
+	var t T
+	return i.toValue(t, dbType)
+}
+
+// SqlFormatParam 用于sql中获取字段的值的格式化字符串。如 INSERT INTO "blog" ( "desc" ) VALUES ( ST_GeomFromGeoJSON($1) ) 中添加的ST_GeomFromGeoJSON()。
+func (i *BaseStorage[T]) SqlFormatParam() func(dbType dialect.DbDriver, param string) string {
+	return func(dbType dialect.DbDriver, param string) string {
+		return param
+	}
+}
+
+// SqlSelectClause 用于sql语句中获取字段的select子句部分，通过这个能够扩展SELECT部分实现复杂的查询，比如 SELECT id, ST_AsText(point)。
+func (i *BaseStorage[T]) SqlSelectClause(name string, dbType dialect.DbDriver) (string, error) {
+	return name, nil
 }
 
 // toValue 将字段的值转换为数据库中的值。

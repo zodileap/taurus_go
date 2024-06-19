@@ -3,7 +3,6 @@ package entitysql
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 
 	"github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/dialect"
@@ -61,7 +60,7 @@ func NewCreate(ctx context.Context, drv dialect.Tx, spec *CreateSpec) error {
 //   - name: 字段名称。
 //   - f: 字段。
 func (s *CreateSpec) CheckRequired(dbDriver dialect.DbDriver, name FieldName, f entity.FieldStorager) error {
-	v, err := f.SqlValue(dbDriver)
+	v, err := f.SqlParam(dbDriver)
 	if v == nil || err != nil {
 		return entity.Err_0100030001.Sprintf(s.Entity.Name, name)
 	}
@@ -191,8 +190,8 @@ func (b *createBuilder) setColumns(inserter *Inserter) error {
 	inserter.SetColumns(b.Entity.Columns...)
 	t := b.entityBuilder.builder.Table(b.Entity.Name)
 	for _, fields := range b.Fields {
-		err := setColumns(fields, func(column string, value driver.Value) {
-			inserter.Set(column, t.as, value)
+		err := setColumns(fields, func(column string, field FieldSpec) {
+			inserter.Set(column, t.as, field)
 		})
 		if err != nil {
 			return err
