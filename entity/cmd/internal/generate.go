@@ -50,7 +50,7 @@ func GenerateCmd() *cobra.Command {
 			},
 		}
 	)
-	cmd.Flags().StringSliceVarP(&templates, "template", "t", nil, "external templates to execute")
+	cmd.Flags().StringSliceVarP(&templates, "template", "t", nil, "external templates to execute, format: dir=dirpath, file=filepath, glob=globpath")
 
 	return cmd
 }
