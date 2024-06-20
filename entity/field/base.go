@@ -55,6 +55,13 @@ func (b *BaseBuilder[T]) ValueType() string {
 	return valueType(t)
 }
 
+// ExtTemplate 用于在使用字段时，调用外部模版生成代码，
+// 这个相比在 go run github.com/yohobala/taurus_go/entity/cmd generate -t <template>，
+// `ExtTemplate`是和字段相关联，只要调用字段就会生成代码，避免了每次都要手动调用模版。
+func (b *BaseBuilder[T]) ExtTemplate() []string {
+	return []string{}
+}
+
 type BaseStorage[T any] struct {
 	value *T
 }

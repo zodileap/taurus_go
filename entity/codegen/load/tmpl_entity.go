@@ -60,6 +60,8 @@ type (
 		StoragerOrigType string `json:"storager_orig_type,omitempty"`
 		// StoragerPkg 字段的存储器的包路径
 		StoragerPkg string `json:"storager_pkg,omitempty"`
+		// Templates 字段关联的额外模版
+		Templates []string `json:"templates,omitempty"`
 	}
 
 	// Relation 表示entity之间的关系
@@ -539,6 +541,7 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	if valueType == "" {
 		panic(fmt.Sprintf("Unsupported value type for entity %q in database %s: attribute %q", ed.EntityName, db.Name, ed.AttrName))
 	}
+	tmpls := f.ExtTemplate()
 
 	ef := &Field{}
 	ef.EntityName = ed.EntityName
@@ -558,6 +561,7 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	ef.Sequence = ed.Sequence
 	ef.Validators = len(ed.Validators)
 	ef.ValueType = valueType
+	ef.Templates = tmpls
 
 	err := checkSequence(ef.Sequence)
 	if err != nil {

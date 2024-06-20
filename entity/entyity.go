@@ -127,6 +127,14 @@ type (
 		AttrType(dbType dialect.DbDriver) string
 		// 用于设置字段的值的类型名称。例如entity.Int64的ValueType为"int64"。
 		ValueType() string
+		// ExtTemplate 用于在使用字段时，调用外部模版生成代码，
+		// 这个相比在 go run github.com/yohobala/taurus_go/entity/cmd generate -t <template>，
+		// `ExtTemplate`是和字段相关联，只要调用字段就会生成代码，避免了每次都要手动调用模版。
+		//
+		// Returns:
+		//
+		//   - 模版的路径。
+		ExtTemplate() []string
 	}
 	// 这个接口定义了字段在运行时需要的方法。
 	FieldStorager interface {

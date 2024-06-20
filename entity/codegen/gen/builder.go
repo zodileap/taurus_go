@@ -91,6 +91,41 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 	var (
 		external = make([]InstanceTemplate, 0, len(b.Templates))
 	)
+	for _, node := range b.Nodes {
+		entities := node.Database.Entities
+		for _, entity := range entities {
+			for _, field := range entity.Fields {
+				if field.Templates != nil && len(field.Templates) > 0 {
+					entityName := entity.AttrName
+					fieldTmpls := template.NewTemplate("field_external")
+					fieldTmpls.ParseFiles(field.Templates...)
+					for _, t := range fieldTmpls.Templates() {
+						name := t.Name()
+						ext := filepath.Ext(name)
+						if ext == "" {
+							ext = ".go"
+						} else {
+							continue
+						}
+						if templates.Lookup(name) == nil {
+							external = append(external, InstanceTemplate{
+								Name: name,
+								Format: func(t template.TemplatePathFormat) string {
+									lastSlashIndex := strings.LastIndex(name, "/")
+									if lastSlashIndex == -1 {
+										return field.AttrName + "_" + name + ext
+									}
+									return filepath.Join(entityName, name[lastSlashIndex+1:]+ext)
+								},
+							})
+							templates = template.MustParse(templates.AddParseTree(name, t.Tree))
+						}
+					}
+
+				}
+			}
+		}
+	}
 	for _, extTmpl := range b.Templates {
 		templates.Funcs(extTmpl.FuncMap)
 		for _, tmpl := range extTmpl.Templates() {
@@ -115,7 +150,7 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 							return "db_" + t.Dir() + "_" + name + ext
 						}
 						// 在最后一个斜杠之后添加前缀
-						return name[:lastSlashIndex+1] + t.Dir() + "_" + name[lastSlashIndex+1:] + ext
+						return name[:lastSlashIndex+1] + name[lastSlashIndex+1:] + ext
 					},
 				})
 				templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
