@@ -86,19 +86,20 @@ func (b *Builder) Gen() error {
 //
 //	0: 模版。
 //	1: 外部模版。
-func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []InstanceTemplate) {
+func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []InstanceTemplate, map[string][]InstanceTemplate) {
 	initTemplates(b, dbType)
 	var (
-		external = make([]InstanceTemplate, 0, len(b.Templates))
+		external       = make([]InstanceTemplate, 0, len(b.Templates))
+		field_external = make(map[string][]InstanceTemplate)
 	)
 	for _, node := range b.Nodes {
 		entities := node.Database.Entities
 		for _, entity := range entities {
 			for _, field := range entity.Fields {
 				if field.Templates != nil && len(field.Templates) > 0 {
-					entityName := entity.AttrName
 					fieldTmpls := template.NewTemplate("field_external")
 					fieldTmpls.ParseFiles(field.Templates...)
+					field_external[field.AttrName] = []InstanceTemplate{}
 					for _, t := range fieldTmpls.Templates() {
 						name := t.Name()
 						ext := filepath.Ext(name)
@@ -108,14 +109,14 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 							continue
 						}
 						if templates.Lookup(name) == nil {
-							external = append(external, InstanceTemplate{
+							field_external[field.AttrName] = append(field_external[field.AttrName], InstanceTemplate{
 								Name: name,
 								Format: func(t template.TemplatePathFormat) string {
 									lastSlashIndex := strings.LastIndex(name, "/")
 									if lastSlashIndex == -1 {
-										return field.AttrName + "_" + name + ext
+										return t.Dir() + "_" + name + ext
 									}
-									return filepath.Join(entityName, name[lastSlashIndex+1:]+ext)
+									return filepath.Join(t.Dir(), name[lastSlashIndex+1:]+ext)
 								},
 							})
 							templates = template.MustParse(templates.AddParseTree(name, t.Tree))
@@ -157,7 +158,7 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 			}
 		}
 	}
-	return templates, external
+	return templates, external, field_external
 }
 
 // addNode 添加一个数据库节点到Builder中。
@@ -213,7 +214,7 @@ func generate(t *Builder) error {
 	// 获取模版。
 	// 为每个节点生成代码：
 	for _, n := range t.Nodes {
-		templates, extend := t.templates(n.Database.Type)
+		templates, extend, field_external := t.templates(n.Database.Type)
 		for _, tmpl := range append(DatabaseTemplates, extend...) {
 			if dir := filepath.Dir(tmpl.Format(n)); dir != "." {
 				assets.AddDir(filepath.Join(t.Config.Target, dir))
@@ -238,9 +239,25 @@ func generate(t *Builder) error {
 				}
 				assets.Add(filepath.Join(t.Config.Target, tmpl.Format(ei)), b.Bytes())
 			}
+			for _, field := range e.Fields {
+				fieldName := field.AttrName
+				if field_external[fieldName] != nil {
+					for _, tmpl := range field_external[fieldName] {
+						b := bytes.NewBuffer(nil)
+						fi, err := NewFieldInfo(t.Config, field, e, n.Database.Type)
+						if err != nil {
+							return err
+						}
+						if err := templates.ExecuteTemplate(b, tmpl.Name, fi); err != nil {
+							return fmt.Errorf("execute template %q: %w", tmpl.Name, err)
+						}
+						assets.Add(filepath.Join(t.Config.Target, tmpl.Format(ei)), b.Bytes())
+					}
+				}
+			}
 		}
 	}
-	templates, _ := t.templates("")
+	templates, _, _ := t.templates("")
 	// 通用的核心功能的模板:
 	for _, tmpl := range InstanceTemplates {
 		if tmpl.Skip != nil && tmpl.Skip(t) {

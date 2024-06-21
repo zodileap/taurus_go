@@ -5,6 +5,7 @@ import (
 
 	stringutil "github.com/yohobala/taurus_go/encoding/string"
 	"github.com/yohobala/taurus_go/entity/codegen/load"
+	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
 type (
@@ -17,6 +18,13 @@ type (
 	// EntityInfo 表示一个Builder中的一个实体节点的信息
 	EntityInfo struct {
 		*Config
+		Entity *load.Entity
+	}
+
+	FieldInfo struct {
+		*Config
+		Type   string
+		Field  *load.Field
 		Entity *load.Entity
 	}
 )
@@ -59,6 +67,16 @@ func NewEntityInfo(c *Config, entity *load.Entity) (*EntityInfo, error) {
 	return typ, nil
 }
 
+func NewFieldInfo(c *Config, field *load.Field, entity *load.Entity, t dialect.DbDriver) (*FieldInfo, error) {
+	typ := &FieldInfo{
+		Config: c,
+		Field:  field,
+		Entity: entity,
+		Type:   string(t),
+	}
+	return typ, nil
+}
+
 // Dir 返回包目录名称
 func (t DatabaseInfo) Dir() string {
 	return strings.ToLower(t.Database.Name)
@@ -67,4 +85,9 @@ func (t DatabaseInfo) Dir() string {
 // Dir 返回包目录名称
 func (t EntityInfo) Dir() string {
 	return stringutil.ToSnakeCase(t.Entity.AttrName)
+}
+
+// Dir 返回包目录名称
+func (t FieldInfo) Dir() string {
+	return stringutil.ToSnakeCase(t.Field.AttrName)
 }
