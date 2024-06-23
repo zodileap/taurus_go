@@ -55,9 +55,9 @@ func (o *{{ $entity }}Delete) sqlDelete(ctx context.Context,tx dialect.Tx) error
 func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 	spec := entitysql.NewDeleteSpec({{ $entityAttr }}.Entity)
 	if ps := o.predicates; len(ps) > 0 {
-		spec.Predicate = func(p *entitysql.Predicate, as string) {
+		spec.Predicate = func(p *entitysql.Predicate) {
 			for _, f := range ps {
-				f(p,as)
+				f(p)
 			}
 		}
 	}
@@ -78,9 +78,9 @@ func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 		{{- end }}
 	{{- end }}
 	if ps := o.predicates; len(ps) > 0 {
-		spec.Predicate = func(p *entitysql.Predicate, as string) {
+		spec.Predicate = func(p *entitysql.Predicate) {
 			for _, f := range ps {
-				f(p,as)
+				f(p)
 			}
 		}
 	}

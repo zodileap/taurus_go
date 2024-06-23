@@ -177,9 +177,9 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 		} 
 	}
 	if ps := o.predicates; len(ps) > 0 {
-		s.Predicate = func(p *entitysql.Predicate, as string) {
+		s.Predicate = func(p *entitysql.Predicate) {
 			for _, f := range ps {
-				f(p,as)
+				f(p)
 			}
 		}
 	}

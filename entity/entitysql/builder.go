@@ -57,6 +57,8 @@ type state interface {
 	SetTotal(int)
 }
 
+// type
+
 // Builder 用于构建SQL查询的字符串构建器。
 type Builder struct {
 	// sb 用于构建查询的字符串构建器。
@@ -71,7 +73,8 @@ type Builder struct {
 	// qualifier 限定符作为标识符（如表名）的前缀。
 	qualifier string
 	// isAs 是否使用别名
-	isAs bool
+	isAs   bool
+	tables []TableView
 }
 
 // new 复制一个新的查询构建器。
@@ -97,6 +100,20 @@ func (b Builder) clone() *Builder {
 		c.sb.WriteString(b.sb.String())
 	}
 	return c
+}
+
+func (b *Builder) FindAs(entityName string) string {
+	for _, table := range b.tables {
+		switch view := table.(type) {
+		case *SelectTable:
+			if view.name == entityName {
+				return view.as
+			}
+		case *Selector:
+			return ""
+		}
+	}
+	return ""
 }
 
 // String 把生成器中的查询语句转换为字符串。。

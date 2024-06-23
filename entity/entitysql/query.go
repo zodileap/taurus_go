@@ -64,7 +64,7 @@ func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTab
 
 	if ps := desc.Predicates; len(ps) > 0 {
 		for _, p := range ps {
-			p(s.where, joinT.as)
+			p(s.where)
 		}
 	}
 
@@ -206,7 +206,7 @@ func (b *queryBuilder) selector(ctx context.Context) (*Selector, error) {
 
 	selector.where = P(selector.Builder)
 	if pred := b.Predicate; pred != nil {
-		pred(selector.where, t.as)
+		pred(selector.where)
 	}
 	if orders := b.Orders; len(orders) > 0 {
 		for _, order := range orders {

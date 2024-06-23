@@ -39,8 +39,6 @@ func convertAssign(dest, src any) error {
 //   - dest: 目标值。
 //   - src: 源值。
 func convertAssignRows(dest, src any) error {
-	tlog.Print(reflect.TypeOf(dest))
-	tlog.Print(reflect.TypeOf(src))
 	// 类型断言和赋值来实现.
 	switch s := src.(type) {
 	case string:

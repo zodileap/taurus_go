@@ -86,12 +86,12 @@ func (b *deleteBuilder) delete(ctx context.Context, drv dialect.Tx) error {
 //	0: 删除语句生成器。
 func (b *deleteBuilder) deleter(ctx context.Context) (*Deleter, error) {
 	deleter := NewDeleter(ctx)
-	t := b.entityBuilder.builder.Table(b.Entity.Name)
+	// t := b.entityBuilder.builder.Table(b.Entity.Name)
 	deleter.SetDialect(b.builder.dialect)
 	deleter.SetEntity(b.Entity.Name)
 	if pred := b.Predicate; pred != nil {
 		deleter.where = P(deleter.Builder)
-		pred(deleter.where, t.as)
+		pred(deleter.where)
 	}
 	return deleter, nil
 }

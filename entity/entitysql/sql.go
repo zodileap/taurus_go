@@ -482,6 +482,7 @@ func (s *Selector) SetFrom(t TableView) *Selector {
 // AppendFrom appends a new TableView to the `FROM` clause.
 func (s *Selector) AppendFrom(t TableView) *Selector {
 	s.from = append(s.from, t)
+	s.Builder.tables = append(s.Builder.tables, t)
 	switch view := t.(type) {
 	case *SelectTable:
 		if view.as == "" {
@@ -588,6 +589,7 @@ func (s *Selector) join(kind string, t TableView) *Selector {
 		kind:  kind,
 		table: t,
 	})
+	s.Builder.tables = append(s.Builder.tables, t)
 	switch view := t.(type) {
 	case *SelectTable:
 		if view.as == "" {
@@ -1175,7 +1177,7 @@ type (
 		fns []func(*Builder)
 	}
 	// PredicateFunc Where子句生成器的函数。
-	PredicateFunc func(p *Predicate, as string)
+	PredicateFunc func(p *Predicate)
 )
 
 func AndPred(builder *Builder, preds ...*Predicate) *Predicate {
@@ -1330,7 +1332,7 @@ func (p *Predicate) Not() *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) EQ(column string, as string, v any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1353,7 +1355,7 @@ func (p *Predicate) EQ(column string, as string, v any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1376,7 +1378,7 @@ func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) GT(column string, as string, v any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1399,7 +1401,7 @@ func (p *Predicate) GT(column string, as string, v any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) GTE(column string, as string, v any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1422,7 +1424,7 @@ func (p *Predicate) GTE(column string, as string, v any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) LT(column string, as string, v any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1445,7 +1447,7 @@ func (p *Predicate) LT(column string, as string, v any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) LTE(column string, as string, v any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1468,7 +1470,7 @@ func (p *Predicate) LTE(column string, as string, v any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) In(column string, as string, v ...any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1497,7 +1499,7 @@ func (p *Predicate) In(column string, as string, v ...any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1526,7 +1528,7 @@ func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) Like(column string, as string, v any) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1548,7 +1550,7 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) IsNull(column string, as string) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1569,7 +1571,7 @@ func (p *Predicate) IsNull(column string, as string) *Predicate {
 //	0: Where子句生成器。
 func (p *Predicate) NotNull(column string, as string) *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1584,12 +1586,8 @@ func (p *Predicate) NotNull(column string, as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Add(as string) *Predicate {
+func (p *Predicate) Add() *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpAdd)
 		b.Blank()
@@ -1601,12 +1599,8 @@ func (p *Predicate) Add(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Sub(as string) *Predicate {
+func (p *Predicate) Sub() *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpSub)
 		b.Blank()
@@ -1618,12 +1612,8 @@ func (p *Predicate) Sub(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Mul(as string) *Predicate {
+func (p *Predicate) Mul() *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpMul)
 		b.Blank()
@@ -1635,12 +1625,8 @@ func (p *Predicate) Mul(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Div(as string) *Predicate {
+func (p *Predicate) Div() *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpDiv)
 		b.Blank()
@@ -1652,12 +1638,8 @@ func (p *Predicate) Div(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Mod(as string) *Predicate {
+func (p *Predicate) Mod() *Predicate {
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpMod)
 		b.Blank()
@@ -1776,7 +1758,7 @@ func (c *Caser) Query() (SqlSpec, error) {
 func (c *Caser) When(pred PredicateFunc) *Caser {
 	c.WriteString(" WHEN ")
 	p := P(c.Builder.clone())
-	pred(p, c.as)
+	pred(p)
 	c.Join(p)
 	return c
 }
@@ -1850,7 +1832,7 @@ func O() *Order {
 }
 
 func (o *Order) Query(b *Builder) {
-	if b.isAs {
+	if b.isAs && o.As != "" {
 		b.WriteString(b.Quote(o.As))
 		b.WriteString(".")
 	}

@@ -61,34 +61,34 @@ func (op Op) String() string {
 	return ops[op]
 }
 
-var And PredicateFunc = func(p *Predicate, as string) {
+var And PredicateFunc = func(p *Predicate) {
 	p.And()
 }
 
-var Or PredicateFunc = func(p *Predicate, as string) {
+var Or PredicateFunc = func(p *Predicate) {
 	p.Or()
 }
 
-var Not PredicateFunc = func(p *Predicate, as string) {
+var Not PredicateFunc = func(p *Predicate) {
 	p.Not()
 }
 
-var Add PredicateFunc = func(p *Predicate, as string) {
-	p.Add(as)
+var Add PredicateFunc = func(p *Predicate) {
+	p.Add()
 }
 
-var Sub PredicateFunc = func(p *Predicate, as string) {
-	p.Sub(as)
+var Sub PredicateFunc = func(p *Predicate) {
+	p.Sub()
 }
 
-var Mul PredicateFunc = func(p *Predicate, as string) {
-	p.Mul(as)
+var Mul PredicateFunc = func(p *Predicate) {
+	p.Mul()
 }
 
-var Div PredicateFunc = func(p *Predicate, as string) {
-	p.Div(as)
+var Div PredicateFunc = func(p *Predicate) {
+	p.Div()
 }
 
-var Mod PredicateFunc = func(p *Predicate, as string) {
-	p.Mod(as)
+var Mod PredicateFunc = func(p *Predicate) {
+	p.Mod()
 }

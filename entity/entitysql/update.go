@@ -102,7 +102,7 @@ func (b *updateBuilder) update(ctx context.Context, drv dialect.Tx) error {
 //	 1: 错误信息。
 func (b *updateBuilder) updater(ctx context.Context) (*Updater, error) {
 	updater := NewUpdater(ctx)
-	t := b.entityBuilder.builder.Table(b.Entity.Name)
+	// t := b.entityBuilder.builder.Table(b.Entity.Name)
 	updater.SetDialect(b.builder.dialect)
 	updater.SetEntity(b.Entity.Name)
 	for row, cs := range b.Sets {
@@ -113,7 +113,7 @@ func (b *updateBuilder) updater(ctx context.Context) (*Updater, error) {
 		pred := b.Predicate[row]
 		if pred != nil {
 			w := P(updater.Builder)
-			pred(w, t.as)
+			pred(w)
 			updater.wheres = append(updater.wheres, w)
 		} else {
 			updater.wheres = append(updater.wheres, nil)

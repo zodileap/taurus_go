@@ -151,9 +151,9 @@ func (o *{{ $entity }}Update) mergeArgs(spec *entitysql.UpdateSpec) {
 				set[k] = append(set[k], v)
 			}
 		}
-		spec.Predicate = append(spec.Predicate, func(p *entitysql.Predicate, as string) {
+		spec.Predicate = append(spec.Predicate, func(p *entitysql.Predicate) {
 			for _, f := range pred {
-				f(p, as)
+				f(p)
 			}
 		})
 		spec.Sets = append(spec.Sets, set)
