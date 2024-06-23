@@ -344,10 +344,6 @@ func (s *Selector) Query() (SqlSpec, error) {
 	if len(b.args) > batchSize {
 		return SqlSpec{}, entity.Err_0100030004
 	}
-	if s.limit != nil {
-		b.WriteString(" LIMIT ")
-		b.WriteString(strconv.Itoa(*s.limit))
-	}
 	if s.order != nil && len(s.order) > 0 {
 		b.WriteString(" ORDER BY ")
 		for i, order := range s.order {
@@ -356,6 +352,10 @@ func (s *Selector) Query() (SqlSpec, error) {
 			}
 			order.Query(b)
 		}
+	}
+	if s.limit != nil {
+		b.WriteString(" LIMIT ")
+		b.WriteString(strconv.Itoa(*s.limit))
 	}
 	return SqlSpec{Query: b.String(), Args: b.args}, nil
 }
