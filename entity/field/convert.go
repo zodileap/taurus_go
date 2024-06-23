@@ -13,7 +13,6 @@ import (
 
 	_ "github.com/lib/pq"
 	byteutil "github.com/yohobala/taurus_go/encoding/byte"
-	"github.com/yohobala/taurus_go/tlog"
 )
 
 // errNilPtr 新建一个错误，表示目标指针为空。
@@ -306,8 +305,6 @@ func asString(src any) string {
 }
 
 func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
-	tlog.Print(buf)
-	tlog.Print(string(buf))
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.AppendInt(buf, rv.Int(), 10), true
@@ -375,7 +372,6 @@ const (
 
 // BytesToSlice 处理通用切片类型的转换
 func BytesToSlice(dest any, src []byte) error {
-	tlog.Print(src)
 	src = byteutil.ReplaceAll(src, 123, []byte{91})
 	src = byteutil.ReplaceAll(src, 125, []byte{93})
 	// 获取dest的反射值对象
@@ -393,11 +389,9 @@ func BytesToSlice(dest any, src []byte) error {
 	}
 	t := validSliceType(e)
 	if t == sliceTypeBool {
-		tlog.Print("切片")
 		src = byteutil.ReplaceAll(src, 116, []byte{116, 114, 117, 101})
 		src = byteutil.ReplaceAll(src, 102, []byte{102, 97, 108, 115, 101})
 	} else if t == sliceTypeTime {
-		tlog.Print("时间")
 		var data interface{}
 		if err := json.Unmarshal(src, &data); err != nil {
 			return fmt.Errorf("slice parse error: %v", err)

@@ -28,7 +28,7 @@ func new{{ toFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}{{ $field.Name
 // Set sets the value of {{ $field.Name }} field
 func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Set(v {{ $field.ValueType }}) {
 	t.{{ $field.StoragerOrigType }}.Set(v)
-	if (t.config.State() == entity.Unchanged) {
+	if (t.config.State() == entity.Unchanged || t.config.State() == entity.Modified) {
 		t.config.{{ toFirstLower $entity}}Mutations.ChangeEntityState(t.config.Mutation, entity.Modified)
 		t.config.Mutation.SetFields({{ $.Entity.AttrName }}.Field{{ $field.Name }}.Name.String())
 	}
