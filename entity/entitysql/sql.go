@@ -1175,6 +1175,8 @@ type (
 		depth int
 		// fns Where子句生成器的函数。
 		fns []func(*Builder)
+		// 上一个是否是逻辑运算符。
+		lastIsLogic bool
 	}
 	// PredicateFunc Where子句生成器的函数。
 	PredicateFunc func(p *Predicate)
@@ -1293,6 +1295,7 @@ func (p *Predicate) mayWrap(preds []*Predicate, b *Builder, op string) {
 //
 //	0: Where子句生成器。
 func (p *Predicate) And() *Predicate {
+	p.lastIsLogic = true
 	return p.Append(func(b *Builder) {
 		b.WriteString(" AND ")
 	})
@@ -1304,6 +1307,7 @@ func (p *Predicate) And() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Or() *Predicate {
+	p.lastIsLogic = true
 	return p.Append(func(b *Builder) {
 		b.WriteString(" OR ")
 	})
@@ -1315,6 +1319,7 @@ func (p *Predicate) Or() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Not() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.WriteString(" NOT ")
 	})
@@ -1331,6 +1336,7 @@ func (p *Predicate) Not() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) EQ(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1354,6 +1360,7 @@ func (p *Predicate) EQ(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1377,6 +1384,7 @@ func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) GT(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1400,6 +1408,7 @@ func (p *Predicate) GT(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) GTE(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1423,6 +1432,7 @@ func (p *Predicate) GTE(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) LT(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1446,6 +1456,7 @@ func (p *Predicate) LT(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) LTE(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1469,6 +1480,7 @@ func (p *Predicate) LTE(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) In(column string, as string, v ...any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1498,6 +1510,7 @@ func (p *Predicate) In(column string, as string, v ...any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1527,6 +1540,7 @@ func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Like(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1549,6 +1563,7 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) IsNull(column string, as string) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1570,6 +1585,7 @@ func (p *Predicate) IsNull(column string, as string) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NotNull(column string, as string) *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.isAs && as != "" {
 			b.WriteString(b.Quote(as))
@@ -1587,6 +1603,7 @@ func (p *Predicate) NotNull(column string, as string) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Add() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
 		b.WriteOp(OpAdd)
@@ -1600,6 +1617,7 @@ func (p *Predicate) Add() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Sub() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
 		b.WriteOp(OpSub)
@@ -1613,6 +1631,7 @@ func (p *Predicate) Sub() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Mul() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
 		b.WriteOp(OpMul)
@@ -1626,6 +1645,7 @@ func (p *Predicate) Mul() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Div() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
 		b.WriteOp(OpDiv)
@@ -1639,6 +1659,7 @@ func (p *Predicate) Div() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Mod() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
 		b.WriteOp(OpMod)
@@ -1667,7 +1688,17 @@ func (p *Predicate) clone() *Predicate {
 	if p == nil {
 		return p
 	}
-	return &Predicate{fns: append([]func(*Builder){}, p.fns...)}
+	return &Predicate{fns: append([]func(*Builder){}, p.fns...), Builder: p.Builder.clone(), lastIsLogic: p.lastIsLogic}
+}
+
+func (p *Predicate) isLogic() bool {
+	return p.lastIsLogic
+}
+
+func (pf PredicateFunc) isOp(p *Predicate) bool {
+	np := p.clone()
+	pf(np)
+	return np.isLogic()
 }
 
 /**************** CASE 批量更新中Set语句生成器 ***************/
@@ -1860,6 +1891,11 @@ func (o *Order) SetAs(schema string) *Order {
 
 func (o *Order) SetColumn(column string) *Order {
 	o.Column = column
+	return o
+}
+
+func (o *Order) SetOp(op string) *Order {
+	o.Column = op
 	return o
 }
 

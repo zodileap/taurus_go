@@ -63,6 +63,9 @@ func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTab
 	}
 
 	if ps := desc.Predicates; len(ps) > 0 {
+		if s.where.FunsLen() > 0 && !ps[0].isOp(s.where) {
+			s.where.And()
+		}
 		for _, p := range ps {
 			p(s.where)
 		}
