@@ -91,7 +91,7 @@ func (b BaseStorage[T]) String() string {
 	if b.value == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("%d", *b.value)
+	return fmt.Sprintf("%v", *b.value)
 }
 
 // SqlParam 用于sql中获取字段参数并赋值。如 INSERT INTO "blog" ( "desc") VALUES ($1)，给$1传递具体的值。
