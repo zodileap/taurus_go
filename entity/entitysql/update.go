@@ -24,7 +24,7 @@ func NewUpdateSpec(entity string, rows []FieldName) *UpdateSpec {
 	return &UpdateSpec{
 		Entity: &EntitySpec{
 			Name:    entity,
-			Columns: rows,
+			Columns: NewFieldSpecs(rows...),
 		},
 		Sets: make([]map[string][]CaseSpec, 0),
 	}
@@ -77,7 +77,7 @@ func (b *updateBuilder) update(ctx context.Context, drv dialect.Tx) error {
 		for rows.Next() {
 			scanneeFields := make([]ScannerField, len(b.Entity.Columns))
 			for i, column := range b.Entity.Columns {
-				scanneeFields[i] = ScannerField(column)
+				scanneeFields[i] = ScannerField(column.Name)
 			}
 			err := b.Scan(rows, scanneeFields)
 			if err != nil {

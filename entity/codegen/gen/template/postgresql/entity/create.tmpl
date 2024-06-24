@@ -78,11 +78,10 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					if err := spec.CheckRequired(o.config.Driver.Dialect(), {{ $entityAttr }}.Field{{ $field.Name }}.Name, e.{{ $field.Name }}); err != nil {
 						return nil, err
 					}
-					fields = append(fields, &entitysql.FieldSpec{
-						Column: {{ $entityAttr }}.Field{{ $field.Name }}.Name.String(),
-						Param:  v,
-						Format: e.{{ $field.Name }}.SqlFormatParam(),
-					})
+					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
+					fieldSpace.Param = v
+					fieldSpace.Format = e.{{ $field.Name }}.SqlFormatParam()
+					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- else }}
 				case {{ $entityAttr }}.Field{{ $field.Name }}.Name:
@@ -90,11 +89,10 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					if err != nil {
 						return nil, err
 					}
-					fields = append(fields, &entitysql.FieldSpec{
-						Column: {{ $entityAttr }}.Field{{ $field.Name }}.Name.String(),
-						Param:  v,
-						Format: e.{{ $field.Name }}.SqlFormatParam(),
-					})
+					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
+					fieldSpace.Param = v
+					fieldSpace.Format = e.{{ $field.Name }}.SqlFormatParam()
+					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- end }}
 			} 

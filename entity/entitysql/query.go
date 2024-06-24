@@ -50,7 +50,7 @@ func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTab
 	)
 	joinT := build.Table(desc.Join.Table).Schema(s.Table().schema)
 	s.LeftJoin(joinT).On(t.C(desc.To.Field), joinT.C(desc.Join.Field))
-	s.SetSelect(joinT.as, s.Rows(desc.Join.Columns...)...)
+	s.SetSelect(joinT.as, s.Rows(NewFieldSpecs(desc.Join.Columns...)...)...)
 
 	if orders := desc.Orders; len(orders) > 0 {
 		for _, order := range orders {
@@ -129,10 +129,11 @@ type QuerySpec struct {
 //
 //	0: QuerySpec。
 func NewQuerySpec(entity string, rows []FieldName) *QuerySpec {
+	columns := NewFieldSpecs(rows...)
 	return &QuerySpec{
 		Entity: &EntitySpec{
 			Name:    entity,
-			Columns: rows,
+			Columns: columns,
 		},
 	}
 }
@@ -177,7 +178,7 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 	for rows.Next() {
 		ScannerFields := make([]ScannerField, len(b.Entity.Columns))
 		for i, c := range b.Entity.Columns {
-			ScannerFields[i] = c
+			ScannerFields[i] = c.Name
 		}
 		err := b.Scan(rows, ScannerFields)
 		if err != nil {

@@ -110,12 +110,11 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 				if err != nil {
 					return err
 				}
+				fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $f.Name }}.Name)
+				fieldSpace.Param = v
+				fieldSpace.Format = e.{{ $f.Name }}.SqlFormatParam()
 				o.sets[index][{{ $entityAttr }}.Field{{ $f.Name }}.Name.String()] = entitysql.CaseSpec{
-					Field: entitysql.FieldSpec{
-						Column: {{ $entityAttr }}.Field{{ $f.Name }}.Name.String(),
-						Param:  v,
-						Format: e.{{ $f.Name }}.SqlFormatParam(),
-					},
+					Field: fieldSpace,
 					When:  pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()),
 				}
 				num++

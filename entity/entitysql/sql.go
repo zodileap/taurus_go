@@ -56,15 +56,20 @@ type (
 		// Name 实体表的名称，和[entity.EntityConfig]中的AttrName相同。
 		Name string
 		// Columns 实体表的列名，通过这个属性会指定Select中包含的列。
-		Columns []FieldName
+		Columns []FieldSpec
 	}
 	// FieldSpec 字段信息。
 	FieldName string
 
 	// FieldSpec 字段信息。
 	FieldSpec struct {
-		Column  string
-		Param   entity.FieldValue // value to be stored.
+		// Name 字段的名称。
+		Name FieldName
+		// NameFormat 字段名称的格式化，比如SELECT ST_AsText(geom)中的`ST_AsText(geom)`。
+		NameFormat func(dbType dialect.DbDriver, name string) string
+		// Param 字段的值。
+		Param entity.FieldValue
+		// Default 是否使用默认值。
 		Default bool
 		Format  func(dbType dialect.DbDriver, param string) string
 	}
@@ -81,6 +86,23 @@ type (
 // String 返回字段的名称。
 func (e FieldName) String() string {
 	return string(e)
+}
+
+func NewFieldSpec(column FieldName) FieldSpec {
+	return FieldSpec{
+		Name: column,
+		NameFormat: func(dbType dialect.DbDriver, name string) string {
+			return name
+		},
+	}
+}
+
+func NewFieldSpecs(columns ...FieldName) []FieldSpec {
+	var fields []FieldSpec
+	for _, column := range columns {
+		fields = append(fields, NewFieldSpec(column))
+	}
+	return fields
 }
 
 // Value 用于实现driver.Valuer接口。
@@ -101,7 +123,7 @@ func (f FieldSpec) FormatParam(placeholder string, info *StmtInfo) string {
 //   - set: 设置字段的值。
 func setColumns(fields []*FieldSpec, set func(column string, value FieldSpec)) error {
 	for _, fi := range fields {
-		set(fi.Column, *fi)
+		set(string(fi.Name), *fi)
 	}
 	return nil
 }
@@ -269,13 +291,13 @@ type (
 	}
 	// Selection 选择的字段。
 	Selection struct {
-		name   string
+		field  FieldSpec
 		entity string
 	}
 )
 
 func (s Selection) String() string {
-	return s.name
+	return s.field.Name.String()
 }
 
 // Query 生成一个查询语句。
@@ -389,12 +411,8 @@ func (s *Selector) Clone() *Selector {
 // Returns:
 //
 //	0: 字段的名称。
-func (s *Selector) Rows(rows ...FieldName) []string {
-	names := make([]string, len(rows))
-	for i := range rows {
-		names[i] = string(rows[i])
-	}
-	return names
+func (s *Selector) Rows(rows ...FieldSpec) []FieldSpec {
+	return rows
 }
 
 func (s *Selector) OnP(p *Predicate) *Selector {
@@ -456,10 +474,10 @@ func (s *Selector) SetContext(ctx context.Context) *Selector {
 // Returns:
 //
 //	0: 选择语句生成器。
-func (s *Selector) SetSelect(entity string, rows ...string) *Selector {
+func (s *Selector) SetSelect(entity string, rows ...FieldSpec) *Selector {
 	fields := make([]Selection, len(rows))
 	for i := range rows {
-		fields[i] = Selection{name: rows[i], entity: entity}
+		fields[i] = Selection{field: rows[i], entity: entity}
 	}
 	s.selectFields = append(s.selectFields, fields...)
 	return s
@@ -571,15 +589,15 @@ func selectTable(t TableView) *SelectTable {
 //
 //   - b: sql生成器。
 func (s *Selector) appendSelect(b *Builder) {
-	for i, field := range s.selectFields {
+	for i, col := range s.selectFields {
 		if i > 0 {
 			b.Comma()
 		}
 		if b.isAs {
-			b.WriteString(b.Quote(field.entity))
+			b.WriteString(b.Quote(col.entity))
 			b.WriteString(".")
 		}
-		b.WriteString(b.Quote(field.name))
+		b.WriteString(col.field.NameFormat(s.dialect, b.Quote(col.field.Name.String())))
 	}
 }
 
@@ -806,10 +824,10 @@ func (i *Inserter) SetEntity(entity string) *Inserter {
 // Returns:
 //
 //	0: 插入语句生成器。
-func (i *Inserter) SetColumns(columns ...FieldName) *Inserter {
+func (i *Inserter) SetColumns(columns ...FieldSpec) *Inserter {
 	i.columns = make([]string, len(columns))
 	for j := range columns {
-		i.columns[j] = string(columns[j])
+		i.columns[j] = string(columns[j].Name)
 	}
 	return i
 }
@@ -1106,7 +1124,7 @@ func (d *Deleter) Query() ([]SqlSpec, error) {
 		for i := 0; i < batchNum; i++ {
 			b.WriteString(" WHERE ")
 			if length < (i+1)*batchSize {
-				b.Join(d.where.Clone(i*batchSize, -1))
+				b.Join(d.where.Clone(i*batchSize, length))
 			} else {
 				b.Join(d.where.Clone(i*batchSize, (i+1)*batchSize))
 			}
@@ -1120,6 +1138,7 @@ func (d *Deleter) Query() ([]SqlSpec, error) {
 
 // setInitialQuery 设置初始的删除语句。
 func (d *Deleter) setInitialQuery(b *Builder) {
+	b.WriteString("DELETE FROM ")
 	b.WriteSchema(d.schema)
 	b.Ident(d.entity).Blank()
 }
@@ -1205,13 +1224,22 @@ func P(b *Builder, fns ...func(*Builder)) *Predicate {
 //
 //	0: 复制的Predicate。
 func (p *Predicate) Clone(begin int, end int) *Predicate {
+	var fns []func(*Builder)
 	if begin < 0 {
-		return &Predicate{fns: p.fns[:end]}
+		fns = p.fns[:end]
 	} else if end < 0 {
-		return &Predicate{fns: p.fns[begin:]}
+		fns = p.fns[begin:]
 	} else {
-		return &Predicate{fns: p.fns[begin:end]}
+		fns = p.fns[begin:end]
 	}
+	return &Predicate{fns: fns, Builder: p.Builder.clone(), lastIsLogic: p.lastIsLogic}
+}
+
+func (p *Predicate) clone() *Predicate {
+	if p == nil {
+		return p
+	}
+	return &Predicate{fns: append([]func(*Builder){}, p.fns...), Builder: p.Builder.clone(), lastIsLogic: p.lastIsLogic}
 }
 
 // Query 生成查询中的Where子句。
@@ -1682,13 +1710,6 @@ func (*Predicate) arg(b *Builder, a any) {
 	default:
 		b.Arg(a)
 	}
-}
-
-func (p *Predicate) clone() *Predicate {
-	if p == nil {
-		return p
-	}
-	return &Predicate{fns: append([]func(*Builder){}, p.fns...), Builder: p.Builder.clone(), lastIsLogic: p.lastIsLogic}
 }
 
 func (p *Predicate) isLogic() bool {

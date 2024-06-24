@@ -33,7 +33,7 @@ func NewCreateSpec(entity string, columns []FieldName) *CreateSpec {
 	return &CreateSpec{
 		Entity: &EntitySpec{
 			Name:    entity,
-			Columns: columns,
+			Columns: NewFieldSpecs(columns...),
 		},
 	}
 }
