@@ -108,8 +108,10 @@ func (i *BaseStorage[T]) SqlFormatParam() func(dbType dialect.DbDriver, param st
 }
 
 // SqlSelectClause 用于sql语句中获取字段的select子句部分，通过这个能够扩展SELECT部分实现复杂的查询，比如 SELECT id, ST_AsText(point)。
-func (i *BaseStorage[T]) SqlSelectClause(name string, dbType dialect.DbDriver) (string, error) {
-	return name, nil
+func (i *BaseStorage[T]) SqlSelectFormat() func(dbType dialect.DbDriver, name string) string {
+	return func(dbType dialect.DbDriver, name string) string {
+		return name
+	}
 }
 
 // toValue 将字段的值转换为数据库中的值。

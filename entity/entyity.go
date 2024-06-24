@@ -146,8 +146,8 @@ type (
 		SqlParam(dbType dialect.DbDriver) (FieldValue, error)
 		// SqlFormatParam 用于sql中获取字段的值的格式化字符串，这个是进一步处理SqlParam。如 INSERT INTO "blog" ( "desc" ) VALUES ( ST_GeomFromGeoJSON($1) ) 其中$1是SqlParam返回的，值可能是POINT(1,1), SqlFormatParam在这基础上返回ST_GeomFromGeoJSON($1)
 		SqlFormatParam() func(dbType dialect.DbDriver, param string) string
-		// SqlSelectClause 用于sql语句中获取字段的select子句部分，通过这个能够扩展SELECT部分实现复杂的查询，比如 SELECT id, ST_AsText(point)。
-		SqlSelectClause(name string, dbType dialect.DbDriver) (string, error)
+		// SqlSelectClause 用于sql语句中对SELECT的参数进行格式化，通过这个能够扩展SELECT部分实现复杂的查询，比如 SELECT id, ST_AsText(point)。
+		SqlSelectFormat() func(dbType dialect.DbDriver, name string) string
 	}
 
 	// 包含了关于字段的描述，配置信息等。
