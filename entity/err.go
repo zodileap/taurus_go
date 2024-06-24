@@ -268,7 +268,7 @@ var Err_0100020017 err.ErrCode = err.New(
 var Err_0100020018 err.ErrCode = err.New(
 	"0100020018",
 	"marshal entity %q : %v",
-	"",
+	"1. Check entity field type, the field should implement interfaces FieldStorager and FieldBuilder.",
 )
 
 // Err_0100020019 在创建实体关系时，出现依赖字段类型不等于主键字段类型。
