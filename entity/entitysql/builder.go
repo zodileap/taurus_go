@@ -72,8 +72,8 @@ type Builder struct {
 	total int
 	// qualifier 限定符作为标识符（如表名）的前缀。
 	qualifier string
-	// isAs 是否使用别名
-	isAs   bool
+	// IsAs 是否使用别名
+	IsAs   bool
 	tables []TableView
 }
 
@@ -83,7 +83,7 @@ type Builder struct {
 //
 //	0: sql生成器。
 func (b Builder) new() *Builder {
-	return &Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}, isAs: b.isAs}
+	return &Builder{dialect: b.dialect, total: b.total, sb: &strings.Builder{}, IsAs: b.IsAs}
 }
 
 // clone 克隆查询构建器。

@@ -308,7 +308,7 @@ func (s Selection) String() string {
 //	1: 查询参数。
 func (s *Selector) Query() (SqlSpec, error) {
 	if len(s.from)+len(s.joins) > 1 {
-		s.Builder.isAs = true
+		s.Builder.IsAs = true
 	}
 	b := s.Builder.clone()
 	b.WriteString("SELECT ")
@@ -593,7 +593,7 @@ func (s *Selector) appendSelect(b *Builder) {
 		if i > 0 {
 			b.Comma()
 		}
-		if b.isAs {
+		if b.IsAs {
 			b.WriteString(b.Quote(col.entity))
 			b.WriteString(".")
 		}
@@ -1366,7 +1366,7 @@ func (p *Predicate) Not() *Predicate {
 func (p *Predicate) EQ(column string, as string, v any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1390,7 +1390,7 @@ func (p *Predicate) EQ(column string, as string, v any) *Predicate {
 func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1414,7 +1414,7 @@ func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
 func (p *Predicate) GT(column string, as string, v any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1438,7 +1438,7 @@ func (p *Predicate) GT(column string, as string, v any) *Predicate {
 func (p *Predicate) GTE(column string, as string, v any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1462,7 +1462,7 @@ func (p *Predicate) GTE(column string, as string, v any) *Predicate {
 func (p *Predicate) LT(column string, as string, v any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1486,7 +1486,7 @@ func (p *Predicate) LT(column string, as string, v any) *Predicate {
 func (p *Predicate) LTE(column string, as string, v any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1510,7 +1510,7 @@ func (p *Predicate) LTE(column string, as string, v any) *Predicate {
 func (p *Predicate) In(column string, as string, v ...any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1540,7 +1540,7 @@ func (p *Predicate) In(column string, as string, v ...any) *Predicate {
 func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1570,7 +1570,7 @@ func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
 func (p *Predicate) Like(column string, as string, v any) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1593,7 +1593,7 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 func (p *Predicate) IsNull(column string, as string) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1615,7 +1615,7 @@ func (p *Predicate) IsNull(column string, as string) *Predicate {
 func (p *Predicate) NotNull(column string, as string) *Predicate {
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs && as != "" {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1884,7 +1884,7 @@ func O() *Order {
 }
 
 func (o *Order) Query(b *Builder) {
-	if b.isAs && o.As != "" {
+	if b.IsAs && o.As != "" {
 		b.WriteString(b.Quote(o.As))
 		b.WriteString(".")
 	}
