@@ -95,11 +95,13 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 	for _, node := range b.Nodes {
 		entities := node.Database.Entities
 		for _, entity := range entities {
+			entityName := entity.AttrName
 			for _, field := range entity.Fields {
 				if field.Templates != nil && len(field.Templates) > 0 {
+					attrName := field.AttrName
 					fieldTmpls := template.NewTemplate("field_external")
 					fieldTmpls.ParseFiles(field.Templates...)
-					field_external[field.AttrName] = []InstanceTemplate{}
+					field_external[entityName+attrName] = []InstanceTemplate{}
 					for _, t := range fieldTmpls.Templates() {
 						name := t.Name()
 						ext := filepath.Ext(name)
@@ -108,17 +110,17 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 						} else {
 							continue
 						}
+						field_external[entityName+attrName] = append(field_external[entityName+attrName], InstanceTemplate{
+							Name: name,
+							Format: func(t template.TemplatePathFormat) string {
+								lastSlashIndex := strings.LastIndex(name, "/")
+								if lastSlashIndex == -1 {
+									return t.Dir() + "_" + attrName + "_" + name + ext
+								}
+								return filepath.Join(t.Dir(), attrName+"_"+name[lastSlashIndex+1:]+ext)
+							},
+						})
 						if templates.Lookup(name) == nil {
-							field_external[field.AttrName] = append(field_external[field.AttrName], InstanceTemplate{
-								Name: name,
-								Format: func(t template.TemplatePathFormat) string {
-									lastSlashIndex := strings.LastIndex(name, "/")
-									if lastSlashIndex == -1 {
-										return t.Dir() + "_" + name + ext
-									}
-									return filepath.Join(t.Dir(), name[lastSlashIndex+1:]+ext)
-								},
-							})
 							templates = template.MustParse(templates.AddParseTree(name, t.Tree))
 						}
 					}
@@ -227,6 +229,7 @@ func generate(t *Builder) error {
 		}
 		// 为节点的每个entity生成代码
 		for _, e := range n.Database.Entities {
+			entityName := e.AttrName
 			ei, err := NewEntityInfo(t.Config, e)
 			if err != nil {
 				return err
@@ -241,8 +244,8 @@ func generate(t *Builder) error {
 			}
 			for _, field := range e.Fields {
 				fieldName := field.AttrName
-				if field_external[fieldName] != nil {
-					for _, tmpl := range field_external[fieldName] {
+				if field_external[entityName+fieldName] != nil {
+					for _, tmpl := range field_external[entityName+fieldName] {
 						b := bytes.NewBuffer(nil)
 						fi, err := NewFieldInfo(t.Config, field, e, n.Database.Type)
 						if err != nil {
