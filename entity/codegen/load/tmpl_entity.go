@@ -627,7 +627,14 @@ func extractTypeName(t reflect.Type) string {
 		paramTypes := strings.Split(params, ",")
 		for i, paramType := range paramTypes {
 			trimmedParam := strings.TrimSpace(paramType)
-			paramTypes[i] = trimPackagePath(trimmedParam)
+			newParam := trimPackagePath(trimmedParam)
+			firstChar := trimmedParam[0]
+			if firstChar == '*' {
+				// 指针类型
+				newParam = "*" + newParam
+			}
+
+			paramTypes[i] = trimPackagePath(newParam)
 		}
 
 		// 重组类型名称
