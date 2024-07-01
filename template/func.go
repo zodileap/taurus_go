@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/template"
 
-	stringutil "github.com/yohobala/taurus_go/encoding/string"
+	stringutil "github.com/yohobala/taurus_go/datautil/string"
 )
 
 var (
