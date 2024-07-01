@@ -3,6 +3,7 @@ package entitysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/dialect"
@@ -144,8 +145,11 @@ func (b *createBuilder) insertLastID(ctx context.Context, insert *Inserter) erro
 		// MySQL 不支持 RETURNING 子句。
 		if insert.Dialect() != dialect.MySQL {
 			rows := dialect.Rows{}
-			tlog.Print(spec.Query)
-			tlog.Print(spec.Args)
+			config := entity.GetConfig()
+			if *(config.SqlConsole) {
+				tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+				tlog.Debug(*config.SqlLogger, fmt.Sprintf("args: %v", spec.Args))
+			}
 			if err := b.drv.Query(ctx, spec.Query, spec.Args, &rows); err != nil {
 				return err
 			}
