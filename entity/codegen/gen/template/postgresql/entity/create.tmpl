@@ -80,7 +80,7 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					}
 					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
 					fieldSpace.Param = v
-					fieldSpace.Format = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
 					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- else }}
@@ -91,7 +91,7 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					}
 					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
 					fieldSpace.Param = v
-					fieldSpace.Format = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
 					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- end }}

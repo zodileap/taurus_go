@@ -70,8 +70,8 @@ type (
 		// Param 字段的值。
 		Param entity.FieldValue
 		// Default 是否使用默认值。
-		Default bool
-		Format  func(dbType dialect.DbDriver, param string) string
+		Default     bool
+		ParamFormat func(dbType dialect.DbDriver, param string) string
 	}
 
 	// CaseSpec Case语句信息。
@@ -105,14 +105,20 @@ func NewFieldSpecs(columns ...FieldName) []FieldSpec {
 	return fields
 }
 
-// Value 用于实现driver.Valuer接口。
+// Value 用于实现driver.Valuer接口，
+// 通过这个接口可以让Exec(ctx context.Context, query string, args []any, v any)提取出args的值。
 func (f FieldSpec) Value() (driver.Value, error) {
 	return f.Param, nil
 }
 
 // FormatParam 格式化字段的值。实现ParamFormatter接口。
 func (f FieldSpec) FormatParam(placeholder string, info *StmtInfo) string {
-	return f.Format(info.Dialect, placeholder)
+	return f.ParamFormat(info.Dialect, placeholder)
+}
+
+// String 实现Stringer接口。
+func (f FieldSpec) String() string {
+	return fmt.Sprintf("{Name: %s, Param: %v}", f.Name, f.Param)
 }
 
 // setColumns 设置字段的值。
