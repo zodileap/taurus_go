@@ -35,7 +35,7 @@ func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Set(v {{ 
 }
 
 // Get gets the value of {{ $field.Name }} field
-func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Get() *{{ $field.ValueType }} {
+func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Get() *{{ stringReplace $field.ValueType "*"  "" 1}} {
 	return t.{{ $field.StoragerOrigType }}.Get()
 }
 {{- end }}
