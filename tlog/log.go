@@ -465,14 +465,15 @@ func Fatal(loggerName string, msg string, fields ...Field) {
 //	tlog.Print("api",
 //		tlog.Int("code", 321321),
 //	)
-func Print(msg any, fields ...Field) {
+func Print(msg ...any) {
 	// 获取调用者的信息
 	_, file, line, ok := runtime.Caller(1) // 1 代表上一层的调用堆栈
 	if !ok {
 		file = "???"
 		line = 0
 	}
-	console(fmt.Sprint(msg), file, line, fields...)
+	s := fmt.Sprint(msg...)
+	console(s, file, line)
 }
 
 // Printf 格式化输出日志。使用的loggerName为print,print的日志级别为Debug,默认只输出到控制台。
