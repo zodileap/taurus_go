@@ -160,9 +160,11 @@ type (
 		// AttrName 字段的数据库属性名，
 		// 如果为空，会使用Name的名字，,但是会变成snake_case形式
 		AttrName string `json:"attr_name,omitempty"`
-		// Type 字段的类型。如"entity.Int64"。
+		// Type 字段的类型。如"filed.Int64"。
 		Type string `json:"type,omitempty"`
-		// AttrType 字段的数据库类型。如"entity.Int64"在PostgreSQL中对应"int8"，
+		// BaseType 字段的基础类型。如"filed.Int64"的基础类型为"int64", "filed.Int64A1"的基础类型也是"int64"。
+		BaseType string `json:"base_type,omitempty"`
+		// AttrType 字段的数据库类型。如"filed.Int64"在PostgreSQL中对应"int8"，
 		// 这AttrType的值为"int8"，这个通过AttrType()获得，所以自定义类型应该正确定义这个方法。
 		AttrType string `json:"attr_type,omitempty"`
 		// Size 字段的长度大小。
@@ -187,6 +189,8 @@ type (
 		Sequence Sequence `json:"validators,omitempty"`
 		// Validators 字段验证函数。
 		Validators []any `json:"sequence,omitempty"`
+		// Depth 字段的值类型的深度，例如[]int64的深度为1，[][]int64的深度为2。
+		Depth int `json:"depth,omitempty"`
 	}
 
 	// Sequence 字段使用的序列，序列的类型默认为Int64。

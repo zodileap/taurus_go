@@ -36,25 +36,28 @@ const (
 	OpDiv Op = 14 // / (Quotient)
 	// OpMod 取模操作符。
 	OpMod Op = 15 // % (Reminder)
+	// OpContains 包含操作符。
+	OpContains Op = 16 // @> (Contains)
 )
 
-var ops [16]string = [16]string{
-	OpEQ:      "=",
-	OpNEQ:     "<>",
-	OpGT:      ">",
-	OpGTE:     ">=",
-	OpLT:      "<",
-	OpLTE:     "<=",
-	OpIn:      "IN",
-	OpNotIn:   "NOT IN",
-	OpLike:    "LIKE",
-	OpIsNull:  "IS NULL",
-	OpNotNull: "IS NOT NULL",
-	OpAdd:     "+",
-	OpSub:     "-",
-	OpMul:     "*",
-	OpDiv:     "/",
-	OpMod:     "%",
+var ops [17]string = [17]string{
+	OpEQ:       "=",
+	OpNEQ:      "<>",
+	OpGT:       ">",
+	OpGTE:      ">=",
+	OpLT:       "<",
+	OpLTE:      "<=",
+	OpIn:       "IN",
+	OpNotIn:    "NOT IN",
+	OpLike:     "LIKE",
+	OpIsNull:   "IS NULL",
+	OpNotNull:  "IS NOT NULL",
+	OpAdd:      "+",
+	OpSub:      "-",
+	OpMul:      "*",
+	OpDiv:      "/",
+	OpMod:      "%",
+	OpContains: "@>",
 }
 
 func (op Op) String() string {

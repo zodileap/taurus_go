@@ -22,8 +22,30 @@ func (b *BaseBuilder[T]) Init(desc *entity.Descriptor) error {
 	if b == nil {
 		panic("taurus_go/entity field init: nil pointer dereference.")
 	}
+
+	depth, elemType := b.sliceTypeDetails()
+	desc.Depth = depth
+	desc.BaseType = elemType
 	b.desc = desc
 	return nil
+}
+
+func (b *BaseBuilder[T]) sliceTypeDetails() (int, string) {
+
+	depth := 0
+	// Safely get the type of T, checking for nil pointer dereference safety.
+	var zero T
+	refType := reflect.TypeOf(zero) // Use a zero value of T instead of nil pointer
+	// Process the type to determine depth and base type.
+	for refType.Kind() == reflect.Array || refType.Kind() == reflect.Slice || refType.Kind() == reflect.Ptr {
+		if refType.Kind() == reflect.Ptr {
+			refType = refType.Elem() // Dereference pointer type
+		} else {
+			refType = refType.Elem()
+			depth++ // Increment depth for arrays or slices
+		}
+	}
+	return depth, refType.Name()
 }
 
 // Descriptor 获取字段的描述信息。

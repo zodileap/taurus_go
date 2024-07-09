@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -1584,6 +1585,38 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 		b.WriteOp(OpLike)
 		p.arg(b, v)
 		b.Blank()
+	})
+}
+
+// Contains 添加一个@>的条件。
+//
+// Returns:
+//
+//	0: Where子句生成器。
+func (p *Predicate) Contains(column string, as string, v any) *Predicate {
+	p.lastIsLogic = false
+	return p.Append(func(b *Builder) {
+		// 使用反射判断是否为数组
+		arr := reflect.ValueOf(v)
+
+		if arr.Kind() == reflect.Array {
+			if b.IsAs && as != "" {
+				b.WriteString(b.Quote(as))
+				b.WriteByte('.')
+			}
+			b.Ident(column)
+			b.WriteString(" @> ")
+			b.WriteString("ARRAY[")
+			for i := 0; i < arr.Len(); i++ {
+				elem := arr.Index(i)
+				if i > 0 {
+					b.Comma()
+				}
+				p.arg(b, elem.Interface())
+			}
+			b.WriteByte(']')
+			b.Blank()
+		}
 	})
 }
 

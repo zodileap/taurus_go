@@ -103,6 +103,18 @@ func (f *{{ $fieldName }}) Like({{ $attrName }} string) entitysql.PredicateFunc 
 	}
 }
 
+{{ if eq .Field.Depth 1 }}
+
+// Contains returns a function that sets the predicate to check if the field contains the given value.
+// Operator "@>"
+func (f *{{ $fieldName }}) Contains({{ $attrName }} {{ .Field.ValueType }}) entitysql.PredicateFunc {
+	return func(p *entitysql.Predicate) {
+		p.Contains(Field{{ .Field.Name }}.Name.String(), p.Builder.FindAs(Entity), {{ $attrName }})
+	}
+}
+
+{{ end }}
+
 {{ if not .Field.Required }}
 
 // IsNull returns a function that sets the predicate to check if the field is null.

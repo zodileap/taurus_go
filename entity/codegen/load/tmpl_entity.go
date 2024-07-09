@@ -562,6 +562,8 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	ef.Validators = len(ed.Validators)
 	ef.ValueType = valueType
 	ef.Templates = tmpls
+	ef.Depth = ed.Depth
+	ef.BaseType = ed.BaseType
 
 	err := checkSequence(ef.Sequence)
 	if err != nil {
