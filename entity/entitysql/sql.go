@@ -1371,6 +1371,9 @@ func (p *Predicate) Not() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) EQ(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1395,6 +1398,9 @@ func (p *Predicate) EQ(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1419,6 +1425,9 @@ func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) GT(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1443,6 +1452,9 @@ func (p *Predicate) GT(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) GTE(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1467,6 +1479,9 @@ func (p *Predicate) GTE(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) LT(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1491,6 +1506,9 @@ func (p *Predicate) LT(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) LTE(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1515,6 +1533,9 @@ func (p *Predicate) LTE(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) In(column string, as string, v ...any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1545,6 +1566,9 @@ func (p *Predicate) In(column string, as string, v ...any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1575,6 +1599,9 @@ func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Like(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1594,6 +1621,9 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Contains(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		// 使用反射判断是否为数组
@@ -1630,6 +1660,9 @@ func (p *Predicate) Contains(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) IsNull(column string, as string) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1652,6 +1685,9 @@ func (p *Predicate) IsNull(column string, as string) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NotNull(column string, as string) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		if b.IsAs && as != "" {
@@ -1670,6 +1706,9 @@ func (p *Predicate) NotNull(column string, as string) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Add() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
@@ -1684,6 +1723,9 @@ func (p *Predicate) Add() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Sub() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
@@ -1712,6 +1754,9 @@ func (p *Predicate) Mul() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Div() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
@@ -1726,6 +1771,9 @@ func (p *Predicate) Div() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Mod() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.Blank()
