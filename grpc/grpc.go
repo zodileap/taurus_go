@@ -21,7 +21,7 @@ type Client interface {
 
 var (
 	Mu      sync.RWMutex
-	servers = make(map[string]map[string]Server)
+	servers = make(map[string]Server)
 	clients = make(map[string]*grpc.ClientConn)
 )
 
@@ -29,24 +29,20 @@ var (
 //
 // gRPC作为主服务, 一个gRPC下可以有多个不同功能服务
 //
-// 参数:
+// Params:
 //   - grpcName: GRPC名
-//   - serverName: GRPC下的服务名字
 //   - server:  GRPC下的服务
-func RegisterServer(grpcName string, serverName string, server Server) {
+func RegisterServer(grpcName string, server Server) {
 	Mu.Lock()
 	defer Mu.Unlock()
 	if server == nil {
 		panic(text_panic_server_nil)
 	}
 	if _, ok := servers[grpcName]; !ok {
-		servers[grpcName] = make(map[string]Server)
+		servers[grpcName] = server
+	} else {
+		panic(text_panic_server_register_twice + grpcName)
 	}
-	if _, dup := servers[grpcName][serverName]; dup {
-		panic(text_panic_server_register_twice + serverName)
-	}
-
-	servers[grpcName][serverName] = server
 }
 
 // 初始化GRPC服务
@@ -73,9 +69,8 @@ func InitServer(grpcName string, keyFile string, certFile string) *grpc.Server {
 	} else {
 		grpcSrv = grpc.NewServer()
 	}
-	for _, server := range servers[grpcName] {
-		server.Register(grpcSrv)
-	}
+	s := servers[grpcName]
+	s.Register(grpcSrv)
 
 	return grpcSrv
 }
