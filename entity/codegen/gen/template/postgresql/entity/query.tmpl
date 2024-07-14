@@ -1,5 +1,5 @@
 {{ define "entity/query" }}
-{{ $entity := toFirstLower $.Entity.Name}}
+{{ $entity := toFirstCap $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
 {{ $header := dict "Package" "entity" }}
 {{ template "header" $header }}
@@ -12,7 +12,7 @@ type {{ $entity }}Query struct {
 	config     *{{ toFirstLower $entity}}Config
 	ctx        *entitysql.QueryContext
 	predicates []entitysql.PredicateFunc
-	rels 	 []{{ $entity }}Rel
+	rels 	 []{{ toFirstLower $.Entity.Name }}Rel
 	order	  []{{ $.Entity.AttrName }}.OrderTerm
 	scanner	[]*internal.QueryScanner
 	scannerTotal int
@@ -36,7 +36,7 @@ func new{{ toFirstCap $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *
 		},
 		ctx:    &entitysql.QueryContext{},
 		predicates: []entitysql.PredicateFunc{},
-		rels: []{{ $entity }}Rel{},
+		rels: []{{ toFirstLower $.Entity.Name }}Rel{},
 		order: []{{ $.Entity.AttrName }}.OrderTerm{},
 		scanner: []*internal.QueryScanner{},
 		scannerTotal: 0,
@@ -59,7 +59,7 @@ func (o *{{ $entity }}Query) Order(term ...{{ $entityAttr }}.OrderTerm) *{{ $ent
 	return o
 }
 
-func (o *{{ $entity }}Query) Include(rels ...{{ $entity }}Rel) *{{  $entity }}Query {
+func (o *{{ $entity }}Query) Include(rels ...{{ toFirstLower $.Entity.Name }}Rel) *{{  $entity }}Query {
 	o.rels = append(o.rels, rels...)
 	return o
 }

@@ -85,17 +85,17 @@ func (s *{{ $BuilderName }}) ToList(ctx context.Context) ([]*{{ $entity }}, erro
 	return query.ToList(ctx)
 }
 
-func (s *{{ $BuilderName }}) Include(rels ...{{ toFirstLower $entity }}Rel) *{{ toFirstLower $entity }}Query {
+func (s *{{ $BuilderName }}) Include(rels ...{{ toFirstLower $entity }}Rel) *{{ toFirstCap $entity }}Query {
 	query := s.initQuery()
 	return query.Include(rels...)
 }
 
-func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ toFirstLower $entity }}Query {
+func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ toFirstCap $entity }}Query {
 	query := s.initQuery()
 	return query.Order(o...)
 }
 
-func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ toFirstLower $entity }}Query {
+func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ toFirstCap $entity }}Query {
 	query := s.initQuery()
 	return query.Where(conditions...)
 }
@@ -131,7 +131,7 @@ func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
 	return nil
 }
 
-func (s *{{ $BuilderName }}) initQuery() *{{ toFirstLower $entity }}Query {
+func (s *{{ $BuilderName }}) initQuery() *{{ toFirstCap $entity }}Query {
 	return new{{ $entity }}Query(s.config.Dialect, s.tracker, s.config.{{ toFirstLower $entity }}Mutations)
 }
 
