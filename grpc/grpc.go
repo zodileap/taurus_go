@@ -3,7 +3,10 @@ package grpc
 import (
 	"context"
 	"errors"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
@@ -24,6 +27,29 @@ var (
 	servers = make(map[string]Server)
 	clients = make(map[string]*grpc.ClientConn)
 )
+
+func init() {
+	// 创建一个通道来接收信号
+	sigs := make(chan os.Signal, 1)
+
+	// 注册要接收的信号
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	// 使用 goroutine 来监听信号
+	go func() {
+		sig := <-sigs
+		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+			cleanup()
+			os.Exit(0)
+		}
+	}()
+}
+
+func cleanup() {
+	for _, conn := range clients {
+		conn.Close()
+	}
+}
 
 // 注册一个GRPC下的服务
 //
