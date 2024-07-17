@@ -136,6 +136,11 @@ BEGIN
 {{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
 {{- range $i,$rel := $entity.Relations }}
 {{- if eq $rel.Dependent.AttrName $entity.AttrName }}
+-- 判断是否存在唯一键，不存在添加
+{{- $uniqueKey := joinStrings  `unique_` $rel.Principal.AttrName  `_` $rel.Principal.Field.AttrName }}
+IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '{{ $uniqueKey }}' AND conrelid = 'public.{{ $rel.Principal.AttrName }}'::regclass) THEN
+    ALTER TABLE {{ $schema }}."{{ $rel.Principal.AttrName }}" ADD CONSTRAINT {{ $uniqueKey }} UNIQUE ({{ $rel.Principal.Field.AttrName }});
+END IF;
 ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
 ADD CONSTRAINT {{ $rel.Desc.Constraint }} FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
 REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
