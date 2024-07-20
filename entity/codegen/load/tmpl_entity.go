@@ -62,6 +62,8 @@ type (
 		StoragerPkg string `json:"storager_pkg,omitempty"`
 		// Templates 字段关联的额外模版
 		Templates []string `json:"templates,omitempty"`
+		// Tag 字段的标签信息
+		Tag string `json:"tag,omitempty"`
 	}
 
 	// Relation 表示entity之间的关系
@@ -105,6 +107,7 @@ type (
 
 	// fieldInfo entiy中字段的信息
 	fieldInfo struct {
+		Tag      string
 		Builder  entity.FieldBuilder
 		Storager fieldInfoStorager
 	}
@@ -361,6 +364,7 @@ func (e *Entity) loadEntity(ei entity.EntityInterface) error {
 			sf.StoragerPkg = f.field.Storager.Pkg
 			sf.StoragerType = f.field.Storager.Type
 			sf.StoragerOrigType = f.field.Storager.OrigType
+			sf.Tag = f.field.Tag
 			e.Fields = append(e.Fields, sf)
 		}
 	}
@@ -404,6 +408,7 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 	// 遍历结构体的字段
 	for i := 0; i < val.NumField(); i++ {
 		fieldVal := val.Field(i)
+		fieldTags := t.Field(i).Tag
 		fieldName := t.Field(i).Name
 		ImportPkgs = append(ImportPkgs, fieldVal.Type().PkgPath())
 		fieldVal, ok := assertFieldBuilder(fieldVal)
@@ -444,6 +449,7 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 						fieldVal.Set(reflect.ValueOf(ef))
 						f := entityInfo{
 							field: &fieldInfo{
+								Tag:      string(fieldTags),
 								Builder:  ef,
 								Storager: *storager,
 							},
@@ -458,6 +464,7 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 						}
 						f := entityInfo{
 							field: &fieldInfo{
+								Tag:      string(fieldTags),
 								Builder:  ef,
 								Storager: *storager,
 							},

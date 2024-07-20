@@ -14,7 +14,7 @@ type {{ $entity }} struct {
 		{{ if $field.Comment }}
 		// {{ $field.Name }} {{ $field.Comment }}
 		{{- end }}
-        {{ $field.Name }} *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }}
+        {{ $field.Name }} *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} {{ if ne $field.Tag "" }}`{{ $field.Tag }}`{{ end }}
     {{- end }}
 
 	{{- range $relation :=  .Entity.Relations }}
