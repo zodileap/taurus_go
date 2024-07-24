@@ -90,6 +90,7 @@ func (mp *MultiPoint) WKT() (string, error) {
 // UnmarshalWKT 用于将字符串解析为MultiPoint。
 func (mp *MultiPoint) UnmarshalWKT(s string) error {
 	trimmed := strings.TrimPrefix(s, multiPointPrefix)
+	trimmed = strings.Trim(trimmed, " ")
 	trimmed = strings.TrimPrefix(trimmed, "(")
 	trimmed = strings.TrimSuffix(trimmed, ")")
 	pointStrings := strings.Split(trimmed, ",")

@@ -117,6 +117,7 @@ func (p *Polygon) WKT() (string, error) {
 // UnmarshalWKT 用于将字符串解析为Polygon。
 func (p *Polygon) UnmarshalWKT(src string) error {
 	trimmed := strings.TrimPrefix(src, polygonPrefix)
+	trimmed = strings.Trim(trimmed, " ")
 	trimmed = strings.TrimPrefix(trimmed, "((")
 	trimmed = strings.TrimSuffix(trimmed, "))")
 	pointStrings := strings.Split(trimmed, ",")

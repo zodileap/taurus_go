@@ -91,6 +91,7 @@ func (mls *MultiLineString) WKT() (string, error) {
 // UnmarshalWKT 用于将WKT解析为MultiLineString。
 func (mls *MultiLineString) UnmarshalWKT(src string) error {
 	trimmed := strings.TrimPrefix(src, multiLineStringPrefix)
+	trimmed = strings.Trim(trimmed, " ")
 	trimmed = strings.TrimPrefix(trimmed, "(")
 	trimmed = strings.TrimSuffix(trimmed, ")")
 	lineStrings := strings.Split(trimmed, "),(")

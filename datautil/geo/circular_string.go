@@ -86,6 +86,7 @@ func (c *CircularString) WKT() (string, error) {
 // UnmarshalWKT 用于将WKT解析为CircularString。
 func (c *CircularString) UnmarshalWKT(src string) error {
 	trimmed := strings.TrimPrefix(src, circularStringPrefix)
+	trimmed = strings.Trim(trimmed, " ")
 	trimmed = strings.TrimPrefix(trimmed, "(")
 	trimmed = strings.TrimSuffix(trimmed, ")")
 	pointStrings := strings.Split(trimmed, ",")

@@ -96,6 +96,7 @@ func (mp *MultiPolygon) WKT() (string, error) {
 // UnmarshalWKT 用于将字符串解析为MultiPolygon。
 func (mp *MultiPolygon) UnmarshalWKT(src string) error {
 	trimmed := strings.TrimPrefix(src, multiPolygonPrefix)
+	trimmed = strings.Trim(trimmed, " ")
 	trimmed = strings.TrimPrefix(trimmed, "(")
 	trimmed = strings.TrimSuffix(trimmed, ")")
 	polygonStrings := strings.Split(trimmed, ")),((")

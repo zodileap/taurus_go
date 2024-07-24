@@ -116,6 +116,7 @@ func (l *LineString) WKT() (string, error) {
 // 实现Coordinate接口。
 func (l *LineString) UnmarshalWKT(src string) error {
 	trimmed := strings.TrimPrefix(src, lineStringPrefix)
+	trimmed = strings.Trim(trimmed, " ")
 	trimmed = strings.TrimPrefix(trimmed, "(")
 	trimmed = strings.TrimSuffix(trimmed, ")")
 	pointStrings := strings.Split(trimmed, ",")
