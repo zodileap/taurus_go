@@ -8,8 +8,8 @@
 {{ template "import/load" $importPkgs }}
 
 type {{ $entity }} struct {
-	internal.Entity
-    config      *{{ toFirstLower $entity}}Config
+	internal.Entity `json:"-"`
+    config      *{{ toFirstLower $entity}}Config 
     {{- range $i,$field := $.Entity.Fields }}
 		{{ if $field.Comment }}
 		// {{ $field.Name }} {{ $field.Comment }}
@@ -20,7 +20,7 @@ type {{ $entity }} struct {
 	{{- range $relation :=  .Entity.Relations }}
 	{{ $result := getEntityRel $relation $.Entity  }}
 	{{ with $result }} 
-	{{ toFirstCap $result.Name}} {{ $result.EntityType }}
+	{{ toFirstCap $result.Name}} {{ $result.EntityType }} `json:"-"`
 	{{ end }}
 	{{- end }}
 }
