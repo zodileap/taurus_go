@@ -18,7 +18,8 @@ type (
 	// EntityInfo 表示一个Builder中的一个实体节点的信息
 	EntityInfo struct {
 		*Config
-		Entity *load.Entity
+		Entity   *load.Entity
+		Database *load.Database
 	}
 
 	FieldInfo struct {
@@ -59,10 +60,11 @@ func NewDatabaseInfo(c *Config, database *load.Database) (*DatabaseInfo, error) 
 //
 //	0: 实体信息。
 //	1: 错误信息。
-func NewEntityInfo(c *Config, entity *load.Entity) (*EntityInfo, error) {
+func NewEntityInfo(c *Config, entity *load.Entity, database *load.Database) (*EntityInfo, error) {
 	typ := &EntityInfo{
-		Config: c,
-		Entity: entity,
+		Config:   c,
+		Entity:   entity,
+		Database: database,
 	}
 	return typ, nil
 }

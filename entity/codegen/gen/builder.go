@@ -230,7 +230,7 @@ func generate(t *Builder) error {
 		// 为节点的每个entity生成代码
 		for _, e := range n.Database.Entities {
 			entityName := e.AttrName
-			ei, err := NewEntityInfo(t.Config, e)
+			ei, err := NewEntityInfo(t.Config, e, n.Database)
 			if err != nil {
 				return err
 			}

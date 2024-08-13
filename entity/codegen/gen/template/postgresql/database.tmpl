@@ -37,6 +37,16 @@ type {{ $db }} struct {
     {{- end }}
 }
 
+type {{ toFirstLower $db }}EntityFlag interface {
+	is{{ $db }}Entity()
+}
+
+{{- range $key, $entityName := $.Database.EntityMap }}
+	{{- $entity := index $.Database.Entities $entityName }}
+func (e *{{ $entity.Name }}) is{{ $db }}Entity() {}
+{{- end }}
+
+
 // New{{ $db }} creates a new {{ $db }} instance.
 func New{{ $db }}() (*{{ $db }}, error) {
     dialect, err := internal.NewDialect({{ $db }}Tag)
@@ -73,6 +83,20 @@ func (d *{{ $db }}) Save(ctx context.Context) error {
 		return entitysql.Rollback(tx, err)
 	}
 	return tx.Commit()
+}
+
+// Remove will remove the entity from the database. The changes will be saved when Save is called.
+func (d *{{ $db }}) Remove(e {{ toFirstLower $db }}EntityFlag) error {
+	switch e.(type) {
+	{{- range $key, $entityName := $.Database.EntityMap }}
+		{{- $entity := index $.Database.Entities $entityName }}
+		case *{{ $entity.Name }}:
+			d.{{ $key }}s.Remove(e.(*{{ $entity.Name }}))
+	{{- end }}
+	default:
+		return fmt.Errorf("database {{ $db }} does not support entity type %T", e)
+	}
+	return nil
 }
 
 func (d *{{ $db }}) init() {
