@@ -1,6 +1,7 @@
 package field
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"time"
@@ -118,8 +119,7 @@ func (b BaseStorage[T]) String() string {
 
 // SqlParam 用于sql中获取字段参数并赋值。如 INSERT INTO "blog" ( "desc") VALUES ($1)，给$1传递具体的值。
 func (i *BaseStorage[T]) SqlParam(dbType dialect.DbDriver) (entity.FieldValue, error) {
-	var t T
-	return i.toValue(t, dbType)
+	return i.toValue(dbType)
 }
 
 // SqlFormatParam 用于sql中获取字段的值的格式化字符串。如 INSERT INTO "blog" ( "desc" ) VALUES ( ST_GeomFromGeoJSON($1) ) 中添加的ST_GeomFromGeoJSON()。
@@ -142,124 +142,92 @@ func (i *BaseStorage[T]) SqlSelectFormat() func(dbType dialect.DbDriver, name st
 //
 //   - t: 字段的值。
 //   - dbType: 数据库类型。
-func (b *BaseStorage[T]) toValue(t any, dbType dialect.DbDriver) (entity.FieldValue, error) {
+func (b *BaseStorage[T]) toValue(dbType dialect.DbDriver) (entity.FieldValue, error) {
 	switch dbType {
 	case dialect.PostgreSQL:
 		if b.value == nil {
 			return nil, nil
 		}
-		switch t.(type) {
-		case int16:
-			return *b.value, nil
-		case int32:
-			return *b.value, nil
-		case int64:
-			return *b.value, nil
-		case []int16:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case []int32:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case []int64:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][]int16:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][]int32:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][]int64:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][]int16:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][]int32:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][]int64:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][][]int16:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][][]int32:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][][]int64:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][][][]int16:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][][][]int32:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case [][][][][]int64:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				return fmt.Sprintf("%d", a), nil
-			})
-		case bool:
-			return *b.value, nil
-		case []bool:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				if a.(bool) {
-					return "true", nil
-				}
-				return "false", nil
-			})
-		case [][]bool:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				if a.(bool) {
-					return "true", nil
-				}
-				return "false", nil
-			})
-		case [][][]bool:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				if a.(bool) {
-					return "true", nil
-				}
-				return "false", nil
-			})
-		case [][][][]bool:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				if a.(bool) {
-					return "true", nil
-				}
-				return "false", nil
-			})
-		case [][][][][]bool:
-			return arrayToPGString(*b.value, func(a any) (string, error) {
-				if a.(bool) {
-					return "true", nil
-				}
-				return "false", nil
-			})
-		case string:
-			return *b.value, nil
+		v := reflect.ValueOf(*b.value)
+		switch v.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return int64(v.Int()), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return int64(v.Uint()), nil
+		case reflect.Bool:
+			return v.Bool(), nil
+		case reflect.String:
+			return v.String(), nil
+		case reflect.Float32, reflect.Float64:
+			return v.Float(), nil
+		case reflect.Slice:
+			return handleSlice(v)
 		default:
-			return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(t))
+			return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(*b.value))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(t))
+		return nil, fmt.Errorf("unsupported database type: %v", reflect.TypeOf(*b.value))
 	}
+}
+
+func handleSlice(v reflect.Value) (driver.Value, error) {
+	switch v.Type().Elem().Kind() {
+	case reflect.Int16, reflect.Int32, reflect.Int64:
+		return arrayToPGString(v.Interface(), func(a any) (string, error) {
+			return fmt.Sprintf("%d", a), nil
+		})
+	case reflect.Bool:
+		return arrayToPGString(v.Interface(), func(a any) (string, error) {
+			if a.(bool) {
+				return "true", nil
+			}
+			return "false", nil
+		})
+	case reflect.Slice:
+		// 处理嵌套数组
+		return handleNestedSlice(v)
+	default:
+		return nil, fmt.Errorf("unsupported slice type: %v", v.Type())
+	}
+}
+
+func handleNestedSlice(v reflect.Value) (driver.Value, error) {
+	depth := getSliceDepth(v.Type())
+	if depth > 5 {
+		return nil, fmt.Errorf("slice nesting too deep: %d", depth)
+	}
+	var convFunc func(a any) (string, error)
+	elemKind := getDeepestSliceElemKind(v.Type())
+	switch elemKind {
+	case reflect.Int16, reflect.Int32, reflect.Int64:
+		convFunc = func(a any) (string, error) { return fmt.Sprintf("%d", a), nil }
+	case reflect.Bool:
+		convFunc = func(a any) (string, error) {
+			if a.(bool) {
+				return "true", nil
+			}
+			return "false", nil
+		}
+	default:
+		return nil, fmt.Errorf("unsupported nested slice element type: %v", elemKind)
+	}
+	return arrayToPGString(v.Interface(), convFunc)
+}
+
+func getSliceDepth(t reflect.Type) int {
+	depth := 0
+	for t.Kind() == reflect.Slice {
+		depth++
+		t = t.Elem()
+	}
+	return depth
+}
+
+func getDeepestSliceElemKind(t reflect.Type) reflect.Kind {
+	for t.Kind() == reflect.Slice {
+		t = t.Elem()
+	}
+	return t.Kind()
 }
 
 // attrType 返回字段的数据库中的类型名。
