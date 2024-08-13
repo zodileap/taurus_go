@@ -89,10 +89,8 @@ func InitRouter(serverName string) *gin.Engine {
 	var Route = gin.Default()
 	for name, apier := range servers[serverName] {
 		r := Route.Group(name)
-		{
-			r.Use(apier.SetMiddleware()...)
-			apier.SetRouter(r)
-		}
+		r.Use(apier.SetMiddleware()...)
+		apier.SetRouter(r)
 	}
 	status[serverName] = true
 
