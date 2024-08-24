@@ -33,17 +33,17 @@ func CopyFile(src string, dst string) error {
 	}
 	sourceFile, err := os.Open(src)
 	if err != nil {
-		return Err_0200010004.Sprintf(src, err)
+		return Err_0200020003.Sprintf(src, err)
 	}
 	defer sourceFile.Close()
 	destFile, err := os.Create(dst)
 	if err != nil {
-		return Err_0200010005.Sprintf(dst, err)
+		return Err_0200020004.Sprintf(dst, err)
 	}
 	defer destFile.Close()
 	_, err = io.Copy(destFile, sourceFile)
 	if err != nil {
-		return Err_0200010006.Sprintf(src, dst, err)
+		return Err_0200020005.Sprintf(src, dst, err)
 	}
 	return nil
 }
@@ -78,13 +78,13 @@ func CopyDir(src string, dst string) error {
 
 	err = filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return Err_0200010007.Sprintf(path, err)
+			return Err_0200030002.Sprintf(path, err)
 		}
 
 		// 计算目标文件或目录的路径
 		relPath, err := filepath.Rel(src, path)
 		if err != nil {
-			return Err_0200010008.Sprintf(src, path, err)
+			return Err_0200010001.Sprintf(src, path, err)
 		}
 		targetPath := filepath.Join(dst, relPath)
 
@@ -92,7 +92,7 @@ func CopyDir(src string, dst string) error {
 		if info.IsDir() {
 			err = os.MkdirAll(targetPath, srcInfo.Mode())
 			if err != nil {
-				return Err_0200010001.Sprintf(targetPath, err)
+				return Err_0200030001.Sprintf(targetPath, err)
 			}
 		} else {
 			// 如果是文件，则复制文件

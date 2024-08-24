@@ -97,12 +97,12 @@ func (a *Assets) AddDir(path string) error {
 func (a Assets) Write() error {
 	for dir := range a.Dirs {
 		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			return Err_0200010001.Sprintf(dir, err)
+			return Err_0200030001.Sprintf(dir, err)
 		}
 	}
 	for path, content := range a.Files {
 		if err := os.WriteFile(path, content, 0644); err != nil {
-			return Err_0200010002.Sprintf(path, err)
+			return Err_0200020001.Sprintf(path, err)
 		}
 	}
 	a.Clear()
@@ -140,10 +140,10 @@ func (a Assets) Format() error {
 		if filepath.Ext(path) == ".go" {
 			src, err := imports.Process(path, content, nil)
 			if err != nil {
-				return Err_0200010003.Sprintf(path, err)
+				return Err_0200020002.Sprintf(path, err)
 			}
 			if err := os.WriteFile(path, src, 0644); err != nil {
-				return Err_0200010002.Sprintf(path, err)
+				return Err_0200020001.Sprintf(path, err)
 			}
 		}
 
