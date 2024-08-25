@@ -35,7 +35,7 @@ func GenerateKey() (string, error) {
 	return key, nil
 }
 
-// 无重复字符的最长子串
+// LengthOfLongestSubstring 无重复字符的最长子串
 // 采用滑动窗口方式时间复杂度O(n),如果暴力解法时间复杂度为O(n^2)
 // 这里想象一个会伸缩的窗口在字符串中，然后一个个移动过去，
 // 如果窗口中有重复的字符，就把窗口的左边界移动到重复字符的下一个位置
@@ -91,6 +91,7 @@ func LengthOfLongestSubstring(s string) int {
 
 // ToSnakeCase 函数将字符串转换为蛇形命名法（snake_case）。
 // 它将所有字符转换为小写，并在大写字母前添加下划线，第一个字符除外。
+// 例如，"FooBar" -> "foo_bar"。
 func ToSnakeCase(str string) string {
 	var result strings.Builder
 	for i, r := range str {
@@ -99,6 +100,31 @@ func ToSnakeCase(str string) string {
 		}
 		result.WriteRune(unicode.ToLower(r))
 	}
+	return result.String()
+}
+
+// ToCamelCase 函数将字符串转换为驼峰命名法（camelCase）。
+// 它将所有字符转换为小写，并删除下划线，但在删除下划线后的字符前添加大写字母。
+// 例如，"foo_bar" -> "fooBar"。
+func ToCamelCase(str string) string {
+	var result strings.Builder
+	nextUpper := false
+
+	for i, r := range str {
+		if r == '_' {
+			nextUpper = true
+		} else {
+			if i == 0 {
+				result.WriteRune(unicode.ToLower(r))
+			} else if nextUpper {
+				result.WriteRune(unicode.ToUpper(r))
+				nextUpper = false
+			} else {
+				result.WriteRune(r)
+			}
+		}
+	}
+
 	return result.String()
 }
 
