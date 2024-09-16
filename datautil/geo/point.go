@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/yohobala/taurus_go/tlog"
 )
 
 // Point 一个点，由经度和纬度组成。
@@ -78,13 +76,11 @@ func (p *Point) WKT() (string, error) {
 
 // UnmarshalWKT 用于将字符串解析为Point。
 func (p *Point) UnmarshalWKT(src string) error {
-	tlog.Print(src)
 	trimmed := strings.TrimPrefix(src, pointPrefix)
 	trimmed = strings.Trim(trimmed, " ")
 	trimmed = strings.TrimPrefix(trimmed, "(")
 	trimmed = strings.TrimSuffix(trimmed, ")")
 	coors := strings.Split(trimmed, " ")
-	tlog.Print(coors)
 	if len(coors) != 2 {
 		return Err_0200020201.Sprintf("Point", fmt.Sprintf("Decode() coordinate length is 2, but got %d", len(coors)))
 	}
