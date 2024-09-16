@@ -91,6 +91,36 @@ var Err_0200020005 err.ErrCode = err.New(
 	"",
 )
 
+// Err_0200020006 文件不存在。
+//
+// Verbs:
+//
+//	0: 文件路径。
+var Err_0200020006 err.ErrCode = err.New(
+	"0200020006",
+	"File not exists %s",
+	"",
+)
+
+// Err_0200020007 读取文件失败。
+//
+// Verbs:
+//
+//	0: 文件路径。
+//	1: bufio.Scanner产生的错误信息。
+var Err_0200020007 err.ErrCode = err.New(
+	"0200020007",
+	"Read file %s : %+v",
+	"",
+)
+
+// Err_0200020008 在文件中插入内容的位置不应该小于指定值
+var Err_0200020008 err.ErrCode = err.New(
+	"0200020008",
+	"Insert position should not less than %d",
+	"",
+)
+
 /**************** 文件夹错误 ***************/
 
 // Err_0200030001 创建文件夹失败。
