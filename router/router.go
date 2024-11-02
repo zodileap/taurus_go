@@ -13,6 +13,7 @@ type Router interface {
 	SetRouter(router *gin.RouterGroup) []gin.IRoutes
 	// 设置中间件
 	SetMiddleware() []gin.HandlerFunc
+	SetCors() gin.HandlerFunc
 }
 
 type Response struct {
@@ -87,9 +88,11 @@ func InitRouter(serverName string) *gin.Engine {
 	}
 
 	var Route = gin.Default()
+
 	for name, apier := range servers[serverName] {
 		r := Route.Group(name)
 		r.Use(apier.SetMiddleware()...)
+		r.Use(apier.SetCors())
 		apier.SetRouter(r)
 	}
 	status[serverName] = true
