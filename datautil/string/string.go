@@ -92,11 +92,27 @@ func LengthOfLongestSubstring(s string) int {
 // ToSnakeCase 函数将字符串转换为蛇形命名法（snake_case）。
 // 它将所有字符转换为小写，并在大写字母前添加下划线，第一个字符除外。
 // 例如，"FooBar" -> "foo_bar"。
+// "APIDoc" -> "api_doc"
+// "SimpleXMLParser" -> "simple_xml_parser"
 func ToSnakeCase(str string) string {
 	var result strings.Builder
-	for i, r := range str {
-		if i > 0 && unicode.IsUpper(r) {
-			result.WriteRune('_')
+	runes := []rune(str)
+	for i, r := range runes {
+		// 如果是第一个字符，直接转小写
+		if i == 0 {
+			result.WriteRune(unicode.ToLower(r))
+			continue
+		}
+
+		// 当前字符是大写时
+		if unicode.IsUpper(r) {
+			// 判断是否需要添加下划线：
+			// 1. 前一个字符是小写
+			// 2. 不是最后一个字符，且后一个字符是小写
+			if unicode.IsLower(runes[i-1]) ||
+				(i+1 < len(runes) && unicode.IsLower(runes[i+1])) {
+				result.WriteRune('_')
+			}
 		}
 		result.WriteRune(unicode.ToLower(r))
 	}
