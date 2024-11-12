@@ -27,6 +27,17 @@ type VarcharBuilder[T any] struct {
 	BaseBuilder[T]
 }
 
+// Text 文本类型的字段。
+type Text struct {
+	TextBuilder[string]
+	StringStorage[string]
+}
+
+// TextBuilder 文本类型的字段构造器。
+type TextBuilder[T any] struct {
+	BaseBuilder[T]
+}
+
 // AttrType 获取字段的数据库中的类型名，如果返回空字符串，会出现错误。
 //
 // Params:
@@ -233,4 +244,93 @@ func (u *UUIDBuilder[T]) Locked() *UUIDBuilder[T] {
 // StringStorage[T] 字符串类型的字段存储。
 type StringStorage[T any] struct {
 	BaseStorage[T]
+}
+
+// AttrType 获取字段的数据库中的类型名，如果返回空字符串，会出现错误。
+//
+// Params:
+//
+//   - dbType: 数据库类型。
+//
+// Returns:
+//   - 字段的数据库中的类型名。
+func (s *TextBuilder[T]) AttrType(dbType dialect.DbDriver) string {
+	switch dbType {
+	case dialect.PostgreSQL:
+		return "text"
+	default:
+		return ""
+	}
+}
+
+// Name 用于设置字段在数据库中的名称。
+//
+// 如果不设置，会默认采用`snake_case`的方式将字段名转换为数据库字段名。
+//
+// Params:
+//
+//   - name: 字段在数据库中的名称。
+func (s *TextBuilder[T]) Name(name string) *TextBuilder[T] {
+	s.desc.AttrName = name
+	return s
+}
+
+// MinLen 设置字段的最小长度。
+//
+// Params:
+//
+//   - size: 字段的最小长度。
+func (s *TextBuilder[T]) MinLen(i int) *TextBuilder[T] {
+	s.desc.Validators = append(s.desc.Validators, func(v string) error {
+		if len(v) < i {
+			return errors.New("value is less than the required length")
+		}
+		return nil
+	})
+	return s
+}
+
+// Required 是否非空,默认可以为null,如果调用[Required],则字段为非空字段。
+func (s *TextBuilder[T]) Required() *TextBuilder[T] {
+	s.desc.Required = true
+	return s.MinLen(1)
+}
+
+// Primary设置字段为主键。
+//
+// Params:
+//
+//   - index: 主键的索引，从1开始，对于多个主键，需要设置不同大小的索引。
+func (s *TextBuilder[T]) Primary(index int) *TextBuilder[T] {
+	s.desc.Required = true
+	s.desc.Primary = index
+	return s
+}
+
+// Comment 设置字段的注释。
+//
+// Params:
+//
+//   - comment: 字段的注释。
+func (s *TextBuilder[T]) Comment(comment string) *TextBuilder[T] {
+	s.desc.Comment = comment
+	return s
+}
+
+// Default 设置字段的默认值。
+// 如果设置了默认值，则在插入数据时，如果没有设置字段的值，则会使用默认值。
+//
+// Params:
+//
+//   - value: 字段的默认值。
+func (s *TextBuilder[T]) Default(value string) *TextBuilder[T] {
+	s.desc.Default = true
+	s.desc.DefaultValue = value
+	return s
+}
+
+// Locked 设置字段为只读字段。
+func (s *TextBuilder[T]) Locked() *TextBuilder[T] {
+	s.desc.Locked = true
+	return s
 }

@@ -309,6 +309,24 @@ var Err_0100020021 err.ErrCode = err.New(
 	"",
 )
 
+// Err_0100020022 在读取实体时，AttrName为空。
+var Err_0100020022 err.ErrCode = err.New(
+	"0100020022",
+	"entity attrName is empty",
+	"",
+)
+
+// Err_0100020023 在读取实体时，实体的AttrName为关键字。
+//
+// Verbs:
+//
+//	0: 实体的AttrName。
+var Err_0100020023 err.ErrCode = err.New(
+	"0100020023",
+	"entity attrName %q is a keyword",
+	"",
+)
+
 /**************** CRUD遇到的问题 ***************/
 
 // Err_0100030001 在创建语句中，必填但没有默认值的字段的值为空。

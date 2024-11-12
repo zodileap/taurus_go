@@ -67,6 +67,7 @@ BEGIN
                 EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP COLUMN IF EXISTS ' || quote_ident(column_rec.column_name) || ' CASCADE;';
             END IF;
         END LOOP;
+
         -- Check for missing columns, and add them if any are missing.
         -- 检查是否缺少列，如果缺少则添加
         {{- range $i,$field := $entity.Fields }}
@@ -77,6 +78,7 @@ BEGIN
             {{ template "update_table_field" dict "Schema" $schema "Table" $table "Field" $field }}
         END IF;
         {{- end }}
+
         -- Search for the name of any existing primary key constraints. 
         -- If found, delete them first, then add new primary key constraints.
         -- 查找现有的主键约束名称，如果找到了先删除它， 添加新的主键约束。
@@ -90,6 +92,20 @@ BEGIN
         IF v_constraint_name IS NOT NULL THEN
             EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name);
         END IF;
+
+        -- Search for existing unique constraints and drop them
+        -- 查找现有的唯一约束并删除
+        FOR v_unique_constraint_name IN 
+            SELECT conname
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE nsp.nspname = {{ $schemaV }}
+                AND rel.relname = {{ $tableV }}
+                AND con.contype = 'u'
+        LOOP
+            EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_unique_constraint_name);
+        END LOOP;
     ELSE
         -- If the table does not exist, then create the table.
         -- 如果表不存在，则创建表。
@@ -117,6 +133,16 @@ BEGIN
     -- Primary Key.
      -- 主键。
     ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
+
+    -- Add unique constraints
+    -- 添加唯一约束
+    {{- range $i,$field := $entity.Fields }}
+    {{- if $field.Unique }}
+    ALTER TABLE {{ $schema }}.{{ $table }} 
+    ADD CONSTRAINT {{ $table }}_{{ $field.AttrName }}_key 
+    UNIQUE ({{ $field.AttrName }});
+    {{- end }}
+    {{- end }}
 END
 $$;
 {{ end }}

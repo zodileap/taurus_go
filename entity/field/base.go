@@ -32,7 +32,6 @@ func (b *BaseBuilder[T]) Init(desc *entity.Descriptor) error {
 }
 
 func (b *BaseBuilder[T]) sliceTypeDetails() (int, string) {
-
 	depth := 0
 	// Safely get the type of T, checking for nil pointer dereference safety.
 	var zero T
@@ -83,6 +82,12 @@ func (b *BaseBuilder[T]) ValueType() string {
 // `ExtTemplate`是和字段相关联，只要调用字段就会生成代码，避免了每次都要手动调用模版。
 func (b *BaseBuilder[T]) ExtTemplate() []string {
 	return []string{}
+}
+
+// Unique 设置字段为唯一字段。会在SQL中添加UNIQUE约束。
+func (b *BaseBuilder[T]) Unique() *BaseBuilder[T] {
+	b.desc.Unique = true
+	return b
 }
 
 type BaseStorage[T any] struct {

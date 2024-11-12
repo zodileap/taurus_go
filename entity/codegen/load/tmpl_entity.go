@@ -126,6 +126,28 @@ var (
 	ImportPkgs []string = []string{}
 	// db 从Schema中加载的database。
 	db *Database = &Database{}
+	// PostgreSQL保留关键字
+	postgresKeywords = []string{
+		"all", "analyse", "analyze", "and", "any", "array", "as", "asc",
+		"asymmetric", "authorization", "binary", "both", "case", "cast",
+		"check", "collate", "column", "constraint", "create", "cross",
+		"current_date", "current_role", "current_time", "current_timestamp",
+		"current_user", "default", "deferrable", "desc", "distinct", "do",
+		"else", "end", "except", "false", "for", "foreign", "freeze", "from",
+		"full", "grant", "group", "having", "ilike", "in", "initially", "inner",
+		"intersect", "into", "is", "isnull", "join", "leading", "left", "like",
+		"limit", "localtime", "localtimestamp", "natural", "not", "notnull",
+		"null", "offset", "on", "only", "or", "order", "outer", "overlaps",
+		"placing", "primary", "references", "right", "select", "session_user",
+		"similar", "some", "symmetric", "table", "then", "to", "trailing",
+		"true", "union", "unique", "user", "using", "when", "where", "with",
+	}
+	// Go语言关键字和保留字
+	goKeywords = []string{
+		"break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct",
+		"chan", "else", "goto", "package", "switch", "const", "fallthrough", "if", "range", "type",
+		"continue", "for", "import", "return", "var",
+	}
 )
 
 // MarshalEntity 将entity.EntityInterface序列化为Entity，用于生成代码。
@@ -161,7 +183,7 @@ func MarshalEntity(ei entity.EntityInterface) (ent *Entity, err error) {
 	ImportPkgs = []string{}
 	// 加载entity的字段，调用[entity.EntityInterface]的Fields()方法
 	if err := ent.loadEntity(ei); err != nil {
-		return nil, entity.Err_0100020018.Sprintf(ent.Name, err)
+		return nil, err
 	}
 
 	for _, f := range ent.Fields {
@@ -338,7 +360,7 @@ func (db *Database) extractEntity(e entity.EntityInterface) (*Entity, error) {
 	return nil, fmt.Errorf("not found entity %s", e.Config().AttrName)
 }
 
-// loadEntity 从entity.EntityInterface中加载Schema定义的entity信息。
+// loadEntity 从entity.EntityInterface中加载Schema定义的entity信��。
 //
 // Params:
 //
@@ -368,15 +390,14 @@ func (e *Entity) loadEntity(ei entity.EntityInterface) error {
 			e.Fields = append(e.Fields, sf)
 		}
 	}
-	// 判断一些值是否符合要求
-	var hasPrimary bool
-	for _, f := range e.Fields {
-		if f.Primary >= 1 {
-			hasPrimary = true
-		}
+
+	// 对entity检查
+	if err := checkEntity(e); err != nil {
+		return err
 	}
-	if !hasPrimary {
-		return entity.Err_0100020021.Sprintf(e.Name)
+	// 对字段进行检查
+	if err := checkEntityFields(e); err != nil {
+		return err
 	}
 	return nil
 }
@@ -501,29 +522,6 @@ func (e *Entity) initField(ei entity.EntityInterface, f entity.FieldBuilder, ini
 		return fmt.Errorf("in the Entity '%s',%s.Descriptor(): nil pointer dereference. Try initialize desc in %s.Init()", t.Name(), tf, tf)
 	}
 	return nil
-}
-
-// checkFields 检查entity的Fields()方法是否有panic，并得到返回值。
-//
-// Params:
-//
-//   - fd: 实现了entity.EntityInterface的entity。
-//
-// Returns:
-//
-//	0: entity中的字段信息。
-//	1: 错误信息。
-func checkFields(fd interface {
-	Fields() []entity.FieldBuilder
-}) (fields []entity.FieldBuilder, err error) {
-	defer func() {
-		// 如果不是panic那recover为nil
-		if v := recover(); v != nil {
-			err = fmt.Errorf("%T.Fields panics: %v", fd, v)
-			fields = nil
-		}
-	}()
-	return fd.Fields(), nil
 }
 
 // newField 根据Descriptor创建新的Field
@@ -672,6 +670,29 @@ func extractOrigTypeName(typeName string) string {
 	return typeName
 }
 
+// checkFields 检查entity的Fields()方法是否有panic，并得到返回值。
+//
+// Params:
+//
+//   - fd: 实现了entity.EntityInterface的entity。
+//
+// Returns:
+//
+//	0: entity中的字段信息。
+//	1: 错误信息。
+func checkFields(fd interface {
+	Fields() []entity.FieldBuilder
+}) (fields []entity.FieldBuilder, err error) {
+	defer func() {
+		// 如果不是panic那recover为nil
+		if v := recover(); v != nil {
+			err = fmt.Errorf("%T.Fields panics: %v", fd, v)
+			fields = nil
+		}
+	}()
+	return fd.Fields(), nil
+}
+
 // checkSequence 检查序列的值。
 //
 // Params:
@@ -731,6 +752,53 @@ func checkRelationships(r interface {
 		}
 	}()
 	return r.Relationships(), nil
+}
+
+func checkEntity(e *Entity) error {
+	if e.AttrName == "" {
+		return entity.Err_0100020022
+	}
+
+	// 检查是否为PostgreSQL关键字
+	lowerAttrName := strings.ToLower(e.AttrName)
+	for _, keyword := range postgresKeywords {
+		if lowerAttrName == keyword {
+			return entity.Err_0100020023.Sprintf(e.AttrName)
+		}
+	}
+	// 检查是否为Go语言关键字和保留字
+	for _, keyword := range goKeywords {
+		if lowerAttrName == keyword {
+			return entity.Err_0100020023.Sprintf(e.AttrName)
+		}
+	}
+
+	return nil
+}
+
+func checkEntityFields(e *Entity) error {
+	var hasPrimary bool
+	for _, f := range e.Fields {
+		if f.Primary >= 1 {
+			hasPrimary = true
+		}
+		lowerAttrName := strings.ToLower(f.AttrName)
+		for _, keyword := range postgresKeywords {
+			if lowerAttrName == keyword {
+				return entity.Err_0100020023.Sprintf(f.AttrName)
+			}
+		}
+		// 检查是否为Go语言关键字和保留字
+		for _, keyword := range goKeywords {
+			if lowerAttrName == keyword {
+				return entity.Err_0100020023.Sprintf(f.AttrName)
+			}
+		}
+	}
+	if !hasPrimary {
+		return entity.Err_0100020021.Sprintf(e.Name)
+	}
+	return nil
 }
 
 // indirect 穿透指针类型，获取不是指针类型的基础类型
