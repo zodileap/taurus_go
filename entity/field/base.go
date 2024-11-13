@@ -84,9 +84,35 @@ func (b *BaseBuilder[T]) ExtTemplate() []string {
 	return []string{}
 }
 
-// Unique 设置字段为唯一字段。会在SQL中添加UNIQUE约束。
-func (b *BaseBuilder[T]) Unique() *BaseBuilder[T] {
-	b.desc.Unique = true
+// Unique 设置字段为唯一字段或参与联合唯一约束。
+// 相同的序号表示这些字段组成联合唯一约束。
+func (b *BaseBuilder[T]) Unique(index int) *BaseBuilder[T] {
+	b.desc.Uniques = append(b.desc.Uniques, index)
+	return b
+}
+
+// Index 设置字段为索引。
+func (b *BaseBuilder[T]) Index(index int) *BaseBuilder[T] {
+	// 追加而不是覆盖
+	b.desc.Indexes = append(b.desc.Indexes, index)
+	return b
+}
+
+// IndexName 设置索引名称。
+//
+// Params:
+//   - name: 索引名称。
+func (b *BaseBuilder[T]) IndexName(name string) *BaseBuilder[T] {
+	b.desc.IndexName = name
+	return b
+}
+
+// IndexMethod 设置索引方法。
+//
+// Params:
+//   - method: 索引方法,如"btree","hash"等。
+func (b *BaseBuilder[T]) IndexMethod(method string) *BaseBuilder[T] {
+	b.desc.IndexMethod = method
 	return b
 }
 

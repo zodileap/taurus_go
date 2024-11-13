@@ -24,6 +24,8 @@ type (
 		EntityMap EntityMap
 		// Entities 数据库中的entity的信息。
 		Entities map[string]*Entity
+		// 添加触发器配置
+		Triggers []entity.TriggerConfig
 	}
 
 	// Entity 表示了从已经编译好的用户的package中加载的entity
@@ -565,8 +567,11 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	ef.Sequence = ed.Sequence
 	ef.Depth = ed.Depth
 	ef.BaseType = ed.BaseType
-	ef.Unique = ed.Unique
+	ef.Uniques = ed.Uniques
 	ef.CheckConstraint = ed.CheckConstraint
+	ef.Indexes = ed.Indexes
+	ef.IndexName = ed.IndexName
+	ef.IndexMethod = ed.IndexMethod
 
 	// 设置Field特有的字段
 	ef.ValueType = valueType

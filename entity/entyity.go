@@ -58,11 +58,30 @@ type (
 		// 连接的标签。
 		Tag string
 		// 数据库驱动
-		Type dialect.DbDriver
+		Type     dialect.DbDriver
+		Triggers []TriggerConfig
 	}
 	DbInterface interface {
 		Config() DbConfig
 		Relationships() []RelationshipBuilder
+	}
+	TriggerConfig struct {
+		// 触发器名称
+		Name string
+		// 触发器作用的表
+		Table string
+		// 触发时机：BEFORE, AFTER
+		Timing string
+		// 触发事件：INSERT, UPDATE, DELETE
+		Event string
+		// FOR EACH ROW 或 FOR EACH STATEMENT
+		Level string
+		// 触发器函数
+		Function string
+		// 触发条件(WHEN clause)
+		Condition string
+		// 触发器函数的参数列表
+		Arguments []string
 	}
 )
 
@@ -191,10 +210,16 @@ type (
 		Validators []any `json:"sequence,omitempty"`
 		// Depth 字段的值类型的深度，例如[]int64的深度为1，[][]int64的深度为2。
 		Depth int `json:"depth,omitempty"`
-		// Unique 字段是否唯一。如果为true,在生成的sql中，这个字段会添加UNIQUE约束。
-		Unique bool `json:"unique,omitempty"`
+		// Uniques 字段的唯一约束信息。序号相同的字段构成联合唯一约束
+		Uniques []int `json:"uniques,omitempty"`
 		// CheckConstraint 存储字段的CHECK约束语句
 		CheckConstraint string `json:"check_constraint,omitempty"`
+		// Indexes 字段的索引信息。key是索引序号，如果序号相同表示是联合索引
+		Indexes []int `json:"indexes,omitempty"`
+		// IndexName 索引名称。如果为空，会根据表名和字段名自动生成。
+		IndexName string `json:"index_name,omitempty"`
+		// IndexMethod 索引的方法，例如B-tree,Hash等。空值默认为B-tree。
+		IndexMethod string `json:"index_method,omitempty"`
 	}
 
 	// Sequence 字段使用的序列，序列的类型默认为Int64。
