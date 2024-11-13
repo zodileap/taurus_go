@@ -90,6 +90,28 @@ func (b *BaseBuilder[T]) Unique() *BaseBuilder[T] {
 	return b
 }
 
+// CheckBuilder 是检查约束的构建器函数类型
+type CheckBuilder func(fieldName string) string
+
+// Check 添加CHECK约束到字段
+// 参数 builder 是一个回调函数，接收字段名并返回CHECK约束的内容
+func (b *BaseBuilder[T]) Check(builder CheckBuilder) *BaseBuilder[T] {
+	if b == nil {
+		panic("taurus_go/entity field check: nil pointer dereference.")
+	}
+	// 获取字段在数据库中的实际名称
+	fieldName := b.desc.AttrName
+	if fieldName == "" {
+		fieldName = b.desc.Name
+	}
+
+	// 调用构建器生成约束内容
+	constraint := builder(fieldName)
+	b.desc.CheckConstraint = constraint
+
+	return b
+}
+
 type BaseStorage[T any] struct {
 	value *T
 }

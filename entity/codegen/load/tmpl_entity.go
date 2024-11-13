@@ -466,7 +466,7 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 						if err != nil {
 							return infos, err
 						}
-						// 很重要，将新的实例赋值给原来的字段
+						// 很重要，将新的实例赋值给���来的字段
 						fieldVal.Set(reflect.ValueOf(ef))
 						f := entityInfo{
 							field: &fieldInfo{
@@ -549,14 +549,13 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	tmpls := f.ExtTemplate()
 
 	ef := &Field{}
+	// 只复制需要序列化的基本类型字段
 	ef.EntityName = ed.EntityName
 	ef.Name = ed.Name
 	ef.AttrName = ed.AttrName
 	ef.Type = ed.Type
 	ef.AttrType = ed.AttrType
-	if size := int64(ed.Size); size != 0 {
-		ef.Size = size
-	}
+	ef.Size = int64(ed.Size)
 	ef.Required = ed.Required
 	ef.Primary = ed.Primary
 	ef.Comment = ed.Comment
@@ -564,11 +563,15 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	ef.DefaultValue = ed.DefaultValue
 	ef.Locked = ed.Locked
 	ef.Sequence = ed.Sequence
-	ef.Validators = len(ed.Validators)
-	ef.ValueType = valueType
-	ef.Templates = tmpls
 	ef.Depth = ed.Depth
 	ef.BaseType = ed.BaseType
+	ef.Unique = ed.Unique
+	ef.CheckConstraint = ed.CheckConstraint
+
+	// 设置Field特有的字段
+	ef.ValueType = valueType
+	ef.Templates = tmpls
+	ef.Validators = len(ed.Validators)
 
 	err := checkSequence(ef.Sequence)
 	if err != nil {
@@ -801,7 +804,7 @@ func checkEntityFields(e *Entity) error {
 	return nil
 }
 
-// indirect 穿透指针类型，获取不是指针类型的基础类型
+// indirect 穿透指针类型���获取不是指针类型的基础类型
 //
 // Params:
 //

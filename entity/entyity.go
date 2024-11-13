@@ -193,6 +193,8 @@ type (
 		Depth int `json:"depth,omitempty"`
 		// Unique 字段是否唯一。如果为true,在生成的sql中，这个字段会添加UNIQUE约束。
 		Unique bool `json:"unique,omitempty"`
+		// CheckConstraint 存储字段的CHECK约束语句
+		CheckConstraint string `json:"check_constraint,omitempty"`
 	}
 
 	// Sequence 字段使用的序列，序列的类型默认为Int64。

@@ -58,8 +58,23 @@ DO $$
 DECLARE
     column_rec RECORD;
     v_constraint_name TEXT;
+    v_unique_constraint_name TEXT; 
+    v_check_constraint_name TEXT;
 BEGIN
     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = {{ $schemaV }} AND tablename = {{ $tableV }}) THEN
+        -- 删除所有CHECK约束
+        FOR v_check_constraint_name IN 
+            SELECT conname
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE nsp.nspname = {{ $schemaV }}
+                AND rel.relname = {{ $tableV }}
+                AND con.contype = 'c'
+        LOOP
+            EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_check_constraint_name);
+        END LOOP;
+
         -- Check for any extra columns, and delete them if there are any.
         -- 检查是否有多余的列，如果有则删除。
         FOR column_rec IN SELECT tbl.column_name, tbl.data_type FROM information_schema.columns tbl WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} LOOP
@@ -95,17 +110,34 @@ BEGIN
 
         -- Search for existing unique constraints and drop them
         -- 查找现有的唯一约束并删除
-        FOR v_unique_constraint_name IN 
-            SELECT conname
-            FROM pg_constraint con
-            JOIN pg_class rel ON rel.oid = con.conrelid
-            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-            WHERE nsp.nspname = {{ $schemaV }}
-                AND rel.relname = {{ $tableV }}
-                AND con.contype = 'u'
-        LOOP
-            EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_unique_constraint_name);
-        END LOOP;
+        BEGIN
+            FOR v_unique_constraint_name IN 
+                SELECT conname
+                FROM pg_constraint con
+                JOIN pg_class rel ON rel.oid = con.conrelid
+                JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+                WHERE nsp.nspname = {{ $schemaV }}
+                    AND rel.relname = {{ $tableV }}
+                    AND con.contype = 'u'
+            LOOP
+                BEGIN
+                    EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_unique_constraint_name);
+                EXCEPTION WHEN OTHERS THEN
+                    RAISE NOTICE 'Error dropping unique constraint %: %', v_unique_constraint_name, SQLERRM;
+                END;
+            END LOOP;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Error during dropping unique constraints: %', SQLERRM;
+        END;
+
+        -- 添加所有字段的CHECK约束
+        {{- range $i,$field := $entity.Fields }}
+        {{- if $field.CheckConstraint }}
+        ALTER TABLE {{ $schema }}.{{ $table }}
+        ADD CONSTRAINT chk_{{ $entity.AttrName }}_{{ $field.AttrName }}
+        CHECK {{ $field.CheckConstraint }};
+        {{- end }}
+        {{- end }}
     ELSE
         -- If the table does not exist, then create the table.
         -- 如果表不存在，则创建表。
@@ -136,13 +168,24 @@ BEGIN
 
     -- Add unique constraints
     -- 添加唯一约束
-    {{- range $i,$field := $entity.Fields }}
-    {{- if $field.Unique }}
-    ALTER TABLE {{ $schema }}.{{ $table }} 
-    ADD CONSTRAINT {{ $table }}_{{ $field.AttrName }}_key 
-    UNIQUE ({{ $field.AttrName }});
-    {{- end }}
-    {{- end }}
+    BEGIN
+        {{- range $i,$field := $entity.Fields }}
+        {{- if $field.Unique }}
+        BEGIN
+            ALTER TABLE {{ $schema }}.{{ $table }} 
+            ADD CONSTRAINT unique_{{ $entity.AttrName }}_{{ $field.AttrName }}
+            UNIQUE ({{ $field.AttrName }});
+        EXCEPTION 
+            WHEN duplicate_table THEN
+                RAISE NOTICE 'Unique constraint for column {{ $field.AttrName }} already exists';
+            WHEN OTHERS THEN
+                RAISE NOTICE 'Error adding unique constraint for column {{ $field.AttrName }}: %', SQLERRM;
+        END;
+        {{- end }}
+        {{- end }}
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Error during adding unique constraints: %', SQLERRM;
+    END;
 END
 $$;
 {{ end }}
@@ -183,6 +226,7 @@ $$;
         {{- $fieldName }} {{ $.AttrType }}
         {{- if $.Required }} NOT NULL {{- end }}
         {{- if $.Default }} DEFAULT {{ $.DefaultValue }} {{- end }}
+        {{- if $.CheckConstraint }} CHECK {{ $.CheckConstraint }} {{- end }}
 {{- end }}
 
 
@@ -192,5 +236,4 @@ $$;
         {{ if $.Field.Required }}    {{ $header }} SET NOT NULL; {{ else }}    {{ $header }} DROP NOT NULL; {{ end }}
         {{ if $.Field.Default }}    {{ $header }} SET DEFAULT {{ $.Field.DefaultValue }}; {{ else }}    {{ $header }} DROP DEFAULT; {{ end }}
         {{- $header }} TYPE {{ $.Field.AttrType }} USING {{ $fieldName }}::{{ $.Field.AttrType }};
-
 {{- end }}
