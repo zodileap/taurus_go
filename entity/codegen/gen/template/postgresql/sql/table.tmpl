@@ -284,15 +284,29 @@ $$;
 {{ if $.Database.Triggers }}
 DO $$
 DECLARE
-    trigger_exists boolean;
+    trigger_rec RECORD;
+    func_rec RECORD; 
 BEGIN
+    -- 删除所有存在的触发器和关联函数
+    FOR trigger_rec IN (
+        SELECT tgname as trigger_name, 
+               tgrelid::regclass as table_name,
+               p.proname as function_name
+        FROM pg_trigger t
+        JOIN pg_proc p ON t.tgfoid = p.oid
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+    ) LOOP
+        -- 删除触发器
+        EXECUTE 'DROP TRIGGER IF EXISTS ' || quote_ident(trigger_rec.trigger_name) || 
+                ' ON ' || trigger_rec.table_name;
+        -- 删除关联的触发器函数 
+        EXECUTE 'DROP FUNCTION IF EXISTS public.' || quote_ident(trigger_rec.function_name) || '()';
+    END LOOP;
+
     {{- range $trigger := $.Database.Triggers }}
     -- 只为存在的表创建触发器
     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = '{{ $trigger.Table }}') THEN
-        -- Drop existing trigger and function if they exist
-        DROP TRIGGER IF EXISTS "{{ $trigger.Name }}" ON "public"."{{ $trigger.Table }}";
-        DROP FUNCTION IF EXISTS "public"."{{ $trigger.Name }}_trigger_func"();
-
         -- Create trigger function
         EXECUTE 'CREATE OR REPLACE FUNCTION "public"."' || quote_ident('{{ $trigger.Name }}_trigger_func') || '"()
             RETURNS TRIGGER AS $func$
