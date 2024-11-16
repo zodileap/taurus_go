@@ -23,7 +23,7 @@ IF EXISTS (
     AND table_name = '{{ $rel.Dependent.AttrName }}'
     AND constraint_name = '{{ $rel.Desc.Constraint }}'
 ) THEN
-    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT "{{ $rel.Desc.Constraint }}";
+    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT IF EXISTS "{{ $rel.Desc.Constraint }}" CASCADE;
 END IF;
 {{ end }}
 {{- end }}
@@ -77,9 +77,14 @@ BEGIN
 
         -- Check for any extra columns, and delete them if there are any.
         -- 检查是否有多余的列，如果有则删除。
-        FOR column_rec IN SELECT tbl.column_name, tbl.data_type FROM information_schema.columns tbl WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} LOOP
+        FOR column_rec IN SELECT tbl.column_name, tbl.data_type 
+            FROM information_schema.columns tbl 
+            WHERE table_schema = {{ $schemaV }} 
+            AND table_name = {{ $tableV }} 
+        LOOP
             IF column_rec.column_name NOT IN ({{ joinFieldAttrNames $entity.Fields }}) THEN
-                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP COLUMN IF EXISTS ' || quote_ident(column_rec.column_name) || ' CASCADE;';
+                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP COLUMN IF EXISTS ' || 
+                        quote_ident(column_rec.column_name) || ' CASCADE';
             END IF;
         END LOOP;
 
@@ -94,20 +99,6 @@ BEGIN
         END IF;
         {{- end }}
 
-        -- Search for the name of any existing primary key constraints. 
-        -- If found, delete them first, then add new primary key constraints.
-        -- 查找现有的主键约束名称，如果找到了先删除它， 添加新的主键约束。
-        SELECT conname INTO v_constraint_name
-        FROM pg_constraint con
-        JOIN pg_class rel ON rel.oid = con.conrelid
-        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-        WHERE nsp.nspname = {{ $schemaV }}
-            AND rel.relname = {{ $tableV }}
-            AND con.contype = 'p';
-        IF v_constraint_name IS NOT NULL THEN
-            EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name);
-        END IF;
-
         -- Search for existing unique and primary key constraints and drop them
         -- 查找并删除现有的唯一约束和主键约束
         BEGIN
@@ -121,7 +112,7 @@ BEGIN
                 AND rel.relname = {{ $tableV }}
                 AND con.contype = 'p';
             IF v_constraint_name IS NOT NULL THEN
-                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name);
+                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name) || ' CASCADE';
             END IF;
 
             -- Drop unique constraints
@@ -259,19 +250,38 @@ DO $$
 BEGIN
 {{ range $key, $entity := $.Database.Entities }}
 {{- $schema := `"public"` }}
-{{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
 {{- range $i,$rel := $entity.Relations }}
 {{- if eq $rel.Dependent.AttrName $entity.AttrName }}
--- 判断是否存在唯一键，不存在添加
-{{- $uniqueKey := joinStrings  `unique_` $rel.Principal.AttrName  `_` $rel.Principal.Field.AttrName }}
-IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '{{ $uniqueKey }}' AND conrelid = 'public.{{ $rel.Principal.AttrName }}'::regclass) THEN
-    ALTER TABLE {{ $schema }}."{{ $rel.Principal.AttrName }}" ADD CONSTRAINT {{ $uniqueKey }} UNIQUE ({{ $rel.Principal.Field.AttrName }});
+-- Check if principal table exists first
+IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = '{{ $rel.Principal.AttrName }}'
+) THEN
+    -- 判断是否存在唯一键，不存在添加
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_constraint 
+        WHERE conname = 'unique_{{ $rel.Principal.AttrName }}_{{ $rel.Principal.Field.AttrName }}' 
+        AND conrelid = 'public.{{ $rel.Principal.AttrName }}'::regclass
+    ) THEN
+        ALTER TABLE {{ $schema }}."{{ $rel.Principal.AttrName }}" 
+        ADD CONSTRAINT unique_{{ $rel.Principal.AttrName }}_{{ $rel.Principal.Field.AttrName }} 
+        UNIQUE ({{ $rel.Principal.Field.AttrName }});
+    END IF;
+
+    -- Add foreign key if dependent table exists
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = '{{ $rel.Dependent.AttrName }}'
+    ) THEN
+        ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
+        ADD CONSTRAINT {{ $rel.Desc.Constraint }} 
+        FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
+        REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
+    END IF;
 END IF;
-ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
-ADD CONSTRAINT {{ $rel.Desc.Constraint }} FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
-REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
 {{ end }}
 {{- end }}
 {{- end }}
