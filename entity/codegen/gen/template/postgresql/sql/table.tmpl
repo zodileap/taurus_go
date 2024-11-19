@@ -169,8 +169,27 @@ BEGIN
     {{- end }}
 
     -- Primary Key.
-     -- 主键。
-    ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
+    -- 主键。
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE nsp.nspname = {{ $schemaV }}
+                AND rel.relname = {{ $tableV }}
+                AND con.contype = 'p'
+        ) THEN
+            BEGIN
+                ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
+            EXCEPTION 
+                WHEN duplicate_table THEN
+                    RAISE NOTICE 'Primary key constraint already exists';
+                WHEN OTHERS THEN
+                    RAISE NOTICE 'Error adding primary key constraint: %', SQLERRM;
+            END;
+        END IF;
+    END;
 
     -- Add unique constraints
     -- 添加唯一约束
