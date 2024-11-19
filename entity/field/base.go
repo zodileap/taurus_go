@@ -410,6 +410,16 @@ func valueType(t any) string {
 		return "[][][][]time.Time"
 	case [][][][][]time.Time:
 		return "[][][][][]time.Time"
+	case []string:
+		return "[]string"
+	case [][]string:
+		return "[][]string"
+	case [][][]string:
+		return "[][][]string"
+	case [][][][]string:
+		return "[][][][]string"
+	case [][][][][]string:
+		return "[][][][][]string"
 	default:
 		return ""
 	}

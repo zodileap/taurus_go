@@ -16,6 +16,31 @@ type Varchar struct {
 	StringStorage[string]
 }
 
+type VarcharA1 struct {
+	VarcharBuilder[[]string]
+	StringStorage[[]string]
+}
+
+type VarcharA2 struct {
+	VarcharBuilder[[][]string]
+	StringStorage[[][]string]
+}
+
+type VarcharA3 struct {
+	VarcharBuilder[[][][]string]
+	StringStorage[[][][]string]
+}
+
+type VarcharA4 struct {
+	VarcharBuilder[[][][][]string]
+	StringStorage[[][][][]string]
+}
+
+type VarcharA5 struct {
+	VarcharBuilder[[][][][][]string]
+	StringStorage[[][][][][]string]
+}
+
 // UUID UUID类型的字段。
 type UUID struct {
 	UUIDBuilder[string]
