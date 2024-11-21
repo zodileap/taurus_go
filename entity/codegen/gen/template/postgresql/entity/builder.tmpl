@@ -17,10 +17,12 @@ type {{ $BuilderName }} struct {
 	tracker   entity.Tracker
 
 	{{- range $field :=  .Entity.Fields }}
-	{{ if $field.Comment }}
-	// {{ $field.Name }} {{ $field.Comment }}
-	{{- end }}
+	{{- if $field.Comment }}
+	{{ $field.Name }} {{ $.Entity.AttrName }}.Pred{{ $field.Name }} // {{ $field.Name }} {{ $field.Comment }}
+	{{- else }}
 	{{ $field.Name }} {{ $.Entity.AttrName }}.Pred{{ $field.Name }}
+	{{- end }}
+	
 	{{- end }}
 
 	{{- range $field :=  .Entity.Fields }}
