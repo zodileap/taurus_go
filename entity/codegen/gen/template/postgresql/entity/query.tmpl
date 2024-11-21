@@ -1,25 +1,25 @@
 {{ define "entity/query" }}
-{{ $entity := toFirstCap $.Entity.Name}}
+{{ $entity := stringToFirstCap $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Query is the query action for the {{ $entity }}.
 type {{ $entity }}Query struct {
-	config     *{{ toFirstLower $entity}}Config
+	config     *{{ stringToLower $entity}}Config
 	ctx        *entitysql.QueryContext
 	predicates []entitysql.PredicateFunc
-	rels 	 []{{ toFirstLower $.Entity.Name }}Rel
+	rels 	 []{{ stringToLower $.Entity.Name }}Rel
 	order	  []{{ $.Entity.AttrName }}.OrderTerm
 	scanner	[]*internal.QueryScanner
 	scannerTotal int
 }
 
 // First returns the first result of the query.
-func (o *{{ $entity }}Query) First(ctx context.Context) (*{{toFirstCap $entity }}, error) {
+func (o *{{ $entity }}Query) First(ctx context.Context) (*{{stringToFirstCap $entity }}, error) {
 	result, err := o.Single(ctx)
 	if err != nil {
 		return nil, err
@@ -27,16 +27,16 @@ func (o *{{ $entity }}Query) First(ctx context.Context) (*{{toFirstCap $entity }
 	return result, nil
 }
 
-// new{{ toFirstCap $entity }}Query creates a new {{ $entity }}Query.
-func new{{ toFirstCap $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ toFirstLower $entity  }}Mutations) *{{ $entity }}Query {
+// new{{ stringToFirstCap $entity }}Query creates a new {{ $entity }}Query.
+func new{{ stringToFirstCap $entity }}Query(c *internal.Dialect,t entity.Tracker, ms *{{ stringToLower $entity  }}Mutations) *{{ $entity }}Query {
 	return &{{ $entity }}Query{
-		config: &{{ toFirstLower $entity }}Config{
+		config: &{{ stringToLower $entity }}Config{
 			Dialect:    c,
-			{{ toFirstLower $entity }}Mutations: ms,
+			{{ stringToLower $entity }}Mutations: ms,
 		},
 		ctx:    &entitysql.QueryContext{},
 		predicates: []entitysql.PredicateFunc{},
-		rels: []{{ toFirstLower $.Entity.Name }}Rel{},
+		rels: []{{ stringToLower $.Entity.Name }}Rel{},
 		order: []{{ $.Entity.AttrName }}.OrderTerm{},
 		scanner: []*internal.QueryScanner{},
 		scannerTotal: 0,
@@ -59,32 +59,32 @@ func (o *{{ $entity }}Query) Order(term ...{{ $entityAttr }}.OrderTerm) *{{ $ent
 	return o
 }
 
-func (o *{{ $entity }}Query) Include(rels ...{{ toFirstLower $.Entity.Name }}Rel) *{{  $entity }}Query {
+func (o *{{ $entity }}Query) Include(rels ...{{ stringToLower $.Entity.Name }}Rel) *{{  $entity }}Query {
 	o.rels = append(o.rels, rels...)
 	return o
 }
 
 // ToList returns the list of results of the query.
-func (o *{{ $entity }}Query) ToList(ctx context.Context) ([]*{{ toFirstCap $entity }}, error) {
+func (o *{{ $entity }}Query) ToList(ctx context.Context) ([]*{{ stringToFirstCap $entity }}, error) {
 	return o.sqlAll(ctx)
 }
 
 // Single returns the single result of the query.
-func (o *{{ $entity }}Query) Single(ctx context.Context) (*{{ toFirstCap $entity }}, error) {
+func (o *{{ $entity }}Query) Single(ctx context.Context) (*{{ stringToFirstCap $entity }}, error) {
 	limit := 1
 	o.ctx.Limit = &limit
 	return o.sqlSingle(ctx)
 }
 
-func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ toFirstCap $entity }}, error) {
+func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ stringToFirstCap $entity }}, error) {
 	var (
 		spec   = o.querySpec()
-		res  *{{ toFirstCap $entity }}
+		res  *{{ stringToFirstCap $entity }}
 	)
 	spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
 		e := o.config.New()
 		switch e := e.(type) {
-		case *{{ toFirstCap $entity }}:
+		case *{{ stringToFirstCap $entity }}:
 			builder := entitysql.NewScannerBuilder(o.scannerTotal + 1)
 			builder.Append(0, e.scan(fields)...)
 			for _, s := range o.scanner {
@@ -114,15 +114,15 @@ func (o *{{ $entity }}Query) sqlSingle(ctx context.Context) (*{{ toFirstCap $ent
 	return res, nil
 }
 
-func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ toFirstCap $entity }}, error) {
+func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ stringToFirstCap $entity }}, error) {
 	var (
 		spec = o.querySpec()
-		res  = []*{{ toFirstCap $entity }}{}
+		res  = []*{{ stringToFirstCap $entity }}{}
 	)
 	spec.Scan = func(rows dialect.Rows, fields []entitysql.ScannerField) error {
 		e := o.config.New()
 		switch e := e.(type) {
-		case *{{ toFirstCap $entity }}:
+		case *{{ stringToFirstCap $entity }}:
 			builder := entitysql.NewScannerBuilder(o.scannerTotal + 1)
 			builder.Append(0,e.scan([]entitysql.ScannerField{})...)
 			for _, s := range o.scanner {
@@ -132,7 +132,7 @@ func (o *{{ $entity }}Query) sqlAll(ctx context.Context) ([]*{{ toFirstCap $enti
 			if err := rows.Scan(builder.Flatten()...); err != nil {
 				return err
 			} else {
-				res = merge{{ toFirstCap $entity }}(res, e)
+				res = merge{{ stringToFirstCap $entity }}(res, e)
 				return nil
 			}
 		default:

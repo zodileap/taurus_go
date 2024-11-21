@@ -1,8 +1,8 @@
 {{ define "database" }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
-{{ $db := toFirstCap $.Database.Name}}
-{{ $lowerDb := toLower $db }} 
+{{ $db := stringToFirstCap $.Database.Name}}
+{{ $lowerDb := stringToLower $db }} 
 {{ $package := .Config.Package}}
 {{ $builder := "Builder" }}
 
@@ -18,7 +18,7 @@ import (
 	
 	{{- range $key, $entityName := $.Database.EntityMap }}
 		{{- $entity := index $.Database.Entities $entityName }}
-		"{{ $package }}/{{ toLower $entity.AttrName }}"
+		"{{ $package }}/{{ stringToLower $entity.AttrName }}"
 	{{- end }}
 )
 
@@ -33,11 +33,11 @@ type {{ $db }} struct {
 		{{- if $entity.Comment }}
 		// {{ $key }}s {{ $entity.Comment }}
 		{{- end }}
-        {{ $key }}s *{{toFirstLower $entityName }}{{ $builder}}
+        {{ $key }}s *{{stringToLower $entityName }}{{ $builder}}
     {{- end }}
 }
 
-type {{ toFirstLower $db }}EntityFlag interface {
+type {{ stringToLower $db }}EntityFlag interface {
 	is{{ $db }}Entity()
 }
 
@@ -86,7 +86,7 @@ func (d *{{ $db }}) Save(ctx context.Context) error {
 }
 
 // Remove will remove the entity from the database. The changes will be saved when Save is called.
-func (d *{{ $db }}) Remove(e {{ toFirstLower $db }}EntityFlag) error {
+func (d *{{ $db }}) Remove(e {{ stringToLower $db }}EntityFlag) error {
 	switch e.(type) {
 	{{- range $key, $entityName := $.Database.EntityMap }}
 		{{- $entity := index $.Database.Entities $entityName }}
@@ -102,19 +102,19 @@ func (d *{{ $db }}) Remove(e {{ toFirstLower $db }}EntityFlag) error {
 func (d *{{ $db }}) init() {
 {{- range $key, $entityName := $.Database.EntityMap }}
 	{{- $entity := index $.Database.Entities $entityName }}
-	{{ toFirstLower $entity.Name }}Config := new{{ $entity.Name }}Config(d.Dialect)
+	{{ stringToLower $entity.Name }}Config := new{{ $entity.Name }}Config(d.Dialect)
 {{- end }}
 
 {{- range $key, $entityName := $.Database.EntityMap }}
 	{{- $entity := index $.Database.Entities $entityName }}
 	{{ if gt (len $entity.Relations) 0 }}
 	d.{{ $key }}s = new{{ $entity.Name }}{{ $builder}}(
-		{{ toFirstLower $entity.Name }}Config,
+		{{ stringToLower $entity.Name }}Config,
 		d.tracker,
 		{{- range $rel := $entity.Relations }}
 		{{- $res := getEntityRelDirection $rel $entity }}
 		*new{{ $res.Join.Name }}Relation(
-			{{ toFirstLower $res.Join.Name }}Config, 
+			{{ stringToLower $res.Join.Name }}Config, 
 			entitysql.RelationDesc{
 				Orders: []entitysql.OrderFunc{
 					{{ $res.Join.AttrName }}.ByPrimary,
@@ -134,7 +134,7 @@ func (d *{{ $db }}) init() {
 		{{ end }}
 	)
 	{{ else }}
-	d.{{ $key }}s = new{{ $entity.Name }}{{ $builder}}({{ toFirstLower $entity.Name }}Config,d.tracker)
+	d.{{ $key }}s = new{{ $entity.Name }}{{ $builder}}({{ stringToLower $entity.Name }}Config,d.tracker)
 	{{ end -}}
 	d.tracker.Add(d.{{ $key }}s)
 {{- end }}

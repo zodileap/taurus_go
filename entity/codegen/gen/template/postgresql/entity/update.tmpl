@@ -1,10 +1,10 @@
 {{ define "entity/update" }}
-{{ $entity := toFirstLower $.Entity.Name}}
+{{ $entity := stringToLower $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Update is the update action for the {{ $entity }}.
@@ -12,15 +12,15 @@ type {{ $entity }}Update struct {
 	config *internal.Dialect
 	ctx *entitysql.QueryContext
 	tracker entity.Tracker
-	es  []*{{ toFirstCap $entity }}
+	es  []*{{ stringToFirstCap $entity }}
 	predicates [][]entitysql.PredicateFunc
 	sets       []map[string]entitysql.CaseSpec
 	total      int
 	batchIndex []int
 }
 
-// new{{ toFirstCap $entity }}Update creates a new {{ $entity }}Update.
-func new{{ toFirstCap $entity }}Update(c *internal.Dialect, es ...*{{ toFirstCap $entity }}) *{{ $entity }}Update {
+// new{{ stringToFirstCap $entity }}Update creates a new {{ $entity }}Update.
+func new{{ stringToFirstCap $entity }}Update(c *internal.Dialect, es ...*{{ stringToFirstCap $entity }}) *{{ $entity }}Update {
 	return &{{ $entity }}Update{
 		config: c,
 		ctx:    &entitysql.QueryContext{},

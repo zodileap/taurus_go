@@ -1,10 +1,10 @@
 {{ define "entity/fields"  }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 {{- range $i,$field := $.Entity.Fields }}
 import "{{ $field.StoragerPkg }}"
@@ -15,11 +15,11 @@ import "{{ $field.StoragerPkg }}"
 // {{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }} is {{ $field.Name }} field
 type {{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} struct {
 	{{ $field.StoragerType }}
-	config *{{ toFirstLower $entity }}Config
+	config *{{ stringToLower $entity }}Config
 }
 
 // new{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }} creates a new {{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}
-func new{{ toFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}{{ $field.Name }}(c *{{toFirstLower $entity }}Config) *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }} {
+func new{{ stringToFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}{{ $field.Name }}(c *{{stringToLower $entity }}Config) *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }} {
 	t := &{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}{}
 	t.config = c
 	return t
@@ -29,7 +29,7 @@ func new{{ toFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}{{ $field.Name
 func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Set(v {{ $field.ValueType }}) {
 	t.{{ $field.StoragerOrigType }}.Set(v)
 	if (t.config.State() == entity.Unchanged || t.config.State() == entity.Modified) {
-		t.config.{{ toFirstLower $entity}}Mutations.ChangeEntityState(t.config.Mutation, entity.Modified)
+		t.config.{{ stringToLower $entity}}Mutations.ChangeEntityState(t.config.Mutation, entity.Modified)
 		t.config.Mutation.SetFields({{ $.Entity.AttrName }}.Field{{ $field.Name }}.Name.String())
 	}
 }

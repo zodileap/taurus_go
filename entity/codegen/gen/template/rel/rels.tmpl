@@ -1,5 +1,5 @@
 {{ define "rel/rels" }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
 import (
@@ -13,7 +13,7 @@ type rel interface {
 }
 
 {{ range $key,$entityName := .EntityMap }}
-type {{ toFirstLower $entityName }}Rel interface {
+type {{ stringToLower $entityName }}Rel interface {
    rel
 }
 {{ end }}

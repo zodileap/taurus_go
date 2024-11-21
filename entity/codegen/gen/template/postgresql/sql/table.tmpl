@@ -13,8 +13,8 @@ BEGIN
 {{ range $key, $entity := $.Database.Entities }}
 {{- $schema := `"public"` }}
 {{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- $table := stringJoin   `"` $entity.AttrName  `"`}}
+{{- $tableV := stringJoin   `'` $entity.AttrName  `'`}}
 {{- range $i,$rel := $entity.Relations }}
 IF EXISTS (
     SELECT 1
@@ -33,8 +33,8 @@ $$;
 {{ range $key, $entity := $.Database.Entities }}
 {{ $schema := `"public"` }}
 {{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- $table := stringJoin   `"` $entity.AttrName  `"`}}
+{{- $tableV := stringJoin   `'` $entity.AttrName  `'`}}
 {{- range $i,$seq := $entity.Sequences -}}
 -- ********
 -- Sequence {{ $seq.Name }}
@@ -95,7 +95,7 @@ BEGIN
         IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} AND column_name = '{{ $fieldName }}' ) THEN
             ALTER TABLE {{ $schema }}.{{ $table }} ADD COLUMN {{ template "init_table_field" $field}};
         ELSE
-            {{ template "update_table_field" dict "Schema" $schema "Table" $table "Field" $field }}
+            {{ template "update_table_field" createMap "Schema" $schema "Table" $table "Field" $field }}
         END IF;
         {{- end }}
 
@@ -150,7 +150,7 @@ BEGIN
         CREATE TABLE {{ $schema }}.{{ $table }} (
             {{- range $i,$field := $entity.Fields }}
             {{ template "init_table_field" $field }}
-            {{- if ne $i (sub (len $entity.Fields) 1) -}}
+            {{- if ne $i (stringSub (len $entity.Fields) 1) -}}
                 ,
             {{- end }}
             {{- end }}
@@ -393,5 +393,5 @@ CREATE TRIGGER {{.Name}}
     {{if .Condition}}
     WHEN ({{.Condition}})
     {{end}}
-    EXECUTE FUNCTION {{.Name}}_trigger_func({{joinStrings .Arguments ", "}});
+    EXECUTE FUNCTION {{.Name}}_trigger_func({{stringJoin .Arguments ", "}});
 {{end}}
