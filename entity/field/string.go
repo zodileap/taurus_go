@@ -248,18 +248,6 @@ func (u *UUIDBuilder[T]) Comment(comment string) *UUIDBuilder[T] {
 	return u
 }
 
-// Default 设置字段的默认值。
-// 如果设置了默认值，则在插入数据时，如果没有设置字段的值，则会使用默认值。
-//
-// Params:
-//
-//   - value: 字段的默认值。
-func (u *UUIDBuilder[T]) Default(value string) *UUIDBuilder[T] {
-	u.desc.Default = true
-	u.desc.DefaultValue = value
-	return u
-}
-
 // Locked 设置字段为只读字段。
 func (u *UUIDBuilder[T]) Locked() *UUIDBuilder[T] {
 	u.desc.Locked = true
