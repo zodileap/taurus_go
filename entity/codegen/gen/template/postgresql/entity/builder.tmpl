@@ -1,5 +1,5 @@
 {{ define "entity/builder" }}
-{{ $entity := .Entity.Name }}
+{{ $entity :=  .Entity.Name }}
 {{ $entityAttr := .Entity.AttrName }}
 {{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
@@ -42,9 +42,9 @@ type {{ $BuilderName }} struct {
 	{{- end }}
 }
 
-// new{{ $BuilderName }} creates a new {{ $BuilderName }}.
-func new{{ stringToFirstCap $BuilderName }}(c *{{ stringToLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ stringToLower $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
-	return &{{ $BuilderName }}{
+// new{{  $entity }}Builder creates a new {{  $entity }}Builder .
+func new{{  $entity }}Builder (c *{{ stringToLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ stringToLower $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
+	return &{{  $BuilderName }} {
 		config:  c,
 		tracker: t,
 		{{ range $relation :=  .Entity.Relations }}
@@ -111,21 +111,21 @@ func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ st
 func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
 	if len(s.config.{{ stringToLower $entity }}Mutations.Addeds) > 0 {
 		e := s.config.{{ stringToLower $entity }}Mutations.Get(entity.Added)
-		n := new{{ $entity }}Create(s.config.Dialect, e...)
+		n := new{{ stringToFirstCap $entity }}Create(s.config.Dialect, e...)
 		if err := n.create(ctx, tx); err != nil {
 			return err
 		}
 	}
 	if len(s.config.{{ stringToLower $entity }}Mutations.Modifieds) > 0 {
 		e := s.config.{{ stringToLower $entity }}Mutations.Get(entity.Modified)
-		n := new{{ $entity }}Update(s.config.Dialect, e...)
+		n := new{{ stringToFirstCap $entity }}Update(s.config.Dialect, e...)
 		if err := n.update(ctx, tx); err != nil {
 			return err
 		}
 	}
 	if len(s.config.{{ stringToLower $entity }}Mutations.Deleteds) > 0 {
 		e := s.config.{{ stringToLower $entity }}Mutations.Get(entity.Deleted)
-		n := new{{ $entity }}Delete(s.config.Dialect, e...)
+		n := new{{ stringToFirstCap $entity }}Delete(s.config.Dialect, e...)
 		if err := n.delete(ctx, tx); err != nil {
 			return err
 		}
