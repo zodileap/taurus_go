@@ -73,13 +73,8 @@ type TextBuilder[T any] struct {
 //
 //   - 字段的数据库中的类型名。
 func (s *VarcharBuilder[T]) AttrType(dbType dialect.DbDriver) string {
-	switch dbType {
-	case dialect.PostgreSQL:
-		v := varchar(s.desc.Size)
-		return v
-	default:
-		return ""
-	}
+	var t T
+	return varchar(t, s.desc.Size, dbType)
 }
 
 // Name 用于设置字段在数据库中的名称。
@@ -171,12 +166,53 @@ func (s *VarcharBuilder[T]) Locked() *VarcharBuilder[T] {
 }
 
 // varchar 返回varchar类型的字段。
-func varchar(size int64) string {
-	if size <= 0 {
-		return "varchar(255)"
-	} else {
-		return fmt.Sprintf("varchar(%d)", size)
+func varchar(t any, size int64, dbType dialect.DbDriver) string {
+	switch dbType {
+	case dialect.PostgreSQL:
+		switch t.(type) {
+		case string:
+			if size <= 0 {
+				return "varchar"
+			} else {
+				return fmt.Sprintf("varchar(%d)", size)
+			}
+		case []string:
+			if size <= 0 {
+				return "varchar[]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[]", size)
+			}
+		case [][]string:
+			if size <= 0 {
+				return "varchar[][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][]", size)
+			}
+		case [][][]string:
+			if size <= 0 {
+				return "varchar[][][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][][]", size)
+			}
+		case [][][][]string:
+			if size <= 0 {
+				return "varchar[][][][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][][][]", size)
+			}
+		case [][][][][]string:
+			if size <= 0 {
+				return "varchar[][][][][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][][][][]", size)
+			}
+		default:
+			return ""
+		}
+	default:
+		return ""
 	}
+
 }
 
 // UUIDBuilder UUID类型的字段构造器。
