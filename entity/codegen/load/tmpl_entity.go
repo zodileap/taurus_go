@@ -362,7 +362,7 @@ func (db *Database) extractEntity(e entity.EntityInterface) (*Entity, error) {
 	return nil, fmt.Errorf("not found entity %s", e.Config().AttrName)
 }
 
-// loadEntity 从entity.EntityInterface中加载Schema定义的entity信��。
+// loadEntity 从entity.EntityInterface中加载Schema定义的entity。
 //
 // Params:
 //

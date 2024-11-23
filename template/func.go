@@ -13,20 +13,23 @@ var (
 	// Funcs are the predefined template
 	// functions used by the codegen.
 	Funcs = template.FuncMap{
-		"filePathBase":       filepath.Base,
-		"createMap":          dict,
-		"stringToLower":      toLower,
-		"stringToFirstCap":   toFirstCap,
-		"stringToFirstLower": toFirstLower,
-		"stringToSnakeCase":  stringutil.ToSnakeCase,
-		"stringReplace":      strings.Replace,
-		"stringHasPrefix":    strings.HasPrefix,
-		"stringReplaceAll":   strings.ReplaceAll,
-		"stringSub":          sub,
-		"stringJoin":         StringJoin,
-		"stringIndex":        strings.Index,
-		"stringSplice":       splice,
-		"toString":           toString,
+		"filePathBase":        filepath.Base,
+		"createMap":           dict,
+		"stringToLower":       toLower,
+		"stringToFirstCap":    toFirstCap,
+		"stringToFirstLower":  toFirstLower,
+		"stringToSnakeCase":   stringutil.ToSnakeCase,
+		"stringReplace":       strings.Replace,
+		"stringHasPrefix":     strings.HasPrefix,
+		"stringReplaceAll":    strings.ReplaceAll,
+		"stringSub":           sub,
+		"stringJoin":          StringJoin,
+		"stringIndex":         strings.Index,
+		"stringSplice":        splice,
+		"stringContains":      strings.Contains,
+		"stringSplit":         strings.Split,
+		"toString":            toString,
+		"stringGetSpilceLast": stringLast,
 	}
 	acronyms = make(map[string]struct{})
 )
@@ -93,4 +96,12 @@ func splice(s string, start int, length int) string {
 		length = len(runes) - start
 	}
 	return string(runes[start : start+length])
+}
+
+// stringLast 获取字符串切片的最后一个元素
+func stringLast(arr []string) string {
+	if len(arr) == 0 {
+		return ""
+	}
+	return arr[len(arr)-1]
 }

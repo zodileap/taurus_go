@@ -198,15 +198,15 @@ BEGIN
         {{- range $index, $fields := $uniqueGroups }}
         BEGIN
             {{- if eq (len $fields) 1 }}
-            {{- $constraintName := printf "unique_%s_%s" $entity.AttrName (getFirstField $fields) }}
+            {{- $constraintName := printf "unique_%s_%s" $entity.AttrName (stringFirstField $fields) }}
             ALTER TABLE {{ $schema }}.{{ $table }}
             ADD CONSTRAINT {{ printf "%q" $constraintName }}
-            UNIQUE ("{{ getFirstField $fields }}");
+            UNIQUE ("{{ stringFirstField $fields }}");
             {{- else }}
-            {{- $constraintName := printf "unique_%s_%s" $entity.AttrName (joinIndexFields $fields) }}
+            {{- $constraintName := printf "unique_%s_%s" $entity.AttrName (stringJoinIndexFields $fields) }}
             ALTER TABLE {{ $schema }}.{{ $table }}
             ADD CONSTRAINT {{ printf "%q" $constraintName }}
-            UNIQUE ({{ joinQuotedColumns $fields }});
+            UNIQUE ({{ stringJoinIndexColumns $fields }});
             {{- end }}
         EXCEPTION 
             WHEN duplicate_table THEN
@@ -226,7 +226,7 @@ BEGIN
         {{- range $index, $fields := $indexGroups }}
         BEGIN
             {{- if eq (len $fields) 1 }}
-            {{- $indexName := printf "idx_%s_%s" $entity.AttrName (getFirstField $fields) }}
+            {{- $indexName := printf "idx_%s_%s" $entity.AttrName (stringFirstField $fields) }}
             -- 删除已存在的索引
             DROP INDEX IF EXISTS {{ $schema }}.{{ printf "%q" $indexName }};
             
@@ -236,9 +236,9 @@ BEGIN
             {{- if $method := getIndexMethod $entity.Fields $index }}
             {{ $method }}
             {{- end }}
-            ("{{ getFirstField $fields }}");
+            ("{{ stringFirstField $fields }}");
             {{- else }}
-            {{- $indexName := printf "idx_%s_%s" $entity.AttrName (joinIndexFields $fields) }}
+            {{- $indexName := printf "idx_%s_%s" $entity.AttrName (stringJoinIndexFields $fields) }}
             -- 删除已存在的索引
             DROP INDEX IF EXISTS {{ $schema }}.{{ printf "%q" $indexName }};
             
@@ -248,7 +248,7 @@ BEGIN
             {{- if $method := getIndexMethod $entity.Fields $index }}
             {{ $method }}
             {{- end }}
-            ({{ joinQuotedColumns $fields }});
+            ({{ stringJoinIndexColumns $fields }});
             {{- end }}
         END;
         {{- end }}

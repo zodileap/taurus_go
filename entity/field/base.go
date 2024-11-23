@@ -33,19 +33,26 @@ func (b *BaseBuilder[T]) Init(desc *entity.Descriptor) error {
 
 func (b *BaseBuilder[T]) sliceTypeDetails() (int, string) {
 	depth := 0
-	// Safely get the type of T, checking for nil pointer dereference safety.
 	var zero T
-	refType := reflect.TypeOf(zero) // Use a zero value of T instead of nil pointer
-	// Process the type to determine depth and base type.
+	refType := reflect.TypeOf(zero)
+
+	// 处理数组、切片、指针类型
 	for refType.Kind() == reflect.Array || refType.Kind() == reflect.Slice || refType.Kind() == reflect.Ptr {
 		if refType.Kind() == reflect.Ptr {
-			refType = refType.Elem() // Dereference pointer type
+			refType = refType.Elem()
 		} else {
 			refType = refType.Elem()
-			depth++ // Increment depth for arrays or slices
+			depth++
 		}
 	}
-	return depth, refType.Name()
+
+	// 使用 PkgPath() + "." + Name() 获取完整类型名
+	if refType.PkgPath() != "" {
+		return depth, refType.PkgPath() + "." + refType.Name()
+	}
+
+	// 对于内置类型，直接返回 String()
+	return depth, refType.String()
 }
 
 // Descriptor 获取字段的描述信息。

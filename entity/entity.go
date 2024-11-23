@@ -182,6 +182,8 @@ type (
 		// Type 字段的类型。如"filed.Int64"。
 		Type string `json:"type,omitempty"`
 		// BaseType 字段的基础类型。如"filed.Int64"的基础类型为"int64", "filed.Int64A1"的基础类型也是"int64"。
+		// 不支持time.Time这种类型包含包名的类型，只支持基础类型。
+		// 如果在模版中需要获取字段的go中的类型，请用ValueType，见[entity/codegen/load/tmpl_entity.go]。
 		BaseType string `json:"base_type,omitempty"`
 		// AttrType 字段的数据库类型。如"filed.Int64"在PostgreSQL中对应"int8"，
 		// 这AttrType的值为"int8"，这个通过AttrType()获得，所以自定义类型应该正确定义这个方法。
