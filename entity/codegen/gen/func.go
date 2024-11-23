@@ -13,8 +13,8 @@ import (
 	"golang.org/x/text/language"
 )
 
-// funcMap gen中模版需要用到的函数的映射
-var funcMap = template.FuncMap{
+// FuncMap gen中模版需要用到的函数的映射
+var FuncMap = template.FuncMap{
 	"joinFieldAttrNames":        joinFieldAttrNames,
 	"joinFieldPrimaies":         joinFieldPrimaies,
 	"joinRequiredFields":        joinRequiredFields,

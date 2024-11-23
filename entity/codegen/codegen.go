@@ -10,6 +10,7 @@ import (
 	"github.com/yohobala/taurus_go/entity/codegen/gen"
 	"github.com/yohobala/taurus_go/entity/codegen/load"
 	"github.com/yohobala/taurus_go/template"
+	"github.com/yohobala/taurus_go/tlog"
 )
 
 // Extra 用于在Config中添加额外的配置的回调函数。
@@ -162,8 +163,9 @@ func TemplateGlob(pattern string) Extra {
 //	1: 错误信息
 func templateExt(next func(t *template.Template) (*template.Template, error)) Extra {
 	return func(cfg *gen.Config) (err error) {
-		tmpl, err := next(template.NewTemplate("external"))
+		tmpl, err := next(template.NewTemplate("external").Funcs(gen.FuncMap))
 		if err != nil {
+			tlog.Print(err)
 			return err
 		}
 		cfg.Templates = append(cfg.Templates, tmpl)
