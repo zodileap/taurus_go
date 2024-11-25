@@ -74,12 +74,25 @@ func (b *BaseBuilder[T]) AttrType(dbType dialect.DbDriver) string {
 	return attrType(t, dbType)
 }
 
+// SetValueType 设置字段的值在go中类型名称。
+//
+// Params:
+//
+//   - valueType: 字段的值在go中类型名称。
+func (b *BaseBuilder[T]) SetValueType(valueType string) *BaseBuilder[T] {
+	b.desc.ValueType = valueType
+	return b
+}
+
 // ValueType 用于设置字段的值在go中类型名称。例如entity.Int64的ValueType为"int64"。
 //
 // Returns:
 //
 //   - 字段的值在go中类型名称。
 func (b *BaseBuilder[T]) ValueType() string {
+	if b.desc.ValueType != "" {
+		return b.desc.ValueType
+	}
 	var t T
 	return valueType(t)
 }
