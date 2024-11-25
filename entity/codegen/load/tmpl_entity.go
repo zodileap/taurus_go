@@ -52,8 +52,6 @@ type (
 	// 继承了entity.Descriptor
 	Field struct {
 		entity.Descriptor
-		// ValueType 字段的值在go中对应的类型，比如"entity.Int64"的ValueType为"int64"。
-		ValueType string `json:"value_type,omitempty"`
 		// Validators 字段的验证器数量
 		Validators int `json:"validators,omitempty"`
 		// StoragerType 字段的存储器的类型，这个是字段的作用是关联已经定义的好的存储器。比如field.IntStorage[int16]

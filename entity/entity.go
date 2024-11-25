@@ -181,6 +181,8 @@ type (
 		AttrName string `json:"attr_name,omitempty"`
 		// Type 字段的类型。如"filed.Int64"。
 		Type string `json:"type,omitempty"`
+		// ValueType 字段的值在go中对应的类型，比如"entity.Int64"的ValueType为"int64"。
+		ValueType string `json:"value_type,omitempty"`
 		// BaseType 字段的基础类型。如"filed.Int64"的基础类型为"int64", "filed.Int64A1"的基础类型也是"int64"。
 		// 不支持time.Time这种类型包含包名的类型，只支持基础类型。
 		// 如果在模版中需要获取字段的go中的类型，请用ValueType，见[entity/codegen/load/tmpl_entity.go]。
