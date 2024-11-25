@@ -42,6 +42,11 @@ type (
 	tableError struct {
 		msg string
 	}
+
+	extInstanceTemplate struct {
+		Paths []string
+		Tmpl  InstanceTemplate
+	}
 )
 
 // NewBuilder 根据提供的Schema，初始化一个生成器。
@@ -86,10 +91,10 @@ func (b *Builder) Gen() error {
 //
 //	0: 模版。
 //	1: 外部模版。
-func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []InstanceTemplate, map[string][]InstanceTemplate) {
+func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []extInstanceTemplate, map[string][]InstanceTemplate) {
 	initTemplates(b, dbType)
 	var (
-		external       = make([]InstanceTemplate, 0, len(b.Templates))
+		external       = make([]extInstanceTemplate, 0)
 		field_external = make(map[string][]InstanceTemplate)
 	)
 	for _, node := range b.Nodes {
@@ -130,8 +135,8 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 		}
 	}
 	for _, extTmpl := range b.Templates {
-		templates.Funcs(extTmpl.FuncMap)
-		for _, tmpl := range extTmpl.Templates() {
+		templates.Funcs(extTmpl.Tmpl.FuncMap)
+		for _, tmpl := range extTmpl.Tmpl.Templates() {
 			if parse.IsEmptyTree(tmpl.Root) {
 				continue
 			}
@@ -142,21 +147,44 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 			} else {
 				name = strings.TrimSuffix(name, ext)
 			}
-			// 如果模版不是已经定义的模版或扩展，则生成一个新的文件。
-			if templates.Lookup(name) == nil {
-				external = append(external, InstanceTemplate{
-					Name: name,
-					Format: func(t template.TemplatePathFormat) string {
-						lastSlashIndex := strings.LastIndex(name, "/")
-						if lastSlashIndex == -1 {
-							// 没有斜杠，直接添加前缀
-							return "db_" + t.Dir() + "_" + name + ext
-						}
-						// 在最后一个斜杠之后添加前缀
-						return name[:lastSlashIndex+1] + name[lastSlashIndex+1:] + ext
+			targetPaths := extTmpl.TargetPaths
+			if len(targetPaths) == 0 {
+				// 如果模版不是已经定义的模版或扩展，则生成一个新的文件。
+				if templates.Lookup(name) == nil {
+					external = append(external, extInstanceTemplate{
+						Paths: targetPaths,
+						Tmpl: InstanceTemplate{
+							Name: name,
+							Format: func(t template.TemplatePathFormat) string {
+								lastSlashIndex := strings.LastIndex(name, "/")
+								if lastSlashIndex == -1 {
+									// 没有斜杠，直接添加前缀
+									return "db_" + t.Dir() + "_" + name + ext
+								}
+								// 在最后一个斜杠之后添加前缀
+								return name[:lastSlashIndex+1] + name[lastSlashIndex+1:] + ext
+							},
+						},
 					},
-				})
-				templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
+					)
+					templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
+				}
+			} else {
+				// 如果模版不是已经定义的模版或扩展，则生成一个新的文件。
+				if templates.Lookup(name) == nil {
+					external = append(external, extInstanceTemplate{
+						Paths: targetPaths,
+						Tmpl: InstanceTemplate{
+							Name: name,
+							Format: func(t template.TemplatePathFormat) string {
+								// 在最后一个斜杠之后添加前缀
+								return name + ext
+							},
+						},
+					},
+					)
+					templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
+				}
 			}
 		}
 	}
@@ -217,7 +245,7 @@ func generate(t *Builder) error {
 	// 为每个节点生成代码：
 	for _, n := range t.Nodes {
 		templates, extend, field_external := t.templates(n.Database.Type)
-		for _, tmpl := range append(DatabaseTemplates, extend...) {
+		for _, tmpl := range append(DatabaseTemplates) {
 			if dir := filepath.Dir(tmpl.Format(n)); dir != "." {
 				assets.AddDir(filepath.Join(t.Config.Target, dir))
 			}
@@ -226,6 +254,22 @@ func generate(t *Builder) error {
 				return fmt.Errorf("execute template %q: %w", tmpl.Name, err)
 			}
 			assets.Add(filepath.Join(t.Config.Target, tmpl.Format(n)), b.Bytes())
+		}
+		for _, ext := range extend {
+			b := bytes.NewBuffer(nil)
+			if err := templates.ExecuteTemplate(b, ext.Tmpl.Name, n); err != nil {
+				return fmt.Errorf("execute template %q: %w", ext.Tmpl.Name, err)
+			}
+			if len(ext.Paths) == 0 {
+				assets.Add(filepath.Join(t.Config.Target, ext.Tmpl.Format(n)), b.Bytes())
+			} else {
+				for _, path := range ext.Paths {
+					assets.AddDir(path)
+					targetDir := filepath.Dir(filepath.Join(path, ext.Tmpl.Format(n)))
+					assets.AddDir(targetDir)
+					assets.Add(filepath.Join(path, ext.Tmpl.Format(n)), b.Bytes())
+				}
+			}
 		}
 		// 为节点的每个entity生成代码
 		for _, e := range n.Database.Entities {

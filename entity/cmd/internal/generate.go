@@ -32,13 +32,20 @@ func GenerateCmd() *cobra.Command {
 					if parts := strings.SplitN(tmpl, "=", 2); len(parts) > 1 {
 						typ, tmpl = parts[0], parts[1]
 					}
+					targetPaths := []string{}
+
+					// 检查是否包含目标路径
+					if parts := strings.SplitN(tmpl, ":", 2); len(parts) > 1 {
+						tmpl = parts[0]
+						targetPaths = strings.Split(parts[1], ";")
+					}
 					switch typ {
 					case "dir":
-						exts = append(exts, codegen.TemplateDir(tmpl))
+						exts = append(exts, codegen.TemplateDir(targetPaths, tmpl))
 					case "file":
-						exts = append(exts, codegen.TemplateFiles(tmpl))
+						exts = append(exts, codegen.TemplateFiles(targetPaths, tmpl))
 					case "glob":
-						exts = append(exts, codegen.TemplateGlob(tmpl))
+						exts = append(exts, codegen.TemplateGlob(targetPaths, tmpl))
 					default:
 						log.Fatalln("unsupported template type", typ)
 					}

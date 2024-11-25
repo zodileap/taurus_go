@@ -115,8 +115,8 @@ func generate(entityPath string, cfg *gen.Config) error {
 // Returns:
 //
 //	0: Extra函数。
-func TemplateDir(path string) Extra {
-	return templateExt(func(t *template.Template) (*template.Template, error) {
+func TemplateDir(targetPath []string, path string) Extra {
+	return templateExt(targetPath, func(t *template.Template) (*template.Template, error) {
 		return t.ParseDir(path)
 	})
 }
@@ -130,8 +130,8 @@ func TemplateDir(path string) Extra {
 // Returns:
 //
 //	0: Extra函数。
-func TemplateFiles(filenames ...string) Extra {
-	return templateExt(func(t *template.Template) (*template.Template, error) {
+func TemplateFiles(targetPath []string, filenames ...string) Extra {
+	return templateExt(targetPath, func(t *template.Template) (*template.Template, error) {
 		return t.ParseFiles(filenames...)
 	})
 }
@@ -145,8 +145,8 @@ func TemplateFiles(filenames ...string) Extra {
 // Returns:
 //
 //	0: Extra函数。
-func TemplateGlob(pattern string) Extra {
-	return templateExt(func(t *template.Template) (*template.Template, error) {
+func TemplateGlob(targetPath []string, pattern string) Extra {
+	return templateExt(targetPath, func(t *template.Template) (*template.Template, error) {
 		return t.ParseGlob(pattern)
 	})
 }
@@ -161,14 +161,15 @@ func TemplateGlob(pattern string) Extra {
 //
 //	0: 模版。
 //	1: 错误信息
-func templateExt(next func(t *template.Template) (*template.Template, error)) Extra {
+func templateExt(targetPath []string, next func(t *template.Template) (*template.Template, error)) Extra {
 	return func(cfg *gen.Config) (err error) {
 		tmpl, err := next(template.NewTemplate("external").Funcs(gen.FuncMap))
 		if err != nil {
 			tlog.Print(err)
 			return err
 		}
-		cfg.Templates = append(cfg.Templates, tmpl)
+		ext := gen.ExtTemplate{tmpl, targetPath}
+		cfg.Templates = append(cfg.Templates, ext)
 		return nil
 	}
 }

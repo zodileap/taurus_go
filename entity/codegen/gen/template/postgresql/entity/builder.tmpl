@@ -37,13 +37,13 @@ type {{ $BuilderName }} struct {
 	// {{ stringToFirstCap $result.Name}} configures the query to include data from the '{{$result.AttrName}}' table.
 	// The method modifies the existing query to include a LEFT JOIN clause.
 	// {{ stringToFirstCap $result.Name }} be used as an argument to the Include method。
-	{{ stringToFirstCap $result.Name}} *{{ stringToLower $result.RelType }}
+	{{ stringToFirstCap $result.Name}} *{{ $result.RelType }}
 	{{ end }}
 	{{- end }}
 }
 
 // new{{  $entity }}Builder creates a new {{  $entity }}Builder .
-func new{{  $entity }}Builder (c *{{ stringToLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ stringToLower $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
+func new{{  $entity }}Builder (c *{{ stringToLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
 	return &{{  $BuilderName }} {
 		config:  c,
 		tracker: t,
