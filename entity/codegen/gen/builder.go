@@ -261,6 +261,9 @@ func generate(t *Builder) error {
 				return fmt.Errorf("execute template %q: %w", ext.Tmpl.Name, err)
 			}
 			if len(ext.Paths) == 0 {
+				if dir := filepath.Dir(ext.Tmpl.Format(n)); dir != "." {
+					assets.AddDir(filepath.Join(t.Config.Target, dir))
+				}
 				assets.Add(filepath.Join(t.Config.Target, ext.Tmpl.Format(n)), b.Bytes())
 			} else {
 				for _, path := range ext.Paths {
