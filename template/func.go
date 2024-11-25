@@ -19,6 +19,7 @@ var (
 		"stringToFirstCap":    toFirstCap,
 		"stringToFirstLower":  toFirstLower,
 		"stringToSnakeCase":   stringutil.ToSnakeCase,
+		"stringToCamelCase":   stringutil.ToCamelCase,
 		"stringReplace":       strings.Replace,
 		"stringHasPrefix":     strings.HasPrefix,
 		"stringReplaceAll":    strings.ReplaceAll,
