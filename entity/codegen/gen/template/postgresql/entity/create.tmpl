@@ -81,6 +81,18 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
 					fieldSpace.Param = v
 					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.Default = {{ $field.Default }}
+					fields = append(fields, &fieldSpace)
+				{{- else }}
+				case {{ $entityAttr }}.Field{{ $field.Name }}.Name:
+					v, err := e.{{ $field.Name }}.SqlParam(o.config.Driver.Dialect())
+					if err != nil {
+						return nil, err
+					}
+					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
+					fieldSpace.Param = v
+					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.Default = {{ $field.Default }}
 					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- else }}
@@ -92,6 +104,7 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
 					fieldSpace.Param = v
 					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.Default = {{ $field.Default }}
 					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- end }}
