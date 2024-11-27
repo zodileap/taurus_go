@@ -2,6 +2,7 @@ package field
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -206,6 +207,24 @@ func (i *BaseStorage[T]) SqlFormatParam() func(dbType dialect.DbDriver, param st
 func (i *BaseStorage[T]) SqlSelectFormat() func(dbType dialect.DbDriver, name string) string {
 	return func(dbType dialect.DbDriver, name string) string {
 		return name
+	}
+}
+
+// MarshalJSON 用于将字段的值转换为JSON格式。
+func (i *BaseStorage[T]) MarshalJSON() ([]byte, error) {
+	// 如果值为nil，返回null
+	if i == nil || i.Get() == nil {
+		return []byte("null"), nil
+	}
+
+	// 对于字符串类型，需要确保正确的JSON字符串格式
+	value := i.Get()
+	switch v := any(*value).(type) {
+	case string:
+		return json.Marshal(v)
+	default:
+		// 其他类型使用标准JSON序列化
+		return json.Marshal(*value)
 	}
 }
 
