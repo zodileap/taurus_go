@@ -20,7 +20,7 @@ type {{ $entity }} struct {
 	{{- range $relation :=  .Entity.Relations }}
 	{{ $result := getEntityRel $relation $.Entity  }}
 	{{ with $result }} 
-	{{ stringToFirstCap $result.Name}} {{ $result.EntityType }} `json:"-"`
+	{{ stringToFirstCap $result.Name}} {{ $result.EntityType }} `json:"{{ stringToSnakeCase $result.Name }},omitempty"`
 	{{ end }}
 	{{- end }}
 }
