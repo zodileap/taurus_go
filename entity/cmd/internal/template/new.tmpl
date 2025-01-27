@@ -48,7 +48,7 @@ type {{ stringToFirstCap . }}Entity struct {
 
 func (e *{{ stringToFirstCap . }}Entity) Config() entity.EntityConfig {
 	return entity.EntityConfig{
-		AttrName: "{{ toSnakeCase . }}",
+		AttrName: "{{ stringToSnakeCase . }}",
 	}
 }
 
