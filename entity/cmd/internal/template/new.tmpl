@@ -8,18 +8,18 @@ import (
 {{ end }}
 
 {{ define "database" }}
-type {{ toFirstCap . }} struct {
+type {{ stringToFirstCap . }} struct {
     entity.Database
 }
 
-func (d *{{ toFirstCap .}}) Config() entity.DbConfig {
+func (d *{{ stringToFirstCap .}}) Config() entity.DbConfig {
     return entity.DbConfig{
         Tag: "{{ toFirstLower .}}",
 		Type: dialect.PostgreSQL,
     }
 }
 
-func (d *{{ toFirstCap .}}) Relationships() []entity.RelationshipBuilder {
+func (d *{{ stringToFirstCap .}}) Relationships() []entity.RelationshipBuilder {
 	return []entity.RelationshipBuilder{}
 }
 {{ end }}
@@ -42,17 +42,17 @@ package {{ . }}
 
 {{ define "entity" }}
 
-type {{ toFirstCap . }}Entity struct {
+type {{ stringToFirstCap . }}Entity struct {
     entity.Entity
 }
 
-func (e *{{ toFirstCap . }}Entity) Config() entity.EntityConfig {
+func (e *{{ stringToFirstCap . }}Entity) Config() entity.EntityConfig {
 	return entity.EntityConfig{
 		AttrName: "{{ toSnakeCase . }}",
 	}
 }
 
-func (e *{{ toFirstCap . }}Entity) Fields() []entity.FieldBuilder {
+func (e *{{ stringToFirstCap . }}Entity) Fields() []entity.FieldBuilder {
 	return []entity.FieldBuilder{
 	}
 }
