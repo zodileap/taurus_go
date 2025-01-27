@@ -17,7 +17,7 @@ var (
 		"createMap":           dict,
 		"stringToLower":       toLower,
 		"stringToFirstCap":    stringToFirstCap,
-		"stringToFirstLower":  toFirstLower,
+		"stringToFirstLower":  stringToFirstLower,
 		"stringToSnakeCase":   stringutil.ToSnakeCase,
 		"stringToCamelCase":   stringutil.ToCamelCase,
 		"stringReplace":       strings.Replace,
@@ -63,7 +63,7 @@ func stringToFirstCap(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
 }
 
-func toFirstLower(s string) string {
+func stringToFirstLower(s string) string {
 	return strings.ToLower(s[0:1]) + s[1:]
 }
 
