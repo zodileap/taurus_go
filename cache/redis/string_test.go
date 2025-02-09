@@ -36,7 +36,7 @@ func TestString(t *testing.T) {
 				Items: []I{
 					{
 						Val: "1",
-						Exp: 0,
+						Exp: 1000,
 						Op:  "add",
 					},
 					{

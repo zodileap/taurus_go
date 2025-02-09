@@ -185,7 +185,6 @@ func (fo *FileOperator) Find(marker string, isLike bool, startPos, endPos int) (
 			}
 		}
 	}
-	tlog.Print(fo.getContent())
 	return -1, nil
 }
 
