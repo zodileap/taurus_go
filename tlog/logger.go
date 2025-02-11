@@ -93,15 +93,8 @@ var levelColors = map[Level]string{
 	FatalLevel: colorPurple,
 }
 
-func (l *Logger) log(level Level, msg string, fields ...Field) {
-	if level < l.level {
-		return
-	}
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	// 构建基础日志内容（无颜色）
+// FormatLog 格式化日志信息并返回带颜色和不带颜色的字符串
+func (l *Logger) FormatLog(level Level, msg string, fields ...Field) (plainContent, colorContent string) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 
 	// 调用信息
@@ -113,8 +106,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 		}
 	}
 
-	// 构建不带颜色的日志内容（用于文件输出）
-	var plainContent string
+	// 构建不带颜色的日志内容
 	if l.hasCaller {
 		plainContent = fmt.Sprintf("[%s] [%s] [%s] %s",
 			timestamp,
@@ -128,8 +120,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 			msg)
 	}
 
-	// 构建带颜色的日志内容（用于控制台输出）
-	var colorContent string
+	// 构建带颜色的日志内容
 	if l.hasCaller {
 		colorContent = fmt.Sprintf("[%s%s%s] %s%s%s [%s] %s",
 			colorCyan, timestamp, colorReset,
@@ -152,11 +143,27 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 		}
 	}
 
+	plainContent += fieldStr
+	colorContent += fieldStr
+
+	return plainContent, colorContent
+}
+
+func (l *Logger) log(level Level, msg string, fields ...Field) {
+	if level < l.level {
+		return
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	plainContent, colorContent := l.FormatLog(level, msg, fields...)
+
 	// 分别输出到控制台和文件
 	if l.writer != nil {
-		fmt.Fprintln(l.writer, plainContent+fieldStr)
+		fmt.Fprintln(l.writer, plainContent)
 	}
-	fmt.Fprintln(os.Stdout, colorContent+fieldStr)
+	fmt.Fprintln(os.Stdout, colorContent)
 
 	// 如果是Fatal级别，则退出程序
 	if level == FatalLevel {
