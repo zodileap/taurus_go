@@ -278,6 +278,10 @@ func handleSlice(v reflect.Value) (driver.Value, error) {
 	case reflect.Slice:
 		// 处理嵌套数组
 		return handleNestedSlice(v)
+	case reflect.String:
+		return arrayToPGString(v.Interface(), func(a any) (string, error) {
+			return a.(string), nil
+		})
 	default:
 		return nil, fmt.Errorf("unsupported slice type: %v", v.Type())
 	}
