@@ -7,14 +7,12 @@
 {{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
+{{ if ne $.Entity.Comment "" }}//{{ $.Entity.Comment }}{{ end }}
 type {{ $entity }} struct {
 	internal.Entity `json:"-"`
     config      *{{ stringToLower $entity}}Config 
     {{- range $i,$field := $.Entity.Fields }}
-		{{ if $field.Comment }}
-		// {{ $field.Name }} {{ $field.Comment }}
-		{{- end }}
-        {{ $field.Name }} *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} {{ if ne $field.Tag "" }}`{{ $field.Tag }}`{{ end }}
+        {{ $field.Name }} *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} {{ if ne $field.Tag "" }}`{{ $field.Tag }}`{{ end }} {{ if $field.Comment }} // {{ $field.Name }} {{ $field.Comment }} {{- end }}
     {{- end }}
 
 	{{- range $relation :=  .Entity.Relations }}

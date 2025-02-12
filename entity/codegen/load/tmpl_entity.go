@@ -34,7 +34,7 @@ type (
 		Name string `json:"name,omitempty"`
 		// AttrName entity的属性名称
 		AttrName string `json:"attr_name,omitempty"`
-		// Comment entity的注释
+		// Comment entity的描述
 		Comment string `json:"comment,omitempty"`
 		// Config entity配置
 		Config entity.EntityConfig `json:"config,omitempty"`
