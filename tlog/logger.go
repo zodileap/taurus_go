@@ -100,7 +100,7 @@ func (l *Logger) FormatLog(level Level, msg string, fields ...Field) (plainConte
 	// 调用信息
 	var caller string
 	if l.hasCaller {
-		_, file, line, ok := runtime.Caller(2)
+		_, file, line, ok := runtime.Caller(3)
 		if ok {
 			caller = fmt.Sprintf("%s:%d", file, line)
 		}
