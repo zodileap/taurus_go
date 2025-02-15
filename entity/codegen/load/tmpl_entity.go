@@ -708,26 +708,6 @@ func checkSequence(seq entity.Sequence) (err error) {
 	if seq.Name != nil && *seq.Name == "" {
 		return fmt.Errorf("sequence name is empty")
 	}
-	if seq.Increament == nil {
-		i := int64(1)
-		seq.Increament = &i
-	}
-	if seq.Min == nil {
-		i := int64(1)
-		seq.Min = &i
-	}
-	if seq.Max == nil {
-		i := int64(9223372036854775807)
-		seq.Max = &i
-	}
-	if seq.Start == nil {
-		i := int64(1)
-		seq.Start = &i
-	}
-	if seq.Cache == nil {
-		i := int64(1)
-		seq.Cache = &i
-	}
 	return nil
 }
 
