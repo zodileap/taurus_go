@@ -230,16 +230,8 @@ type (
 	Sequence struct {
 		// Name 序列的名称，不能为空字符串。
 		Name *string
-		// Increment 每次序列递增的值，默认1。
-		Increament *int64
-		// Min 序列的最小值，默认1。
-		Min *int64
-		// Max 序列的最大值，默认为9223372036854775807。
-		Max *int64
-		// Start 序列的起始值，默认1。
-		Start *int64
-		// Cache 指定序列中要预先分配的值的数量，默认1。
-		Cache *int64
+		// Mode 序列的模式，目前只支持TSID。
+		Mode string
 	}
 )
 
@@ -248,18 +240,9 @@ func NewSequence(name string) Sequence {
 	if name == "" {
 		panic("NewSequence name can't be empty")
 	}
-	increament := int64(1)
-	min := int64(1)
-	max := int64(9223372036854775807)
-	start := int64(1)
-	cache := int64(1)
 	return Sequence{
-		Name:       &name,
-		Increament: &increament,
-		Min:        &min,
-		Max:        &max,
-		Start:      &start,
-		Cache:      &cache,
+		Name: &name,
+		Mode: "TSID",
 	}
 }
 
