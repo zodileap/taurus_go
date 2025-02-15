@@ -92,6 +92,11 @@ func (b *createBuilder) create(ctx context.Context, drv dialect.Tx) error {
 			return err
 		}
 		for _, spec := range specs {
+			config := entity.GetConfig()
+			if *(config.SqlConsole) {
+				tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+				tlog.Debug(*config.SqlLogger, fmt.Sprintf("args: %v", spec.Args))
+			}
 			var res sql.Result
 			if err := drv.Exec(ctx, spec.Query, spec.Args, &res); err != nil {
 				return err
