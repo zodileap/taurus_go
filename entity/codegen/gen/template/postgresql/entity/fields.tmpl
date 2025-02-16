@@ -35,8 +35,18 @@ func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Set(v {{ 
 }
 
 // Get gets the value of {{ $field.Name }} field
-func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Get() *{{ stringReplace $field.ValueType "*"  "" 1}} {
-	return t.{{ $field.StoragerOrigType }}.Get()
+//
+// If the field is required, it returns the value type; otherwise, it returns a pointer type.
+{{- $returnType := stringReplace $field.ValueType "*"  "" 1 }}
+{{- if not $field.Required }}
+	{{ $returnType = stringJoin "*" $field.ValueType }}
+{{- end }}
+func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Get() {{ $returnType }} {
+	{{- if $field.Required }}
+		return *t.{{ $field.StoragerOrigType }}.Get()
+	{{- else }}
+		return t.{{ $field.StoragerOrigType }}.Get()
+	{{- end }}
 }
 {{- end }}
 
