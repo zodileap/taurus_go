@@ -174,30 +174,28 @@ func merge{{ $entity }}(es []*{{ $entity }}, e *{{ $entity }}) []*{{ $entity }} 
 	}else{
 		v := es[len(es) - 1]
 		{{ $primaryKey := getPrimaryField .Entity.Fields }}
-		if e.{{ $primaryKey.Name }}.Get() != nil {
-			if v.{{ $primaryKey.Name }}.Get() != nil && *v.{{ $primaryKey.Name }}.Get() == *e.{{ $primaryKey.Name }}.Get() {
-			{{- range $relation :=  .Entity.Relations }}
-			{{- $result := getEntityRel $relation $.Entity  }}
-			{{- with $result }} 
-			{{- if eq $result.Rel.Rel 1 }}
-				{{ $result.AttrName }}s := merge{{ $result.Rel.Name }}([]{{ $result.EntityType }}{v.{{ stringToFirstCap $result.Name }}}, e.{{ stringToFirstCap $result.Name }})
+		if v.{{ $primaryKey.Name }}.Get() == e.{{ $primaryKey.Name }}.Get() {
+		{{- range $relation :=  .Entity.Relations }}
+		{{- $result := getEntityRel $relation $.Entity  }}
+		{{- with $result }} 
+		{{- if eq $result.Rel.Rel 1 }}
+			{{ $result.AttrName }}s := merge{{ $result.Rel.Name }}([]{{ $result.EntityType }}{v.{{ stringToFirstCap $result.Name }}}, e.{{ stringToFirstCap $result.Name }})
+			if len({{ $result.AttrName }}s) > 0 {
+				v.{{ stringToFirstCap $result.Name }} = {{ $result.AttrName }}s[0]
+			}
+		{{- else if eq $result.Rel.Rel 2 }}
+			for _, {{ $result.AttrName }} := range e.{{ stringToFirstCap $result.Name }} {
+				{{ $result.AttrName }}s := merge{{ $result.Rel.Name }}(v.{{ stringToFirstCap $result.Name }}, {{ $result.AttrName }})
 				if len({{ $result.AttrName }}s) > 0 {
-					v.{{ stringToFirstCap $result.Name }} = {{ $result.AttrName }}s[0]
+					v.{{ stringToFirstCap $result.Name }} = {{ $result.AttrName }}s
 				}
-			{{- else if eq $result.Rel.Rel 2 }}
-				for _, {{ $result.AttrName }} := range e.{{ stringToFirstCap $result.Name }} {
-					{{ $result.AttrName }}s := merge{{ $result.Rel.Name }}(v.{{ stringToFirstCap $result.Name }}, {{ $result.AttrName }})
-					if len({{ $result.AttrName }}s) > 0 {
-						v.{{ stringToFirstCap $result.Name }} = {{ $result.AttrName }}s
-					}
-				}
-			{{- end }}
-			{{- end }}
-			{{- end }}
+			}
+		{{- end }}
+		{{- end }}
+		{{- end }}
 		}else{
 			es = append(es, e)
 		}
-	}
 	}
 	return es
 }

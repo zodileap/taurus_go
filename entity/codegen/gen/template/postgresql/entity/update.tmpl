@@ -97,9 +97,9 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 		// 因为判断过predicates和set长度，所以这里默认等长
 		index := len(o.predicates) - 1
 		if i > 0 {
-			o.predicates[index] = append(o.predicates[index], entitysql.Or, pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()))
+			o.predicates[index] = append(o.predicates[index], entitysql.Or, pred{{ $predField }}.EQ(e.{{ $predField }}.Get()))
 		} else {
-			o.predicates[index] = append(o.predicates[index], pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()))
+			o.predicates[index] = append(o.predicates[index], pred{{ $predField }}.EQ(e.{{ $predField }}.Get()))
 		}
 		num++
 		for _, f := range fields {
@@ -115,7 +115,7 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 				fieldSpace.ParamFormat = e.{{ $f.Name }}.SqlFormatParam()
 				o.sets[index][{{ $entityAttr }}.Field{{ $f.Name }}.Name.String()] = entitysql.CaseSpec{
 					Field: fieldSpace,
-					When:  pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()),
+					When:  pred{{ $predField }}.EQ(e.{{ $predField }}.Get()),
 				}
 				num++
 			{{- end }}
