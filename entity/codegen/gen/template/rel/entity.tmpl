@@ -1,24 +1,24 @@
 {{ define "rel/entity" }}
-{{ $entity :=  toFirstLower .Entity.Name }}
+{{ $entity :=  stringToLower .Entity.Name }}
 {{ $entityAttr := .Entity.AttrName }}
 
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 type {{ $entity }}Relation struct {
 	{{- range $rel := .Entity.Relations }}
 	{{- $res := getEntityRelDirection $rel $.Entity }}
-	{{ toFirstLower $res.Join.Name }}Rel
+	{{ stringToLower $res.Join.Name }}Rel
 	{{ end -}}
 	Config   internal.EntityConfig
 	relation entitysql.RelationDesc
 	children []rel
 }
 
-func new{{ toFirstCap $entity }}Relation(config internal.EntityConfig, desc entitysql.RelationDesc) * {{ $entity }}Relation {
+func new{{ stringToFirstCap $entity }}Relation(config internal.EntityConfig, desc entitysql.RelationDesc) * {{ $entity }}Relation {
 	return & {{ $entity }}Relation{
 		Config:   config,
 		relation: desc,

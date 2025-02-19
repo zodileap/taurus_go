@@ -1,5 +1,5 @@
 {{ define "internal/core" }}
-{{ $header := dict "Package" "internal" }}
+{{ $header := createMap "Package" "internal" }}
 {{ template "header" $header }}
 
 import (

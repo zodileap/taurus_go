@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"golang.org/x/tools/imports"
@@ -134,25 +135,6 @@ func (fo *FileOperator) GetLine(pos int) string {
 func (fo *FileOperator) GetLines() []string {
 	return fo.lines
 }
-
-// AddDir 用于在`Assets`中添加一个新的文件夹。
-//
-// Params:
-//
-//   - path: 文件夹路径。
-//     default: 111
-//
-// Returns:
-//
-// 0: 成功。
-//
-// Example:
-//
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
-//
-// ErrCodes:
-//   - Err_0200010001
-//   - Err_0200010002
 
 // Find 查找文件中的标记位置，
 // 如果找到则返回行号，行号从1开始；否则返回-1。
@@ -305,6 +287,95 @@ func (fo *FileOperator) BatchInsert(pos int, contents []string) (nextPos int, er
 // Push 在文件末尾追加内容
 func (fo *FileOperator) Append(content string) {
 	fo.lines = append(fo.lines, content)
+}
+
+// Replace 替换文件中的指定内容
+//
+// Params:
+//
+//   - oldContent: 要替换的原内容。
+//   - newContent: 新的内容。
+//
+// Returns:
+//
+//   - 是否找到并替换了内容。
+//   - 错误信息。
+//
+// Example:
+//
+//	oldResponse := `export class WasmApiResponse {
+//	  free(): void;
+//	  readonly code: number;
+//	  readonly data: any;
+//	  readonly message: string;
+//	}`
+//	newResponse := `export class WasmApiResponse<T> {
+//	  free(): void;
+//	  readonly code: number;
+//	  readonly data: T;
+//	  readonly message: string;
+//	}`
+//	replaced, err := fo.Replace(oldResponse, newResponse)
+func (fo *FileOperator) Replace(oldContent, newContent string) (bool, error) {
+	// 将整个文件内容转换为字符串
+	content := fo.getContent()
+
+	// 检查原内容是否存在
+	if !strings.Contains(content, oldContent) {
+		return false, nil
+	}
+
+	// 替换内容
+	newFileContent := strings.ReplaceAll(content, oldContent, newContent)
+
+	// 按行分割新内容
+	fo.lines = strings.Split(strings.TrimRight(newFileContent, "\n"), "\n")
+
+	return true, nil
+}
+
+// ReplaceWithRegexp 使用正则表达式和回调函数替换文件内容
+//
+// Params:
+//
+//   - re: 正则表达式。
+//   - replacer: 替换回调函数，接收匹配的字符串，返回替换后的字符串。
+//
+// Returns:
+//
+//   - 是否找到并替换了内容。
+//   - 错误信息。
+//
+// Example:
+//
+//	// 将所有的数字替换为其两倍
+//	re := regexp.MustCompile(`\d+`)
+//	result, err := fo.ReplaceWithRegexp(re, func(match string) string {
+//		num, _ := strconv.Atoi(match)
+//		return strconv.Itoa(num * 2)
+//	})
+func (fo *FileOperator) ReplaceWithRegexp(re *regexp.Regexp, replacer func(string) string) (bool, error) {
+	// 获取当前内容
+	content := fo.getContent()
+
+	// 找到所有匹配项
+	matches := re.FindAllString(content, -1)
+	if len(matches) == 0 {
+		return false, nil
+	}
+
+	// 使用正则表达式和回调函数替换内容
+	newContent := re.ReplaceAllStringFunc(content, replacer)
+
+	// 如果内容没有变化，返回 false
+	if newContent == content {
+		return false, nil
+	}
+
+	// 更新行内容
+	fo.lines = strings.Split(strings.TrimRight(newContent, "\n"), "\n")
+
+	return true, nil
 }
 
 // Save 保存修改后的内容到文件

@@ -2,6 +2,7 @@ package field
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -32,21 +33,27 @@ func (b *BaseBuilder[T]) Init(desc *entity.Descriptor) error {
 }
 
 func (b *BaseBuilder[T]) sliceTypeDetails() (int, string) {
-
 	depth := 0
-	// Safely get the type of T, checking for nil pointer dereference safety.
 	var zero T
-	refType := reflect.TypeOf(zero) // Use a zero value of T instead of nil pointer
-	// Process the type to determine depth and base type.
+	refType := reflect.TypeOf(zero)
+
+	// 处理数组、切片、指针类型
 	for refType.Kind() == reflect.Array || refType.Kind() == reflect.Slice || refType.Kind() == reflect.Ptr {
 		if refType.Kind() == reflect.Ptr {
-			refType = refType.Elem() // Dereference pointer type
+			refType = refType.Elem()
 		} else {
 			refType = refType.Elem()
-			depth++ // Increment depth for arrays or slices
+			depth++
 		}
 	}
-	return depth, refType.Name()
+
+	// 使用 PkgPath() + "." + Name() 获取完整类型名
+	if refType.PkgPath() != "" {
+		return depth, refType.PkgPath() + "." + refType.Name()
+	}
+
+	// 对于内置类型，直接返回 String()
+	return depth, refType.String()
 }
 
 // Descriptor 获取字段的描述信息。
@@ -68,12 +75,25 @@ func (b *BaseBuilder[T]) AttrType(dbType dialect.DbDriver) string {
 	return attrType(t, dbType)
 }
 
+// SetValueType 设置字段的值在go中类型名称。
+//
+// Params:
+//
+//   - valueType: 字段的值在go中类型名称。
+func (b *BaseBuilder[T]) SetValueType(valueType string) *BaseBuilder[T] {
+	b.desc.ValueType = valueType
+	return b
+}
+
 // ValueType 用于设置字段的值在go中类型名称。例如entity.Int64的ValueType为"int64"。
 //
 // Returns:
 //
 //   - 字段的值在go中类型名称。
 func (b *BaseBuilder[T]) ValueType() string {
+	if b.desc.ValueType != "" {
+		return b.desc.ValueType
+	}
 	var t T
 	return valueType(t)
 }
@@ -83,6 +103,60 @@ func (b *BaseBuilder[T]) ValueType() string {
 // `ExtTemplate`是和字段相关联，只要调用字段就会生成代码，避免了每次都要手动调用模版。
 func (b *BaseBuilder[T]) ExtTemplate() []string {
 	return []string{}
+}
+
+// Unique 设置字段为唯一字段或参与联合唯一约束。
+// 相同的序号表示这些字段组成联合唯一约束。
+func (b *BaseBuilder[T]) Unique(index int) *BaseBuilder[T] {
+	b.desc.Uniques = append(b.desc.Uniques, index)
+	return b
+}
+
+// Index 设置字段为索引。
+func (b *BaseBuilder[T]) Index(index int) *BaseBuilder[T] {
+	// 追加而不是覆盖
+	b.desc.Indexes = append(b.desc.Indexes, index)
+	return b
+}
+
+// IndexName 设置索引名称。
+//
+// Params:
+//   - name: 索引名称。
+func (b *BaseBuilder[T]) IndexName(name string) *BaseBuilder[T] {
+	b.desc.IndexName = name
+	return b
+}
+
+// IndexMethod 设置索引方法。
+//
+// Params:
+//   - method: 索引方法,如"btree","hash"等。
+func (b *BaseBuilder[T]) IndexMethod(method string) *BaseBuilder[T] {
+	b.desc.IndexMethod = method
+	return b
+}
+
+// CheckBuilder 是检查约束的构建器函数类型
+type CheckBuilder func(fieldName string) string
+
+// Check 添加CHECK约束到字段
+// 参数 builder 是一个回调函数，接收字段名并返回CHECK约束的内容
+func (b *BaseBuilder[T]) Check(builder CheckBuilder) *BaseBuilder[T] {
+	if b == nil {
+		panic("taurus_go/entity field check: nil pointer dereference.")
+	}
+	// 获取字段在数据库中的实际名称
+	fieldName := b.desc.AttrName
+	if fieldName == "" {
+		fieldName = b.desc.Name
+	}
+
+	// 调用构建器生成约束内容
+	constraint := builder(fieldName)
+	b.desc.CheckConstraint = constraint
+
+	return b
 }
 
 type BaseStorage[T any] struct {
@@ -133,6 +207,24 @@ func (i *BaseStorage[T]) SqlFormatParam() func(dbType dialect.DbDriver, param st
 func (i *BaseStorage[T]) SqlSelectFormat() func(dbType dialect.DbDriver, name string) string {
 	return func(dbType dialect.DbDriver, name string) string {
 		return name
+	}
+}
+
+// MarshalJSON 用于将字段的值转换为JSON格式。
+func (i *BaseStorage[T]) MarshalJSON() ([]byte, error) {
+	// 如果值为nil，返回null
+	if i == nil || i.Get() == nil {
+		return []byte("null"), nil
+	}
+
+	// 对于字符串类型，需要确保正确的JSON字符串格式
+	value := i.Get()
+	switch v := any(*value).(type) {
+	case string:
+		return json.Marshal(v)
+	default:
+		// 其他类型使用标准JSON序列化
+		return json.Marshal(*value)
 	}
 }
 
@@ -357,6 +449,16 @@ func valueType(t any) string {
 		return "[][][][]time.Time"
 	case [][][][][]time.Time:
 		return "[][][][][]time.Time"
+	case []string:
+		return "[]string"
+	case [][]string:
+		return "[][]string"
+	case [][][]string:
+		return "[][][]string"
+	case [][][][]string:
+		return "[][][][]string"
+	case [][][][][]string:
+		return "[][][][][]string"
 	default:
 		return ""
 	}

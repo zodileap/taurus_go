@@ -169,6 +169,7 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 	config := entity.GetConfig()
 	if *(config.SqlConsole) {
 		tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+		tlog.Debug(*config.SqlLogger, fmt.Sprintf("args: %v", spec.Args))
 	}
 	var rows dialect.Rows
 	err = drv.Query(ctx, spec.Query, spec.Args, &rows)

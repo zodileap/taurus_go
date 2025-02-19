@@ -195,7 +195,10 @@ func (b *createBuilder) setColumns(inserter *Inserter) error {
 	t := b.entityBuilder.builder.Table(b.Entity.Name)
 	for _, fields := range b.Fields {
 		err := setColumns(fields, func(column string, field FieldSpec) {
-			inserter.Set(column, t.as, field)
+			if field.Param != nil {
+				inserter.Set(column, t.as, field)
+			}
+
 		})
 		if err != nil {
 			return err

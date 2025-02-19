@@ -13,17 +13,24 @@ var (
 	// Funcs are the predefined template
 	// functions used by the codegen.
 	Funcs = template.FuncMap{
-		"base":             filepath.Base,
-		"dict":             dict,
-		"toLower":          toLower,
-		"toFirstCap":       toFirstCap,
-		"toFirstLower":     toFirstLower,
-		"toSnakeCase":      stringutil.ToSnakeCase,
-		"stringReplace":    strings.Replace,
-		"stringHasPrefix":  strings.HasPrefix,
-		"stringReplaceAll": strings.ReplaceAll,
-		"sub":              sub,
-		"joinStrings":      joinStrings,
+		"filePathBase":        filepath.Base,
+		"createMap":           dict,
+		"stringToLower":       toLower,
+		"stringToFirstCap":    toFirstCap,
+		"stringToFirstLower":  toFirstLower,
+		"stringToSnakeCase":   stringutil.ToSnakeCase,
+		"stringToCamelCase":   stringutil.ToCamelCase,
+		"stringReplace":       strings.Replace,
+		"stringHasPrefix":     strings.HasPrefix,
+		"stringReplaceAll":    strings.ReplaceAll,
+		"stringSub":           sub,
+		"stringJoin":          StringJoin,
+		"stringIndex":         strings.Index,
+		"stringSplice":        splice,
+		"stringContains":      strings.Contains,
+		"stringSplit":         strings.Split,
+		"toString":            toString,
+		"stringGetSpilceLast": stringLast,
 	}
 	acronyms = make(map[string]struct{})
 )
@@ -64,7 +71,38 @@ func sub(a, b int) int {
 	return a - b
 }
 
-// joinStrings 把字符串列表连接起来。
-func joinStrings(ss ...string) string {
+// StringJoin 把字符串列表连接起来。
+func StringJoin(ss ...string) string {
 	return strings.Join(ss, "")
+}
+
+// toString 将uint8转换为string
+func toString(b uint8) string {
+	return string(b)
+}
+
+// splice 从字符串指定位置截取指定长度
+func splice(s string, start int, length int) string {
+	runes := []rune(s)
+	if start < 0 {
+		start = len(runes) + start // 负数表示从末尾开始
+	}
+	if start >= len(runes) {
+		return s
+	}
+	if length < 0 {
+		length = len(runes) - start + length
+	}
+	if start+length > len(runes) {
+		length = len(runes) - start
+	}
+	return string(runes[start : start+length])
+}
+
+// stringLast 获取字符串切片的最后一个元素
+func stringLast(arr []string) string {
+	if len(arr) == 0 {
+		return ""
+	}
+	return arr[len(arr)-1]
 }

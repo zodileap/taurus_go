@@ -15,6 +15,25 @@ type Assets struct {
 	Files map[string][]byte
 }
 
+// AddDir 用于在`Assets`中添加一个新的文件夹。
+//
+// Params:
+//
+//   - path: 文件夹路径。
+//     default: 111
+//
+// Returns:
+//
+// 0: 成功。
+//
+// Example:
+//
+// ExamplePath:  taurus_go_demo/asset/asset_test.go
+//
+// ErrCodes:
+//   - Err_0200010001
+//   - Err_0200010002
+
 // Add 用于在`Assets`中添加一个新的文件。
 //
 // Params:
@@ -148,6 +167,43 @@ func (a Assets) Format() error {
 		}
 
 	}
+	return nil
+}
+
+// CopyFile 用于复制文件到新的位置。
+//
+// Params:
+//
+//   - srcPath: 源文件路径。
+//   - dstPath: 目标文件路径。
+//
+// Returns:
+//
+// error: 如果出现错误则返回错误信息，成功返回 nil。
+//
+// Example:
+//
+//	var assets asset.Assets
+//	err := assets.CopyFile("./source.txt", "./dest/source.txt")
+//	if err != nil {
+//		fmt.Print(err)
+//	}
+//
+// ExamplePath:  taurus_go_demo/asset/asset_test.go
+//
+// ErrCodes:
+//   - Err_0200010001
+//   - Err_0200010002
+func (a *Assets) CopyFile(srcPath, dstPath string) error {
+	// 读取源文件内容
+	content, err := os.ReadFile(srcPath)
+	if err != nil {
+		return Err_0200010001.Sprintf(srcPath, err)
+	}
+
+	// 使用 Add 方法添加到 Assets 中
+	a.Add(dstPath, content)
+
 	return nil
 }
 

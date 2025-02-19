@@ -1,21 +1,21 @@
 {{ define "entity/delete" }}
-{{ $entity := toFirstLower $.Entity.Name}}
+{{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity  "Entity" $.Entity }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Delete is the delete action for the {{ $entity }}.
 type {{ $entity }}Delete struct {
 	config *internal.Dialect
-	es         []*{{toFirstCap $entity }}
+	es         []*{{stringToFirstCap $entity }}
 	predicates []entitysql.PredicateFunc
 }
 
-// new{{toFirstCap $entity }}Delete creates a new {{ $entity }}Delete.
-func new{{toFirstCap $entity }}Delete(c *internal.Dialect, es ...*{{toFirstCap $entity }}) *{{ $entity }}Delete {
+// new{{stringToFirstCap $entity }}Delete creates a new {{ $entity }}Delete.
+func new{{stringToFirstCap $entity }}Delete(c *internal.Dialect, es ...*{{stringToFirstCap $entity }}) *{{ $entity }}Delete {
 	return &{{ $entity }}Delete{
 		config: c,
 		es: es,

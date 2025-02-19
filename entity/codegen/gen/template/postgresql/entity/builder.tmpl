@@ -1,26 +1,28 @@
 {{ define "entity/builder" }}
-{{ $entity := .Entity.Name }}
+{{ $entity :=  .Entity.Name }}
 {{ $entityAttr := .Entity.AttrName }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
-{{ $BuilderName := joinStrings ( toFirstLower  $entity ) "Builder" }}
+{{ $BuilderName := stringJoin ( stringToLower  $entity ) "Builder" }}
 
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $BuilderName }} is a builder for the {{ $entity }} entity.
 //
 // The builder is used to create, update, and delete {{ $entity }} entities.
 type {{ $BuilderName }} struct {
-	config *{{ toFirstLower $entity}}Config
+	config *{{ stringToLower $entity}}Config
 	tracker   entity.Tracker
 
 	{{- range $field :=  .Entity.Fields }}
-	{{ if $field.Comment }}
-	// {{ $field.Name }} {{ $field.Comment }}
-	{{- end }}
+	{{- if $field.Comment }}
+	{{ $field.Name }} {{ $.Entity.AttrName }}.Pred{{ $field.Name }} // {{ $field.Name }} {{ $field.Comment }}
+	{{- else }}
 	{{ $field.Name }} {{ $.Entity.AttrName }}.Pred{{ $field.Name }}
+	{{- end }}
+	
 	{{- end }}
 
 	{{- range $field :=  .Entity.Fields }}
@@ -32,23 +34,23 @@ type {{ $BuilderName }} struct {
 	{{- range $relation :=  .Entity.Relations }}
 	{{ $result := getEntityRel $relation $.Entity  }}
 	{{ with $result }} 
-	// {{ toFirstCap $result.Name}} configures the query to include data from the '{{$result.AttrName}}' table.
+	// {{ stringToFirstCap $result.Name}} configures the query to include data from the '{{$result.AttrName}}' table.
 	// The method modifies the existing query to include a LEFT JOIN clause.
-	// {{ toFirstCap $result.Name }} be used as an argument to the Include method。
-	{{ toFirstCap $result.Name}} *{{ toFirstLower $result.RelType }}
+	// {{ stringToFirstCap $result.Name }} be used as an argument to the Include method。
+	{{ stringToFirstCap $result.Name}} *{{ $result.RelType }}
 	{{ end }}
 	{{- end }}
 }
 
-// new{{ $BuilderName }} creates a new {{ $BuilderName }}.
-func new{{ toFirstCap $BuilderName }}(c *{{ toFirstLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ toFirstLower $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
-	return &{{ $BuilderName }}{
+// new{{  $entity }}Builder creates a new {{  $entity }}Builder .
+func new{{  $entity }}Builder (c *{{ stringToLower $entity}}Config, t entity.Tracker {{- range $relation :=  .Entity.Relations }} {{- $result := getEntityRel $relation $.Entity  }}{{- with $result }} ,{{ $result.Name }} {{ $result.RelType }}{{- end }}{{- end }}) *{{ $BuilderName }} {
+	return &{{  $BuilderName }} {
 		config:  c,
 		tracker: t,
 		{{ range $relation :=  .Entity.Relations }}
 		{{- $result := getEntityRel $relation $.Entity  }}
 		{{- with $result }} 
-		{{- toFirstCap $result.Name }}: &{{ $result.Name }},
+		{{- stringToFirstCap $result.Name }}: &{{ $result.Name }},
 		{{- end }}
 		{{- end }}
 	}
@@ -85,45 +87,45 @@ func (s *{{ $BuilderName }}) ToList(ctx context.Context) ([]*{{ $entity }}, erro
 	return query.ToList(ctx)
 }
 
-func (s *{{ $BuilderName }}) Include(rels ...{{ toFirstLower $entity }}Rel) *{{ toFirstCap $entity }}Query {
+func (s *{{ $BuilderName }}) Include(rels ...{{ stringToLower $entity }}Rel) *{{ stringToFirstCap $entity }}Query {
 	query := s.initQuery()
 	return query.Include(rels...)
 }
 
-func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ toFirstCap $entity }}Query {
+func (s *{{ $BuilderName }}) Order(o ...{{ $.Entity.AttrName }}.OrderTerm) *{{ stringToFirstCap $entity }}Query {
 	query := s.initQuery()
 	return query.Order(o...)
 }
 
-func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ toFirstCap $entity }}Query {
+func (s *{{ $BuilderName }}) Where(conditions ...entitysql.PredicateFunc) *{{ stringToFirstCap $entity }}Query {
 	query := s.initQuery()
 	return query.Where(conditions...)
 }
 
 {{- range $field :=  .Entity.Fields }}
-{{ $info := dict "Field" $field "EntityName" $entity "Entity" $entity "BuilderName" $BuilderName }}
+{{ $info := createMap "Field" $field "EntityName" $entity "Entity" $entity "BuilderName" $BuilderName }}
 {{ template "with_field" $info }}
 {{- end }}
 
-// Exec executes all the {{ toFirstLower $entity }}Mutations for the {{ $entity }}.
+// Exec executes all the {{ stringToLower $entity }}Mutations for the {{ $entity }}.
 func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
-	if len(s.config.{{ toFirstLower $entity }}Mutations.Addeds) > 0 {
-		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Added)
-		n := new{{ $entity }}Create(s.config.Dialect, e...)
+	if len(s.config.{{ stringToLower $entity }}Mutations.Addeds) > 0 {
+		e := s.config.{{ stringToLower $entity }}Mutations.Get(entity.Added)
+		n := new{{ stringToFirstCap $entity }}Create(s.config.Dialect, e...)
 		if err := n.create(ctx, tx); err != nil {
 			return err
 		}
 	}
-	if len(s.config.{{ toFirstLower $entity }}Mutations.Modifieds) > 0 {
-		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Modified)
-		n := new{{ $entity }}Update(s.config.Dialect, e...)
+	if len(s.config.{{ stringToLower $entity }}Mutations.Modifieds) > 0 {
+		e := s.config.{{ stringToLower $entity }}Mutations.Get(entity.Modified)
+		n := new{{ stringToFirstCap $entity }}Update(s.config.Dialect, e...)
 		if err := n.update(ctx, tx); err != nil {
 			return err
 		}
 	}
-	if len(s.config.{{ toFirstLower $entity }}Mutations.Deleteds) > 0 {
-		e := s.config.{{ toFirstLower $entity }}Mutations.Get(entity.Deleted)
-		n := new{{ $entity }}Delete(s.config.Dialect, e...)
+	if len(s.config.{{ stringToLower $entity }}Mutations.Deleteds) > 0 {
+		e := s.config.{{ stringToLower $entity }}Mutations.Get(entity.Deleted)
+		n := new{{ stringToFirstCap $entity }}Delete(s.config.Dialect, e...)
 		if err := n.delete(ctx, tx); err != nil {
 			return err
 		}
@@ -131,12 +133,12 @@ func (s *{{ $BuilderName }}) Exec(ctx context.Context, tx dialect.Tx) error {
 	return nil
 }
 
-func (s *{{ $BuilderName }}) initQuery() *{{ toFirstCap $entity }}Query {
-	return new{{ $entity }}Query(s.config.Dialect, s.tracker, s.config.{{ toFirstLower $entity }}Mutations)
+func (s *{{ $BuilderName }}) initQuery() *{{ stringToFirstCap $entity }}Query {
+	return new{{ $entity }}Query(s.config.Dialect, s.tracker, s.config.{{ stringToLower $entity }}Mutations)
 }
 
-// {{ toFirstLower $entity }}Mutations is a collection of {{ $entity }} mutation.
-type {{ toFirstLower $entity  }}Mutations struct {
+// {{ stringToLower $entity }}Mutations is a collection of {{ $entity }} mutation.
+type {{ stringToLower $entity  }}Mutations struct {
 	Detacheds  map[string]*{{ $entity }}
 	Unchangeds map[string]*{{ $entity }}
 	Deleteds   map[string]*{{ $entity }}
@@ -145,8 +147,8 @@ type {{ toFirstLower $entity  }}Mutations struct {
 }
 
 // new{{ .Entity.Name }}Mutations creates a new mutations.
-func new{{ toFirstCap $entity }}Mutations() *{{ toFirstLower $entity }}Mutations {
-	return &{{ toFirstLower $entity }}Mutations{
+func new{{ stringToFirstCap $entity }}Mutations() *{{ stringToLower $entity }}Mutations {
+	return &{{ stringToLower $entity }}Mutations{
 		Detacheds:  make(map[string]*{{ $entity }}),
 		Unchangeds: make(map[string]*{{ $entity }}),
 		Deleteds:   make(map[string]*{{ $entity }}),
@@ -156,7 +158,7 @@ func new{{ toFirstCap $entity }}Mutations() *{{ toFirstLower $entity }}Mutations
 }
 
 // Get returns all the {{ $entity }} in the specified state.
-func (ms *{{ toFirstLower $entity  }}Mutations) Get(state entity.EntityState) []*{{ $entity }} {
+func (ms *{{ stringToLower $entity  }}Mutations) Get(state entity.EntityState) []*{{ $entity }} {
 	switch state {
 	case entity.Detached:
 		s := make([]*{{ $entity }}, 0, len(ms.Detacheds))
@@ -193,7 +195,7 @@ func (ms *{{ toFirstLower $entity  }}Mutations) Get(state entity.EntityState) []
 }
 
 // SetEntityState sets the state of the entity.
-func (ms *{{ toFirstLower $entity  }}Mutations) SetEntityState(e *{{ $entity }}, state entity.EntityState) error {
+func (ms *{{ stringToLower $entity  }}Mutations) SetEntityState(e *{{ $entity }}, state entity.EntityState) error {
 	m := e.config.Mutation
 	ms.set(e, state)
 	if err := internal.SetEntityState(m, state); err != nil {
@@ -204,7 +206,7 @@ func (ms *{{ toFirstLower $entity  }}Mutations) SetEntityState(e *{{ $entity }},
 
 // ChangeEntityState attempts to set the desired entity state,
 // but will not do so if the conditions are not met.
-func (ms *{{ toFirstLower $entity  }}Mutations) ChangeEntityState(m *entity.Mutation, state entity.EntityState) {
+func (ms *{{ stringToLower $entity  }}Mutations) ChangeEntityState(m *entity.Mutation, state entity.EntityState) {
 	e := ms.getEntity(m)
 	ms.set(e, state)
 	if err := internal.SetEntityState(m, state); err != nil {
@@ -213,7 +215,7 @@ func (ms *{{ toFirstLower $entity  }}Mutations) ChangeEntityState(m *entity.Muta
 }
 
 // getEntity returns the entity in the specified state.
-func (ms *{{ toFirstLower $entity  }}Mutations) getEntity(m *entity.Mutation) *{{ $entity }} {
+func (ms *{{ stringToLower $entity  }}Mutations) getEntity(m *entity.Mutation) *{{ $entity }} {
 	key := m.Key()
 	switch m.State() {
 	case entity.Detached:
@@ -231,7 +233,7 @@ func (ms *{{ toFirstLower $entity  }}Mutations) getEntity(m *entity.Mutation) *{
 }
 
 // Set sets the entity in the specified state.
-func (ms *{{ toFirstLower $entity  }}Mutations) set(e *{{ $entity }}, state entity.EntityState) {
+func (ms *{{ stringToLower $entity  }}Mutations) set(e *{{ $entity }}, state entity.EntityState) {
 	m := e.config.Mutation
 	key := m.Key()
 	switch m.State() {
@@ -266,10 +268,10 @@ func (ms *{{ toFirstLower $entity  }}Mutations) set(e *{{ $entity }}, state enti
 {{ define "with_field"}}
 {{ if not .Field.Locked }}
 {{ if or ( not .Field.Required ) ( and .Field.Required  .Field.Default )  }}
-// With{{ .Field.Name }} sets the "{{ toLower .Field.AttrName }}" field of the {{ .Entity }}.
-func (s *{{ .BuilderName }}) With{{ .Field.Name }}({{ toLower  .Field.Name }} {{ .Field.ValueType }}) func(*{{ .EntityName }}) {
+// With{{ .Field.Name }} sets the "{{ stringToLower .Field.AttrName }}" field of the {{ .Entity }}.
+func (s *{{ .BuilderName }}) With{{ .Field.Name }}({{ stringToLower  .Field.Name }} {{ .Field.ValueType }}) func(*{{ .EntityName }}) {
 	return func(e *{{ .EntityName }}) {
-		e.{{ .Field.Name }}.Set({{ toLower  .Field.Name }} )
+		e.{{ .Field.Name }}.Set({{ stringToLower  .Field.Name }} )
 	}
 }
 {{ end }}

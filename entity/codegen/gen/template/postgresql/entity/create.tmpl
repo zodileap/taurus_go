@@ -1,20 +1,20 @@
 {{ define "entity/create" }}
-{{ $entity := toFirstLower $.Entity.Name}}
+{{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Create is the create action for the {{ $entity }}.
 type {{ $entity }}Create struct {
 	config *internal.Dialect
-	es []*{{toFirstCap $entity }}
+	es []*{{stringToFirstCap $entity }}
 }
 
-// new{{ toFirstCap $entity }}Create creates a new {{ $entity }}Create.
-func new{{ toFirstCap $entity }}Create(c *internal.Dialect, es ...*{{toFirstCap $entity }}) *{{ $entity }}Create {
+// new{{ stringToFirstCap $entity }}Create creates a new {{ $entity }}Create.
+func new{{ stringToFirstCap $entity }}Create(c *internal.Dialect, es ...*{{stringToFirstCap $entity }}) *{{ $entity }}Create {
 	return &{{ $entity }}Create{
 		config: c,
 		es:      es,
@@ -81,6 +81,18 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
 					fieldSpace.Param = v
 					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.Default = {{ $field.Default }}
+					fields = append(fields, &fieldSpace)
+				{{- else }}
+				case {{ $entityAttr }}.Field{{ $field.Name }}.Name:
+					v, err := e.{{ $field.Name }}.SqlParam(o.config.Driver.Dialect())
+					if err != nil {
+						return nil, err
+					}
+					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
+					fieldSpace.Param = v
+					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.Default = {{ $field.Default }}
 					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- else }}
@@ -92,6 +104,7 @@ func (o *{{ $entity }}Create) createSpec() (*entitysql.CreateSpec, error) {
 					fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
 					fieldSpace.Param = v
 					fieldSpace.ParamFormat = e.{{ $field.Name }}.SqlFormatParam()
+					fieldSpace.Default = {{ $field.Default }}
 					fields = append(fields, &fieldSpace)
 				{{- end }}
 				{{- end }}

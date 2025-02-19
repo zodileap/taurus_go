@@ -13,8 +13,8 @@ import (
 	"golang.org/x/text/language"
 )
 
-// funcMap gen中模版需要用到的函数的映射
-var funcMap = template.FuncMap{
+// FuncMap gen中模版需要用到的函数的映射
+var FuncMap = template.FuncMap{
 	"joinFieldAttrNames":        joinFieldAttrNames,
 	"joinFieldPrimaies":         joinFieldPrimaies,
 	"joinRequiredFields":        joinRequiredFields,
@@ -24,6 +24,13 @@ var funcMap = template.FuncMap{
 	"getRequiredFields":         getRequiredFields,
 	"getEntityRel":              getEntityRel,
 	"getEntityRelDirection":     getEntityRelDirection,
+	"getIndexGroups":            getIndexGroups,
+	"getIndexMethod":            getIndexMethod,
+	"stringFirstField":          stringFirstField,
+	"stringJoinIndexFields":     stringJoinIndexFields,
+	"stringJoinIndexColumns":    stringJoinIndexColumns,
+	"stringJoinQuotedColumns":   stringJoinQuotedColumns,
+	"getUniqueGroups":           getUniqueGroups,
 }
 
 // joinFieldAttrNames 把字段的AttrName连接起来。
@@ -202,7 +209,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(convertRelName(rel.Dependent.AttrName), "", 1),
 				AttrName:   rel.Dependent.AttrName,
-				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", strings.ToLower(stringutil.ToUpperFirst(rel.Dependent.Name, "", 1))),
 				EntityType: fmt.Sprintf("*%s", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
 				Rel:        rel.Dependent,
 			}
@@ -210,7 +217,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(convertRelName(rel.Dependent.AttrName), "", 1) + "s",
 				AttrName:   rel.Dependent.AttrName,
-				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", strings.ToLower(stringutil.ToUpperFirst(rel.Dependent.Name, "", 1))),
 				EntityType: fmt.Sprintf("[]*%s", stringutil.ToUpperFirst(rel.Dependent.Name, "", 1)),
 				Rel:        rel.Dependent,
 			}
@@ -220,7 +227,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(convertRelName(rel.Principal.AttrName), "", 1),
 				AttrName:   rel.Principal.AttrName,
-				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", strings.ToLower(stringutil.ToUpperFirst(rel.Principal.Name, "", 1))),
 				EntityType: fmt.Sprintf("*%s", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				Rel:        rel.Principal,
 			}
@@ -228,7 +235,7 @@ func getEntityRel(rel *load.Relation, e *load.Entity) *getEntityRelResult {
 			return &getEntityRelResult{
 				Name:       stringutil.ToUpperFirst(convertRelName(rel.Principal.AttrName), "", 1) + "s",
 				AttrName:   rel.Principal.AttrName,
-				RelType:    fmt.Sprintf("%sRelation", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
+				RelType:    fmt.Sprintf("%sRelation", strings.ToLower(stringutil.ToUpperFirst(rel.Principal.Name, "", 1))),
 				EntityType: fmt.Sprintf("[]*%s", stringutil.ToUpperFirst(rel.Principal.Name, "", 1)),
 				Rel:        rel.Principal,
 			}
@@ -256,4 +263,73 @@ func getEntityRelDirection(rel *load.Relation, e *load.Entity) getEntityRelDirec
 		}
 	}
 	return getEntityRelDirectionResult{}
+}
+
+// stringFirstField 获取切片中的第一个元素
+func stringFirstField(fields []string) string {
+	if len(fields) > 0 {
+		return fields[0]
+	}
+	return ""
+}
+
+// stringJoinIndexFields 拼接字段名
+func stringJoinIndexFields(fields []string) string {
+	return strings.Join(fields, "_")
+}
+
+// stringJoinIndexColumns 拼接字段为逗号分隔的列表
+func stringJoinIndexColumns(fields []string) string {
+	return strings.Join(fields, ", ")
+}
+
+// stringJoinQuotedColumns 将列名添加引号并用逗号连接
+func stringJoinQuotedColumns(fields []string) string {
+	quoted := make([]string, len(fields))
+	for i, field := range fields {
+		quoted[i] = fmt.Sprintf("%q", field)
+	}
+	return strings.Join(quoted, ", ")
+}
+
+// getIndexGroups 获取需要创建索引的字段分组
+func getIndexGroups(fields []*load.Field) map[int][]string {
+	groups := make(map[int][]string)
+	// 先处理所有的多字段索引
+	for _, field := range fields {
+		for _, idx := range field.Indexes {
+			if existingFields, ok := groups[idx]; !ok || len(existingFields) == 0 {
+				// 如果这个索引号还没有字段，添加为单字段索引
+				groups[idx] = []string{field.AttrName}
+			} else {
+				// 如果这个索引号已经有字段了，说明是联合索引的一部分
+				groups[idx] = append(groups[idx], field.AttrName)
+			}
+		}
+	}
+	return groups
+}
+
+// getIndexMethod 获取索引方法
+func getIndexMethod(fields []*load.Field, index int) string {
+	for _, field := range fields {
+		// 检查字段是否参与这个索引
+		for _, idx := range field.Indexes {
+			if idx == index && field.IndexMethod != "" && field.IndexMethod != "btree" {
+				return fmt.Sprintf("USING %s", field.IndexMethod)
+			}
+		}
+	}
+	return "" // 默认btree时返回空字符串，不输出USING子句
+}
+
+// getUniqueGroups 获取唯一约束分组
+func getUniqueGroups(fields []*load.Field) map[int][]string {
+	groups := make(map[int][]string)
+	for _, field := range fields {
+		for _, idx := range field.Uniques {
+			groups[idx] = append(groups[idx], field.AttrName)
+		}
+	}
+	return groups
 }

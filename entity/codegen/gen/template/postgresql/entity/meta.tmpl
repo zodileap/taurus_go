@@ -1,7 +1,7 @@
 {{ define "entity/meta" }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" $entityAttr}}
+{{ $header := createMap "Package" $entityAttr}}
 {{ template "header" $header }}
 
 import (

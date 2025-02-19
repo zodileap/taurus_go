@@ -5,6 +5,12 @@ import (
 	"github.com/yohobala/taurus_go/template"
 )
 
+// ExtTemplate 用于外部传入的template
+type ExtTemplate struct {
+	Tmpl        *template.Template // 模板
+	TargetPaths []string           // 目标路径,如果为空，则使用entity生成的路径为目标路径
+}
+
 // Config 代码生成的全局配置，并在所有生成的节点之间共享
 type Config struct {
 	// Target 保存生成的代码的目标路径。
@@ -36,8 +42,10 @@ type Config struct {
 	IDType *field.TypeInfo
 
 	// Templates 外部传入的template
-	Templates []*template.Template
+	Templates []ExtTemplate
 
 	// ExtraCodes 保存额外的代码，它将被添加到生成的代码中
 	ExtraCodes []string
+
+	ExtTemplatesTargetPaths []string
 }
