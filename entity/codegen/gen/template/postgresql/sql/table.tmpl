@@ -13,8 +13,8 @@ BEGIN
 {{ range $key, $entity := $.Database.Entities }}
 {{- $schema := `"public"` }}
 {{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- $table := stringJoin   `"` $entity.AttrName  `"`}}
+{{- $tableV := stringJoin   `'` $entity.AttrName  `'`}}
 {{- range $i,$rel := $entity.Relations }}
 IF EXISTS (
     SELECT 1
@@ -23,7 +23,7 @@ IF EXISTS (
     AND table_name = '{{ $rel.Dependent.AttrName }}'
     AND constraint_name = '{{ $rel.Desc.Constraint }}'
 ) THEN
-    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT "{{ $rel.Desc.Constraint }}";
+    ALTER TABLE "public"."{{ $rel.Dependent.AttrName }}" DROP CONSTRAINT IF EXISTS "{{ $rel.Desc.Constraint }}" CASCADE;
 END IF;
 {{ end }}
 {{- end }}
@@ -33,8 +33,8 @@ $$;
 {{ range $key, $entity := $.Database.Entities }}
 {{ $schema := `"public"` }}
 {{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
+{{- $table := stringJoin   `"` $entity.AttrName  `"`}}
+{{- $tableV := stringJoin   `'` $entity.AttrName  `'`}}
 {{- range $i,$seq := $entity.Sequences -}}
 -- ********
 -- Sequence {{ $seq.Name }}
@@ -58,15 +58,36 @@ DO $$
 DECLARE
     column_rec RECORD;
     v_constraint_name TEXT;
+    v_unique_constraint_name TEXT; 
+    v_check_constraint_name TEXT;
 BEGIN
     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = {{ $schemaV }} AND tablename = {{ $tableV }}) THEN
+        -- 删除所有CHECK约束
+        FOR v_check_constraint_name IN 
+            SELECT conname
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE nsp.nspname = {{ $schemaV }}
+                AND rel.relname = {{ $tableV }}
+                AND con.contype = 'c'
+        LOOP
+            EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_check_constraint_name);
+        END LOOP;
+
         -- Check for any extra columns, and delete them if there are any.
         -- 检查是否有多余的列，如果有则删除。
-        FOR column_rec IN SELECT tbl.column_name, tbl.data_type FROM information_schema.columns tbl WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} LOOP
+        FOR column_rec IN SELECT tbl.column_name, tbl.data_type 
+            FROM information_schema.columns tbl 
+            WHERE table_schema = {{ $schemaV }} 
+            AND table_name = {{ $tableV }} 
+        LOOP
             IF column_rec.column_name NOT IN ({{ joinFieldAttrNames $entity.Fields }}) THEN
-                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP COLUMN IF EXISTS ' || quote_ident(column_rec.column_name) || ' CASCADE;';
+                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP COLUMN IF EXISTS ' || 
+                        quote_ident(column_rec.column_name) || ' CASCADE';
             END IF;
         END LOOP;
+
         -- Check for missing columns, and add them if any are missing.
         -- 检查是否缺少列，如果缺少则添加
         {{- range $i,$field := $entity.Fields }}
@@ -74,29 +95,62 @@ BEGIN
         IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = {{ $schemaV }} AND table_name = {{ $tableV }} AND column_name = '{{ $fieldName }}' ) THEN
             ALTER TABLE {{ $schema }}.{{ $table }} ADD COLUMN {{ template "init_table_field" $field}};
         ELSE
-            {{ template "update_table_field" dict "Schema" $schema "Table" $table "Field" $field }}
+            {{ template "update_table_field" createMap "Schema" $schema "Table" $table "Field" $field }}
         END IF;
         {{- end }}
-        -- Search for the name of any existing primary key constraints. 
-        -- If found, delete them first, then add new primary key constraints.
-        -- 查找现有的主键约束名称，如果找到了先删除它， 添加新的主键约束。
-        SELECT conname INTO v_constraint_name
-        FROM pg_constraint con
-        JOIN pg_class rel ON rel.oid = con.conrelid
-        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-        WHERE nsp.nspname = {{ $schemaV }}
-            AND rel.relname = {{ $tableV }}
-            AND con.contype = 'p';
-        IF v_constraint_name IS NOT NULL THEN
-            EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name);
-        END IF;
+
+        -- Search for existing unique and primary key constraints and drop them
+        -- 查找并删除现有的唯一约束和主键约束
+        BEGIN
+            -- Drop primary key constraint
+            -- 删除主键约束
+            SELECT conname INTO v_constraint_name
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE nsp.nspname = {{ $schemaV }}
+                AND rel.relname = {{ $tableV }}
+                AND con.contype = 'p';
+            IF v_constraint_name IS NOT NULL THEN
+                EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_constraint_name) || ' CASCADE';
+            END IF;
+
+            -- Drop unique constraints
+            -- 删除唯一约束
+            FOR v_unique_constraint_name IN 
+                SELECT conname
+                FROM pg_constraint con
+                JOIN pg_class rel ON rel.oid = con.conrelid
+                JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+                WHERE nsp.nspname = {{ $schemaV }}
+                    AND rel.relname = {{ $tableV }}
+                    AND con.contype = 'u'
+            LOOP
+                BEGIN
+                    EXECUTE 'ALTER TABLE {{ $schema }}.{{ $table }} DROP CONSTRAINT IF EXISTS ' || quote_ident(v_unique_constraint_name);
+                EXCEPTION WHEN OTHERS THEN
+                    RAISE NOTICE 'Error dropping unique constraint %: %', v_unique_constraint_name, SQLERRM;
+                END;
+            END LOOP;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Error during dropping primary key or unique constraints: %', SQLERRM;
+        END;
+
+        -- 添加所有字段的CHECK约束
+        {{- range $i,$field := $entity.Fields }}
+        {{- if $field.CheckConstraint }}
+        ALTER TABLE {{ $schema }}.{{ $table }}
+        ADD CONSTRAINT chk_{{ $entity.AttrName }}_{{ $field.AttrName }}
+        CHECK {{ $field.CheckConstraint }};
+        {{- end }}
+        {{- end }}
     ELSE
         -- If the table does not exist, then create the table.
         -- 如果表不存在，则创建表。
         CREATE TABLE {{ $schema }}.{{ $table }} (
             {{- range $i,$field := $entity.Fields }}
             {{ template "init_table_field" $field }}
-            {{- if ne $i (sub (len $entity.Fields) 1) -}}
+            {{- if ne $i (stringSub (len $entity.Fields) 1) -}}
                 ,
             {{- end }}
             {{- end }}
@@ -115,8 +169,92 @@ BEGIN
     {{- end }}
 
     -- Primary Key.
-     -- 主键。
-    ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
+    -- 主键。
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE nsp.nspname = {{ $schemaV }}
+                AND rel.relname = {{ $tableV }}
+                AND con.contype = 'p'
+        ) THEN
+            BEGIN
+                ALTER TABLE {{ $schema }}.{{ $table }} ADD CONSTRAINT {{ $entity.AttrName }}_pkey PRIMARY KEY ({{ joinFieldPrimaies  $entity.Fields }});
+            EXCEPTION 
+                WHEN duplicate_table THEN
+                    RAISE NOTICE 'Primary key constraint already exists';
+                WHEN OTHERS THEN
+                    RAISE NOTICE 'Error adding primary key constraint: %', SQLERRM;
+            END;
+        END IF;
+    END;
+
+    -- Add unique constraints
+    -- 添加唯一约束
+    BEGIN
+        {{- $uniqueGroups := getUniqueGroups $entity.Fields }}
+        {{- range $index, $fields := $uniqueGroups }}
+        BEGIN
+            {{- if eq (len $fields) 1 }}
+            {{- $constraintName := printf "unique_%s_%s" $entity.AttrName (stringFirstField $fields) }}
+            ALTER TABLE {{ $schema }}.{{ $table }}
+            ADD CONSTRAINT {{ printf "%q" $constraintName }}
+            UNIQUE ("{{ stringFirstField $fields }}");
+            {{- else }}
+            {{- $constraintName := printf "unique_%s_%s" $entity.AttrName (stringJoinIndexFields $fields) }}
+            ALTER TABLE {{ $schema }}.{{ $table }}
+            ADD CONSTRAINT {{ printf "%q" $constraintName }}
+            UNIQUE ({{ stringJoinIndexColumns $fields }});
+            {{- end }}
+        EXCEPTION 
+            WHEN duplicate_table THEN
+                RAISE NOTICE 'Unique constraint already exists';
+            WHEN OTHERS THEN
+                RAISE NOTICE 'Error adding unique constraint: %', SQLERRM;
+        END;
+        {{- end }}
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Error during adding unique constraints: %', SQLERRM;
+    END;
+
+    -- Add indexes
+    -- 添加索引
+    BEGIN
+        {{- $indexGroups := getIndexGroups $entity.Fields }}
+        {{- range $index, $fields := $indexGroups }}
+        BEGIN
+            {{- if eq (len $fields) 1 }}
+            {{- $indexName := printf "idx_%s_%s" $entity.AttrName (stringFirstField $fields) }}
+            -- 删除已存在的索引
+            DROP INDEX IF EXISTS {{ $schema }}.{{ printf "%q" $indexName }};
+            
+            -- 创建新索引
+            CREATE INDEX {{ printf "%q" $indexName }}
+            ON {{ $schema }}.{{ $table }}
+            {{- if $method := getIndexMethod $entity.Fields $index }}
+            {{ $method }}
+            {{- end }}
+            ("{{ stringFirstField $fields }}");
+            {{- else }}
+            {{- $indexName := printf "idx_%s_%s" $entity.AttrName (stringJoinIndexFields $fields) }}
+            -- 删除已存在的索引
+            DROP INDEX IF EXISTS {{ $schema }}.{{ printf "%q" $indexName }};
+            
+            -- 创建新索引
+            CREATE INDEX {{ printf "%q" $indexName }}
+            ON {{ $schema }}.{{ $table }}
+            {{- if $method := getIndexMethod $entity.Fields $index }}
+            {{ $method }}
+            {{- end }}
+            ({{ stringJoinIndexColumns $fields }});
+            {{- end }}
+        END;
+        {{- end }}
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Error during adding indexes: %', SQLERRM;
+    END;
 END
 $$;
 {{ end }}
@@ -131,19 +269,94 @@ DO $$
 BEGIN
 {{ range $key, $entity := $.Database.Entities }}
 {{- $schema := `"public"` }}
-{{- $schemaV := `'public'` }}
-{{- $table := joinStrings   `"` $entity.AttrName  `"`}}
-{{- $tableV := joinStrings   `'` $entity.AttrName  `'`}}
 {{- range $i,$rel := $entity.Relations }}
 {{- if eq $rel.Dependent.AttrName $entity.AttrName }}
-ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
-ADD CONSTRAINT {{ $rel.Desc.Constraint }} FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
-REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
+-- Check if principal table exists first
+IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = '{{ $rel.Principal.AttrName }}'
+) THEN
+    -- 判断是否存在唯一键，不存在添加
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_constraint 
+        WHERE conname = 'unique_{{ $rel.Principal.AttrName }}_{{ $rel.Principal.Field.AttrName }}' 
+        AND conrelid = 'public.{{ $rel.Principal.AttrName }}'::regclass
+    ) THEN
+        ALTER TABLE {{ $schema }}."{{ $rel.Principal.AttrName }}" 
+        ADD CONSTRAINT unique_{{ $rel.Principal.AttrName }}_{{ $rel.Principal.Field.AttrName }} 
+        UNIQUE ({{ $rel.Principal.Field.AttrName }});
+    END IF;
+
+    -- Add foreign key if dependent table exists
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = '{{ $rel.Dependent.AttrName }}'
+    ) THEN
+        ALTER TABLE {{ $schema }}."{{ $rel.Dependent.AttrName }}"
+        ADD CONSTRAINT {{ $rel.Desc.Constraint }} 
+        FOREIGN KEY ("{{ $rel.Dependent.Field.AttrName }}")
+        REFERENCES {{ $schema }}."{{ $rel.Principal.AttrName }}" ("{{ $rel.Principal.Field.AttrName }}");
+    END IF;
+END IF;
 {{ end }}
 {{- end }}
 {{- end }}
 END
 $$;
+
+-- ********
+-- Create Triggers
+-- ********
+{{ if $.Database.Triggers }}
+DO $$
+DECLARE
+    trigger_rec RECORD;
+    func_rec RECORD; 
+BEGIN
+    -- 删除所有存在的触发器和关联函数
+    FOR trigger_rec IN (
+        SELECT tgname as trigger_name, 
+               tgrelid::regclass as table_name,
+               p.proname as function_name
+        FROM pg_trigger t
+        JOIN pg_proc p ON t.tgfoid = p.oid
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+    ) LOOP
+        -- 删除触发器
+        EXECUTE 'DROP TRIGGER IF EXISTS ' || quote_ident(trigger_rec.trigger_name) || 
+                ' ON ' || trigger_rec.table_name;
+        -- 删除关联的触发器函数 
+        EXECUTE 'DROP FUNCTION IF EXISTS public.' || quote_ident(trigger_rec.function_name) || '()';
+    END LOOP;
+
+    {{- range $trigger := $.Database.Triggers }}
+    -- 只为存在的表创建触发器
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = '{{ $trigger.Table }}') THEN
+        -- Create trigger function
+        EXECUTE 'CREATE OR REPLACE FUNCTION "public"."' || quote_ident('{{ $trigger.Name }}_trigger_func') || '"()
+            RETURNS TRIGGER AS $func$
+            BEGIN
+                {{ $trigger.Function }}
+            END;
+            $func$ LANGUAGE plpgsql';
+
+        -- Create trigger
+        EXECUTE 'CREATE TRIGGER "' || quote_ident('{{ $trigger.Name }}') || '"
+                {{ $trigger.Timing }} {{ $trigger.Event }} ON "public"."{{ $trigger.Table }}"
+                {{ $trigger.Level }}
+                {{- if $trigger.Condition }}
+                WHEN ({{ $trigger.Condition }})
+                {{- end }}
+                EXECUTE FUNCTION "public"."{{ $trigger.Name }}_trigger_func"()';
+    END IF;
+    {{- end }}
+END;
+$$;
+{{ end }}
 
 {{ end }}
 
@@ -152,6 +365,7 @@ $$;
         {{- $fieldName }} {{ $.AttrType }}
         {{- if $.Required }} NOT NULL {{- end }}
         {{- if $.Default }} DEFAULT {{ $.DefaultValue }} {{- end }}
+        {{- if $.CheckConstraint }} CHECK {{ $.CheckConstraint }} {{- end }}
 {{- end }}
 
 
@@ -161,5 +375,23 @@ $$;
         {{ if $.Field.Required }}    {{ $header }} SET NOT NULL; {{ else }}    {{ $header }} DROP NOT NULL; {{ end }}
         {{ if $.Field.Default }}    {{ $header }} SET DEFAULT {{ $.Field.DefaultValue }}; {{ else }}    {{ $header }} DROP DEFAULT; {{ end }}
         {{- $header }} TYPE {{ $.Field.AttrType }} USING {{ $fieldName }}::{{ $.Field.AttrType }};
-
 {{- end }}
+
+
+{{define "trigger"}}
+CREATE OR REPLACE FUNCTION {{.Name}}_trigger_func()
+RETURNS TRIGGER AS $$
+BEGIN
+    {{.Function}}
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER {{.Name}}
+    {{.Timing}} {{.Event}} ON {{.Table}}
+    {{.Level}}
+    {{if .Condition}}
+    WHEN ({{.Condition}})
+    {{end}}
+    EXECUTE FUNCTION {{.Name}}_trigger_func({{stringJoin .Arguments ", "}});
+{{end}}

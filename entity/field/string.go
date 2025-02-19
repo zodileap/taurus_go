@@ -12,23 +12,54 @@ type RawBytes []byte
 
 // Varchar 字符串类型的字段。
 type Varchar struct {
-	StringStorage[string]
 	VarcharBuilder[string]
+	StringStorage[string]
+}
+
+type VarcharA1 struct {
+	VarcharBuilder[[]string]
+	StringStorage[[]string]
+}
+
+type VarcharA2 struct {
+	VarcharBuilder[[][]string]
+	StringStorage[[][]string]
+}
+
+type VarcharA3 struct {
+	VarcharBuilder[[][][]string]
+	StringStorage[[][][]string]
+}
+
+type VarcharA4 struct {
+	VarcharBuilder[[][][][]string]
+	StringStorage[[][][][]string]
+}
+
+type VarcharA5 struct {
+	VarcharBuilder[[][][][][]string]
+	StringStorage[[][][][][]string]
 }
 
 // UUID UUID类型的字段。
 type UUID struct {
-	StringStorage[string]
 	UUIDBuilder[string]
-}
-
-// StringStorage[T] 字符串类型的字段存储。
-type StringStorage[T any] struct {
-	BaseStorage[T]
+	StringStorage[string]
 }
 
 // VarcharBuilder 字符串类型的字段构造器。
 type VarcharBuilder[T any] struct {
+	BaseBuilder[T]
+}
+
+// Text 文本类型的字段。
+type Text struct {
+	TextBuilder[string]
+	StringStorage[string]
+}
+
+// TextBuilder 文本类型的字段构造器。
+type TextBuilder[T any] struct {
 	BaseBuilder[T]
 }
 
@@ -42,13 +73,8 @@ type VarcharBuilder[T any] struct {
 //
 //   - 字段的数据库中的类型名。
 func (s *VarcharBuilder[T]) AttrType(dbType dialect.DbDriver) string {
-	switch dbType {
-	case dialect.PostgreSQL:
-		v := varchar(s.desc.Size)
-		return v
-	default:
-		return ""
-	}
+	var t T
+	return varchar(t, s.desc.Size, dbType)
 }
 
 // Name 用于设置字段在数据库中的名称。
@@ -140,12 +166,53 @@ func (s *VarcharBuilder[T]) Locked() *VarcharBuilder[T] {
 }
 
 // varchar 返回varchar类型的字段。
-func varchar(size int64) string {
-	if size <= 0 {
-		return "varchar(255)"
-	} else {
-		return fmt.Sprintf("varchar(%d)", size)
+func varchar(t any, size int64, dbType dialect.DbDriver) string {
+	switch dbType {
+	case dialect.PostgreSQL:
+		switch t.(type) {
+		case string:
+			if size <= 0 {
+				return "varchar"
+			} else {
+				return fmt.Sprintf("varchar(%d)", size)
+			}
+		case []string:
+			if size <= 0 {
+				return "varchar[]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[]", size)
+			}
+		case [][]string:
+			if size <= 0 {
+				return "varchar[][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][]", size)
+			}
+		case [][][]string:
+			if size <= 0 {
+				return "varchar[][][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][][]", size)
+			}
+		case [][][][]string:
+			if size <= 0 {
+				return "varchar[][][][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][][][]", size)
+			}
+		case [][][][][]string:
+			if size <= 0 {
+				return "varchar[][][][][]"
+			} else {
+				return fmt.Sprintf("varchar(%d)[][][][][]", size)
+			}
+		default:
+			return ""
+		}
+	default:
+		return ""
 	}
+
 }
 
 // UUIDBuilder UUID类型的字段构造器。
@@ -178,13 +245,13 @@ func (u *UUIDBuilder[T]) AttrType(dbType dialect.DbDriver) string {
 // Params:
 //
 //   - name: 字段在数据库中的名称。
-func (u *UUID) Name(name string) *UUID {
+func (u *UUIDBuilder[T]) Name(name string) *UUIDBuilder[T] {
 	u.desc.AttrName = name
 	return u
 }
 
 // Required 是否非空,默认可以为null,如果调用[Required],则字段为非空字段。
-func (u *UUID) Required() *UUID {
+func (u *UUIDBuilder[T]) Required() *UUIDBuilder[T] {
 	u.desc.Required = true
 	u.desc.Validators = append(u.desc.Validators, func(v string) error {
 		_, err := uuid.Parse(v)
@@ -201,7 +268,7 @@ func (u *UUID) Required() *UUID {
 // Params:
 //
 //   - index: 主键的索引，从1开始，对于多个主键，需要设置不同大小的索引。
-func (u *UUID) Primary(index int) *UUID {
+func (u *UUIDBuilder[T]) Primary(index int) *UUIDBuilder[T] {
 	u.desc.Required = true
 	u.desc.Primary = index
 	return u
@@ -212,9 +279,91 @@ func (u *UUID) Primary(index int) *UUID {
 // Params:
 //
 //   - comment: 字段的注释。
-func (u *UUID) Comment(comment string) *UUID {
+func (u *UUIDBuilder[T]) Comment(comment string) *UUIDBuilder[T] {
 	u.desc.Comment = comment
 	return u
+}
+
+// Locked 设置字段为只读字段。
+func (u *UUIDBuilder[T]) Locked() *UUIDBuilder[T] {
+	u.desc.Locked = true
+	return u
+}
+
+// StringStorage[T] 字符串类型的字段存储。
+type StringStorage[T any] struct {
+	BaseStorage[T]
+}
+
+// AttrType 获取字段的数据库中的类型名，如果返回空字符串，会出现错误。
+//
+// Params:
+//
+//   - dbType: 数据库类型。
+//
+// Returns:
+//   - 字段的数据库中的类型名。
+func (s *TextBuilder[T]) AttrType(dbType dialect.DbDriver) string {
+	switch dbType {
+	case dialect.PostgreSQL:
+		return "text"
+	default:
+		return ""
+	}
+}
+
+// Name 用于设置字段在数据库中的名称。
+//
+// 如果不设置，会默认采用`snake_case`的方式将字段名转换为数据库字段名。
+//
+// Params:
+//
+//   - name: 字段在数据库中的名称。
+func (s *TextBuilder[T]) Name(name string) *TextBuilder[T] {
+	s.desc.AttrName = name
+	return s
+}
+
+// MinLen 设置字段的最小长度。
+//
+// Params:
+//
+//   - size: 字段的最小长度。
+func (s *TextBuilder[T]) MinLen(i int) *TextBuilder[T] {
+	s.desc.Validators = append(s.desc.Validators, func(v string) error {
+		if len(v) < i {
+			return errors.New("value is less than the required length")
+		}
+		return nil
+	})
+	return s
+}
+
+// Required 是否非空,默认可以为null,如果调用[Required],则字段为非空字段。
+func (s *TextBuilder[T]) Required() *TextBuilder[T] {
+	s.desc.Required = true
+	return s.MinLen(1)
+}
+
+// Primary设置字段为主键。
+//
+// Params:
+//
+//   - index: 主键的索引，从1开始，对于多个主键，需要设置不同大小的索引。
+func (s *TextBuilder[T]) Primary(index int) *TextBuilder[T] {
+	s.desc.Required = true
+	s.desc.Primary = index
+	return s
+}
+
+// Comment 设置字段的注释。
+//
+// Params:
+//
+//   - comment: 字段的注释。
+func (s *TextBuilder[T]) Comment(comment string) *TextBuilder[T] {
+	s.desc.Comment = comment
+	return s
 }
 
 // Default 设置字段的默认值。
@@ -223,14 +372,14 @@ func (u *UUID) Comment(comment string) *UUID {
 // Params:
 //
 //   - value: 字段的默认值。
-func (u *UUID) Default(value string) *UUID {
-	u.desc.Default = true
-	u.desc.DefaultValue = value
-	return u
+func (s *TextBuilder[T]) Default(value string) *TextBuilder[T] {
+	s.desc.Default = true
+	s.desc.DefaultValue = value
+	return s
 }
 
 // Locked 设置字段为只读字段。
-func (u *UUID) Locked() *UUID {
-	u.desc.Locked = true
-	return u
+func (s *TextBuilder[T]) Locked() *TextBuilder[T] {
+	s.desc.Locked = true
+	return s
 }

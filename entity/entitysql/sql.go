@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -56,22 +57,28 @@ type (
 		// Name 实体表的名称，和[entity.EntityConfig]中的AttrName相同。
 		Name string
 		// Columns 实体表的列名，通过这个属性会指定Select中包含的列。
-		Columns []FieldName
+		Columns []FieldSpec
 	}
 	// FieldSpec 字段信息。
 	FieldName string
 
 	// FieldSpec 字段信息。
 	FieldSpec struct {
-		Column  string
-		Value   driver.Value // value to be stored.
-		Default bool
+		// Name 字段的名称。
+		Name FieldName
+		// NameFormat 字段名称的格式化，比如SELECT ST_AsText(geom)中的`ST_AsText(geom)`。
+		NameFormat func(dbType dialect.DbDriver, name string) string
+		// Param 字段的值。
+		Param entity.FieldValue
+		// Default 是否使用默认值。
+		Default     bool
+		ParamFormat func(dbType dialect.DbDriver, param string) string
 	}
 
 	// CaseSpec Case语句信息。
 	CaseSpec struct {
-		// Value Case的值。
-		Value any
+		// Field Case的值。
+		Field FieldSpec
 		// When Case的条件。
 		When PredicateFunc
 	}
@@ -82,16 +89,48 @@ func (e FieldName) String() string {
 	return string(e)
 }
 
+func NewFieldSpec(column FieldName) FieldSpec {
+	return FieldSpec{
+		Name: column,
+		NameFormat: func(dbType dialect.DbDriver, name string) string {
+			return name
+		},
+	}
+}
+
+func NewFieldSpecs(columns ...FieldName) []FieldSpec {
+	var fields []FieldSpec
+	for _, column := range columns {
+		fields = append(fields, NewFieldSpec(column))
+	}
+	return fields
+}
+
+// Value 用于实现driver.Valuer接口，
+// 通过这个接口可以让Exec(ctx context.Context, query string, args []any, v any)提取出args的值。
+func (f FieldSpec) Value() (driver.Value, error) {
+	return f.Param, nil
+}
+
+// FormatParam 格式化字段的值。实现ParamFormatter接口。
+func (f FieldSpec) FormatParam(placeholder string, info *StmtInfo) string {
+	return f.ParamFormat(info.Dialect, placeholder)
+}
+
+// String 实现Stringer接口。
+func (f FieldSpec) String() string {
+	return fmt.Sprintf("{Name: %s, Param: %v}", f.Name, f.Param)
+}
+
 // setColumns 设置字段的值。
 //
 // Params:
 //
 //   - fields: 字段信息。
 //   - set: 设置字段的值。
-func setColumns(fields []*FieldSpec, set func(column string, value driver.Value)) error {
+func setColumns(fields []*FieldSpec, set func(column string, value FieldSpec)) error {
 	for _, fi := range fields {
-		value := fi.Value
-		set(fi.Column, value)
+		set(string(fi.Name), *fi)
 	}
 	return nil
 }
@@ -259,13 +298,13 @@ type (
 	}
 	// Selection 选择的字段。
 	Selection struct {
-		name   string
+		field  FieldSpec
 		entity string
 	}
 )
 
 func (s Selection) String() string {
-	return s.name
+	return s.field.Name.String()
 }
 
 // Query 生成一个查询语句。
@@ -276,7 +315,7 @@ func (s Selection) String() string {
 //	1: 查询参数。
 func (s *Selector) Query() (SqlSpec, error) {
 	if len(s.from)+len(s.joins) > 1 {
-		s.Builder.isAs = true
+		s.Builder.IsAs = true
 	}
 	b := s.Builder.clone()
 	b.WriteString("SELECT ")
@@ -334,10 +373,6 @@ func (s *Selector) Query() (SqlSpec, error) {
 	if len(b.args) > batchSize {
 		return SqlSpec{}, entity.Err_0100030004
 	}
-	if s.limit != nil {
-		b.WriteString(" LIMIT ")
-		b.WriteString(strconv.Itoa(*s.limit))
-	}
 	if s.order != nil && len(s.order) > 0 {
 		b.WriteString(" ORDER BY ")
 		for i, order := range s.order {
@@ -346,6 +381,10 @@ func (s *Selector) Query() (SqlSpec, error) {
 			}
 			order.Query(b)
 		}
+	}
+	if s.limit != nil {
+		b.WriteString(" LIMIT ")
+		b.WriteString(strconv.Itoa(*s.limit))
 	}
 	return SqlSpec{Query: b.String(), Args: b.args}, nil
 }
@@ -379,12 +418,8 @@ func (s *Selector) Clone() *Selector {
 // Returns:
 //
 //	0: 字段的名称。
-func (s *Selector) Rows(rows ...FieldName) []string {
-	names := make([]string, len(rows))
-	for i := range rows {
-		names[i] = string(rows[i])
-	}
-	return names
+func (s *Selector) Rows(rows ...FieldSpec) []FieldSpec {
+	return rows
 }
 
 func (s *Selector) OnP(p *Predicate) *Selector {
@@ -446,10 +481,10 @@ func (s *Selector) SetContext(ctx context.Context) *Selector {
 // Returns:
 //
 //	0: 选择语句生成器。
-func (s *Selector) SetSelect(entity string, rows ...string) *Selector {
+func (s *Selector) SetSelect(entity string, rows ...FieldSpec) *Selector {
 	fields := make([]Selection, len(rows))
 	for i := range rows {
-		fields[i] = Selection{name: rows[i], entity: entity}
+		fields[i] = Selection{field: rows[i], entity: entity}
 	}
 	s.selectFields = append(s.selectFields, fields...)
 	return s
@@ -472,6 +507,7 @@ func (s *Selector) SetFrom(t TableView) *Selector {
 // AppendFrom appends a new TableView to the `FROM` clause.
 func (s *Selector) AppendFrom(t TableView) *Selector {
 	s.from = append(s.from, t)
+	s.Builder.tables = append(s.Builder.tables, t)
 	switch view := t.(type) {
 	case *SelectTable:
 		if view.as == "" {
@@ -560,15 +596,15 @@ func selectTable(t TableView) *SelectTable {
 //
 //   - b: sql生成器。
 func (s *Selector) appendSelect(b *Builder) {
-	for i, field := range s.selectFields {
+	for i, col := range s.selectFields {
 		if i > 0 {
 			b.Comma()
 		}
-		if b.isAs {
-			b.WriteString(b.Quote(field.entity))
+		if b.IsAs {
+			b.WriteString(b.Quote(col.entity))
 			b.WriteString(".")
 		}
-		b.WriteString(b.Quote(field.name))
+		b.WriteString(col.field.NameFormat(s.dialect, b.Quote(col.field.Name.String())))
 	}
 }
 
@@ -578,6 +614,7 @@ func (s *Selector) join(kind string, t TableView) *Selector {
 		kind:  kind,
 		table: t,
 	})
+	s.Builder.tables = append(s.Builder.tables, t)
 	switch view := t.(type) {
 	case *SelectTable:
 		if view.as == "" {
@@ -794,10 +831,10 @@ func (i *Inserter) SetEntity(entity string) *Inserter {
 // Returns:
 //
 //	0: 插入语句生成器。
-func (i *Inserter) SetColumns(columns ...FieldName) *Inserter {
+func (i *Inserter) SetColumns(columns ...FieldSpec) *Inserter {
 	i.columns = make([]string, len(columns))
 	for j := range columns {
-		i.columns[j] = string(columns[j])
+		i.columns[j] = string(columns[j].Name)
 	}
 	return i
 }
@@ -1094,7 +1131,7 @@ func (d *Deleter) Query() ([]SqlSpec, error) {
 		for i := 0; i < batchNum; i++ {
 			b.WriteString(" WHERE ")
 			if length < (i+1)*batchSize {
-				b.Join(d.where.Clone(i*batchSize, -1))
+				b.Join(d.where.Clone(i*batchSize, length))
 			} else {
 				b.Join(d.where.Clone(i*batchSize, (i+1)*batchSize))
 			}
@@ -1108,6 +1145,7 @@ func (d *Deleter) Query() ([]SqlSpec, error) {
 
 // setInitialQuery 设置初始的删除语句。
 func (d *Deleter) setInitialQuery(b *Builder) {
+	b.WriteString("DELETE FROM ")
 	b.WriteSchema(d.schema)
 	b.Ident(d.entity).Blank()
 }
@@ -1163,9 +1201,11 @@ type (
 		depth int
 		// fns Where子句生成器的函数。
 		fns []func(*Builder)
+		// 上一个是否是逻辑运算符。
+		lastIsLogic bool
 	}
 	// PredicateFunc Where子句生成器的函数。
-	PredicateFunc func(p *Predicate, as string)
+	PredicateFunc func(p *Predicate)
 )
 
 func AndPred(builder *Builder, preds ...*Predicate) *Predicate {
@@ -1191,13 +1231,22 @@ func P(b *Builder, fns ...func(*Builder)) *Predicate {
 //
 //	0: 复制的Predicate。
 func (p *Predicate) Clone(begin int, end int) *Predicate {
+	var fns []func(*Builder)
 	if begin < 0 {
-		return &Predicate{fns: p.fns[:end]}
+		fns = p.fns[:end]
 	} else if end < 0 {
-		return &Predicate{fns: p.fns[begin:]}
+		fns = p.fns[begin:]
 	} else {
-		return &Predicate{fns: p.fns[begin:end]}
+		fns = p.fns[begin:end]
 	}
+	return &Predicate{fns: fns, Builder: p.Builder.clone(), lastIsLogic: p.lastIsLogic}
+}
+
+func (p *Predicate) clone() *Predicate {
+	if p == nil {
+		return p
+	}
+	return &Predicate{fns: append([]func(*Builder){}, p.fns...), Builder: p.Builder.clone(), lastIsLogic: p.lastIsLogic}
 }
 
 // Query 生成查询中的Where子句。
@@ -1281,6 +1330,7 @@ func (p *Predicate) mayWrap(preds []*Predicate, b *Builder, op string) {
 //
 //	0: Where子句生成器。
 func (p *Predicate) And() *Predicate {
+	p.lastIsLogic = true
 	return p.Append(func(b *Builder) {
 		b.WriteString(" AND ")
 	})
@@ -1292,6 +1342,7 @@ func (p *Predicate) And() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Or() *Predicate {
+	p.lastIsLogic = true
 	return p.Append(func(b *Builder) {
 		b.WriteString(" OR ")
 	})
@@ -1303,6 +1354,7 @@ func (p *Predicate) Or() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Not() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
 		b.WriteString(" NOT ")
 	})
@@ -1319,8 +1371,12 @@ func (p *Predicate) Not() *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) EQ(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1342,8 +1398,12 @@ func (p *Predicate) EQ(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1365,8 +1425,12 @@ func (p *Predicate) NEQ(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) GT(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1388,8 +1452,12 @@ func (p *Predicate) GT(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) GTE(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1411,8 +1479,12 @@ func (p *Predicate) GTE(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) LT(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1434,8 +1506,12 @@ func (p *Predicate) LT(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) LTE(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1457,8 +1533,12 @@ func (p *Predicate) LTE(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) In(column string, as string, v ...any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1486,8 +1566,12 @@ func (p *Predicate) In(column string, as string, v ...any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1515,8 +1599,12 @@ func (p *Predicate) NotIn(column string, as string, v ...any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) Like(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1524,6 +1612,41 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 		b.WriteOp(OpLike)
 		p.arg(b, v)
 		b.Blank()
+	})
+}
+
+// Contains 添加一个@>的条件。
+//
+// Returns:
+//
+//	0: Where子句生成器。
+func (p *Predicate) Contains(column string, as string, v any) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
+	return p.Append(func(b *Builder) {
+		// 使用反射判断是否为数组
+		arr := reflect.ValueOf(v)
+
+		if arr.Kind() == reflect.Array {
+			if b.IsAs && as != "" {
+				b.WriteString(b.Quote(as))
+				b.WriteByte('.')
+			}
+			b.Ident(column)
+			b.WriteString(" @> ")
+			b.WriteString("ARRAY[")
+			for i := 0; i < arr.Len(); i++ {
+				elem := arr.Index(i)
+				if i > 0 {
+					b.Comma()
+				}
+				p.arg(b, elem.Interface())
+			}
+			b.WriteByte(']')
+			b.Blank()
+		}
 	})
 }
 
@@ -1537,8 +1660,12 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) IsNull(column string, as string) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1558,8 +1685,12 @@ func (p *Predicate) IsNull(column string, as string) *Predicate {
 //
 //	0: Where子句生成器。
 func (p *Predicate) NotNull(column string, as string) *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
+		if b.IsAs && as != "" {
 			b.WriteString(b.Quote(as))
 			b.WriteByte('.')
 		}
@@ -1574,12 +1705,12 @@ func (p *Predicate) NotNull(column string, as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Add(as string) *Predicate {
+func (p *Predicate) Add() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpAdd)
 		b.Blank()
@@ -1591,12 +1722,12 @@ func (p *Predicate) Add(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Sub(as string) *Predicate {
+func (p *Predicate) Sub() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpSub)
 		b.Blank()
@@ -1608,12 +1739,9 @@ func (p *Predicate) Sub(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Mul(as string) *Predicate {
+func (p *Predicate) Mul() *Predicate {
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpMul)
 		b.Blank()
@@ -1625,12 +1753,12 @@ func (p *Predicate) Mul(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Div(as string) *Predicate {
+func (p *Predicate) Div() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpDiv)
 		b.Blank()
@@ -1642,12 +1770,12 @@ func (p *Predicate) Div(as string) *Predicate {
 // Returns:
 //
 //	0: Where子句生成器。
-func (p *Predicate) Mod(as string) *Predicate {
+func (p *Predicate) Mod() *Predicate {
+	if !p.lastIsLogic && len(p.fns) > 0 {
+		p.And()
+	}
+	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		if b.isAs {
-			b.WriteString(b.Quote(as))
-			b.WriteByte('.')
-		}
 		b.Blank()
 		b.WriteOp(OpMod)
 		b.Blank()
@@ -1671,11 +1799,14 @@ func (*Predicate) arg(b *Builder, a any) {
 	}
 }
 
-func (p *Predicate) clone() *Predicate {
-	if p == nil {
-		return p
-	}
-	return &Predicate{fns: append([]func(*Builder){}, p.fns...)}
+func (p *Predicate) isLogic() bool {
+	return p.lastIsLogic
+}
+
+func (pf PredicateFunc) isOp(p *Predicate) bool {
+	np := p.clone()
+	pf(np)
+	return np.isLogic()
 }
 
 /**************** CASE 批量更新中Set语句生成器 ***************/
@@ -1727,7 +1858,7 @@ func (c *Caser) Query() (SqlSpec, error) {
 		return SqlSpec{}, nil
 
 	} else if len(c.Cases) == 1 && c.Cases[0].When == nil {
-		c.arg(c.Cases[0].Value)
+		c.arg(c.Cases[0].Field)
 		return SqlSpec{
 			Query: c.String(),
 			Args:  c.args,
@@ -1738,10 +1869,10 @@ func (c *Caser) Query() (SqlSpec, error) {
 			// 对于多个没有条件的CASE，只有最后一个会生效，
 			// 如果要做限制或者判断,请在外部实现。
 			if cs.When == nil {
-				c.elser = cs.Value
+				c.elser = cs.Field
 			} else {
 				c.When(cs.When)
-				c.Then(cs.Value)
+				c.Then(cs.Field)
 			}
 		}
 		c.Else()
@@ -1766,7 +1897,7 @@ func (c *Caser) Query() (SqlSpec, error) {
 func (c *Caser) When(pred PredicateFunc) *Caser {
 	c.WriteString(" WHEN ")
 	p := P(c.Builder.clone())
-	pred(p, c.as)
+	pred(p)
 	c.Join(p)
 	return c
 }
@@ -1840,7 +1971,7 @@ func O() *Order {
 }
 
 func (o *Order) Query(b *Builder) {
-	if b.isAs {
+	if b.IsAs && o.As != "" {
 		b.WriteString(b.Quote(o.As))
 		b.WriteString(".")
 	}
@@ -1868,6 +1999,11 @@ func (o *Order) SetAs(schema string) *Order {
 
 func (o *Order) SetColumn(column string) *Order {
 	o.Column = column
+	return o
+}
+
+func (o *Order) SetOp(op string) *Order {
+	o.Column = op
 	return o
 }
 

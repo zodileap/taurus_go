@@ -50,7 +50,7 @@ func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTab
 	)
 	joinT := build.Table(desc.Join.Table).Schema(s.Table().schema)
 	s.LeftJoin(joinT).On(t.C(desc.To.Field), joinT.C(desc.Join.Field))
-	s.SetSelect(joinT.as, s.Rows(desc.Join.Columns...)...)
+	s.SetSelect(joinT.as, s.Rows(NewFieldSpecs(desc.Join.Columns...)...)...)
 
 	if orders := desc.Orders; len(orders) > 0 {
 		for _, order := range orders {
@@ -63,8 +63,11 @@ func AddRelBySelector(s *Selector, t *SelectTable, desc RelationDesc) *SelectTab
 	}
 
 	if ps := desc.Predicates; len(ps) > 0 {
+		if s.where.FunsLen() > 0 && !ps[0].isOp(s.where) {
+			s.where.And()
+		}
 		for _, p := range ps {
-			p(s.where, joinT.as)
+			p(s.where)
 		}
 	}
 
@@ -126,10 +129,11 @@ type QuerySpec struct {
 //
 //	0: QuerySpec。
 func NewQuerySpec(entity string, rows []FieldName) *QuerySpec {
+	columns := NewFieldSpecs(rows...)
 	return &QuerySpec{
 		Entity: &EntitySpec{
 			Name:    entity,
-			Columns: rows,
+			Columns: columns,
 		},
 	}
 }
@@ -165,6 +169,7 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 	config := entity.GetConfig()
 	if *(config.SqlConsole) {
 		tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+		tlog.Debug(*config.SqlLogger, fmt.Sprintf("args: %v", spec.Args))
 	}
 	var rows dialect.Rows
 	err = drv.Query(ctx, spec.Query, spec.Args, &rows)
@@ -174,7 +179,7 @@ func (b *queryBuilder) query(ctx context.Context, drv dialect.Driver) error {
 	for rows.Next() {
 		ScannerFields := make([]ScannerField, len(b.Entity.Columns))
 		for i, c := range b.Entity.Columns {
-			ScannerFields[i] = c
+			ScannerFields[i] = c.Name
 		}
 		err := b.Scan(rows, ScannerFields)
 		if err != nil {
@@ -206,7 +211,7 @@ func (b *queryBuilder) selector(ctx context.Context) (*Selector, error) {
 
 	selector.where = P(selector.Builder)
 	if pred := b.Predicate; pred != nil {
-		pred(selector.where, t.as)
+		pred(selector.where)
 	}
 	if orders := b.Orders; len(orders) > 0 {
 		for _, order := range orders {

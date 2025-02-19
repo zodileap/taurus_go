@@ -1,10 +1,10 @@
 {{ define "entity/order" }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" $entityAttr }}
+{{ $header := createMap "Package" $entityAttr }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
 {{ template "import/load" $importPkgs }}
 
 type OrderOption func(*entitysql.Order)
@@ -22,14 +22,14 @@ type OrderTerm interface {
 }
 
 {{- range $field :=  .Entity.Fields }}
-{{ $info := dict "Field" $field }}
+{{ $info := createMap "Field" $field }}
 {{ template "entity/order_field" $info }}
 {{- end }}
 
 {{ end }}
 
 {{ define "entity/order_field" }}
-{{ $fieldName := joinStrings "By" .Field.Name }}
+{{ $fieldName := stringJoin "By" .Field.Name }}
 {{ $attrName := .Field.AttrName }}
 
 type {{ $fieldName }} struct {

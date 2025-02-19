@@ -2,8 +2,11 @@ package entitysql
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/yohobala/taurus_go/tlog"
 )
 
 // UpdateSpec 用于生成更新语句。
@@ -21,7 +24,7 @@ func NewUpdateSpec(entity string, rows []FieldName) *UpdateSpec {
 	return &UpdateSpec{
 		Entity: &EntitySpec{
 			Name:    entity,
-			Columns: rows,
+			Columns: NewFieldSpecs(rows...),
 		},
 		Sets: make([]map[string][]CaseSpec, 0),
 	}
@@ -63,6 +66,10 @@ func (b *updateBuilder) update(ctx context.Context, drv dialect.Tx) error {
 		return err
 	}
 	for _, spec := range specs {
+		config := entity.GetConfig()
+		if *(config.SqlConsole) {
+			tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+		}
 		var rows dialect.Rows
 		if err := drv.Query(ctx, spec.Query, spec.Args, &rows); err != nil {
 			return err
@@ -70,7 +77,7 @@ func (b *updateBuilder) update(ctx context.Context, drv dialect.Tx) error {
 		for rows.Next() {
 			scanneeFields := make([]ScannerField, len(b.Entity.Columns))
 			for i, column := range b.Entity.Columns {
-				scanneeFields[i] = ScannerField(column)
+				scanneeFields[i] = ScannerField(column.Name)
 			}
 			err := b.Scan(rows, scanneeFields)
 			if err != nil {
@@ -95,7 +102,7 @@ func (b *updateBuilder) update(ctx context.Context, drv dialect.Tx) error {
 //	 1: 错误信息。
 func (b *updateBuilder) updater(ctx context.Context) (*Updater, error) {
 	updater := NewUpdater(ctx)
-	t := b.entityBuilder.builder.Table(b.Entity.Name)
+	// t := b.entityBuilder.builder.Table(b.Entity.Name)
 	updater.SetDialect(b.builder.dialect)
 	updater.SetEntity(b.Entity.Name)
 	for row, cs := range b.Sets {
@@ -106,7 +113,7 @@ func (b *updateBuilder) updater(ctx context.Context) (*Updater, error) {
 		pred := b.Predicate[row]
 		if pred != nil {
 			w := P(updater.Builder)
-			pred(w, t.as)
+			pred(w)
 			updater.wheres = append(updater.wheres, w)
 		} else {
 			updater.wheres = append(updater.wheres, nil)

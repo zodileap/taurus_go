@@ -3,7 +3,7 @@ package entity
 import (
 	"context"
 
-	stringutil "github.com/yohobala/taurus_go/encoding/string"
+	stringutil "github.com/yohobala/taurus_go/datautil/string"
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
 

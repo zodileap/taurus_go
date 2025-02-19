@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -465,14 +464,15 @@ func Fatal(loggerName string, msg string, fields ...Field) {
 //	tlog.Print("api",
 //		tlog.Int("code", 321321),
 //	)
-func Print(msg any, fields ...Field) {
+func Print(msg ...any) {
 	// 获取调用者的信息
 	_, file, line, ok := runtime.Caller(1) // 1 代表上一层的调用堆栈
 	if !ok {
 		file = "???"
 		line = 0
 	}
-	console(fmt.Sprint(msg), file, line, fields...)
+	s := fmt.Sprint(msg...)
+	console(s, file, line)
 }
 
 // Printf 格式化输出日志。使用的loggerName为print,print的日志级别为Debug,默认只输出到控制台。
@@ -497,30 +497,6 @@ func Printf(format string, args ...any) {
 		line = 0
 	}
 	console(fmt.Sprintf(format, args...), file, line)
-}
-
-// PrintString 打印字符串。使用的loggerName为print,print的日志级别为Debug,默认只输出到控制台。
-//
-// 如果想要不显示Caller信息，可以使用tlog.GetLogger("print").SetCaller(false)。
-//
-// 如果需要记录到文件，可以使用tlog.GetLogger("print").SetOutputPath("log/print.log")。
-//
-// Params:
-//
-//   - s: 字符串
-//
-// Example:
-//
-//	tlog.PrintString("print", "a", "message")
-func PrintStrings(s ...string) {
-	msg := strings.Join(s, " ")
-	// 获取调用者的信息
-	_, file, line, ok := runtime.Caller(1) // 1 代表上一层的调用堆栈
-	if !ok {
-		file = "???"
-		line = 0
-	}
-	console(msg, file, line)
 }
 
 // console 输出到控制台

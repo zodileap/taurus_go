@@ -3,7 +3,7 @@ package entitysql
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
+	"fmt"
 
 	"github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/dialect"
@@ -34,7 +34,7 @@ func NewCreateSpec(entity string, columns []FieldName) *CreateSpec {
 	return &CreateSpec{
 		Entity: &EntitySpec{
 			Name:    entity,
-			Columns: columns,
+			Columns: NewFieldSpecs(columns...),
 		},
 	}
 }
@@ -61,7 +61,7 @@ func NewCreate(ctx context.Context, drv dialect.Tx, spec *CreateSpec) error {
 //   - name: 字段名称。
 //   - f: 字段。
 func (s *CreateSpec) CheckRequired(dbDriver dialect.DbDriver, name FieldName, f entity.FieldStorager) error {
-	v, err := f.Value(dbDriver)
+	v, err := f.SqlParam(dbDriver)
 	if v == nil || err != nil {
 		return entity.Err_0100030001.Sprintf(s.Entity.Name, name)
 	}
@@ -145,8 +145,11 @@ func (b *createBuilder) insertLastID(ctx context.Context, insert *Inserter) erro
 		// MySQL 不支持 RETURNING 子句。
 		if insert.Dialect() != dialect.MySQL {
 			rows := dialect.Rows{}
-			tlog.Print(spec.Query)
-			tlog.Print(spec.Args)
+			config := entity.GetConfig()
+			if *(config.SqlConsole) {
+				tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+				tlog.Debug(*config.SqlLogger, fmt.Sprintf("args: %v", spec.Args))
+			}
 			if err := b.drv.Query(ctx, spec.Query, spec.Args, &rows); err != nil {
 				return err
 			}
@@ -191,8 +194,11 @@ func (b *createBuilder) setColumns(inserter *Inserter) error {
 	inserter.SetColumns(b.Entity.Columns...)
 	t := b.entityBuilder.builder.Table(b.Entity.Name)
 	for _, fields := range b.Fields {
-		err := setColumns(fields, func(column string, value driver.Value) {
-			inserter.Set(column, t.as, value)
+		err := setColumns(fields, func(column string, field FieldSpec) {
+			if field.Param != nil {
+				inserter.Set(column, t.as, field)
+			}
+
 		})
 		if err != nil {
 			return err

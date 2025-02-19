@@ -58,11 +58,30 @@ type (
 		// 连接的标签。
 		Tag string
 		// 数据库驱动
-		Type dialect.DbDriver
+		Type     dialect.DbDriver
+		Triggers []TriggerConfig
 	}
 	DbInterface interface {
 		Config() DbConfig
 		Relationships() []RelationshipBuilder
+	}
+	TriggerConfig struct {
+		// 触发器名称
+		Name string
+		// 触发器作用的表
+		Table string
+		// 触发时机：BEFORE, AFTER
+		Timing string
+		// 触发事件：INSERT, UPDATE, DELETE
+		Event string
+		// FOR EACH ROW 或 FOR EACH STATEMENT
+		Level string
+		// 触发器函数
+		Function string
+		// 触发条件(WHEN clause)
+		Condition string
+		// 触发器函数的参数列表
+		Arguments []string
 	}
 )
 
@@ -127,6 +146,14 @@ type (
 		AttrType(dbType dialect.DbDriver) string
 		// 用于设置字段的值的类型名称。例如entity.Int64的ValueType为"int64"。
 		ValueType() string
+		// ExtTemplate 用于在使用字段时，调用外部模版生成代码，
+		// 这个相比在 go run github.com/yohobala/taurus_go/entity/cmd generate -t <template>，
+		// `ExtTemplate`是和字段相关联，只要调用字段就会生成代码，避免了每次都要手动调用模版。
+		//
+		// Returns:
+		//
+		//   - 模版的路径。
+		ExtTemplate() []string
 	}
 	// 这个接口定义了字段在运行时需要的方法。
 	FieldStorager interface {
@@ -134,8 +161,12 @@ type (
 		Scan(value interface{}) error
 		// 用于打印字段的值。
 		String() string
-		// 用于内部sql中获取字段的值。如果需要获得值，推荐通过Get()方法获得。
-		Value(dbType dialect.DbDriver) (FieldValue, error)
+		// SqlParam 用于sql中获取字段参数并赋值。如 INSERT INTO "blog" ( "desc") VALUES ($1)，给$1传递具体的值。
+		SqlParam(dbType dialect.DbDriver) (FieldValue, error)
+		// SqlFormatParam 用于sql中获取字段的值的格式化字符串，这个是进一步处理SqlParam。如 INSERT INTO "blog" ( "desc" ) VALUES ( ST_GeomFromGeoJSON($1) ) 其中$1是SqlParam返回的，值可能是POINT(1,1), SqlFormatParam在这基础上返回ST_GeomFromGeoJSON($1)
+		SqlFormatParam() func(dbType dialect.DbDriver, param string) string
+		// SqlSelectClause 用于sql语句中对SELECT的参数进行格式化，通过这个能够扩展SELECT部分实现复杂的查询，比如 SELECT id, ST_AsText(point)。
+		SqlSelectFormat() func(dbType dialect.DbDriver, name string) string
 	}
 
 	// 包含了关于字段的描述，配置信息等。
@@ -148,9 +179,15 @@ type (
 		// AttrName 字段的数据库属性名，
 		// 如果为空，会使用Name的名字，,但是会变成snake_case形式
 		AttrName string `json:"attr_name,omitempty"`
-		// Type 字段的类型。如"entity.Int64"。
+		// Type 字段的类型。如"filed.Int64"。
 		Type string `json:"type,omitempty"`
-		// AttrType 字段的数据库类型。如"entity.Int64"在PostgreSQL中对应"int8"，
+		// ValueType 字段的值在go中对应的类型，比如"entity.Int64"的ValueType为"int64"。
+		ValueType string `json:"value_type,omitempty"`
+		// BaseType 字段的基础类型。如"filed.Int64"的基础类型为"int64", "filed.Int64A1"的基础类型也是"int64"。
+		// 不支持time.Time这种类型包含包名的类型，只支持基础类型。
+		// 如果在模版中需要获取字段的go中的类型，请用ValueType，见[entity/codegen/load/tmpl_entity.go]。
+		BaseType string `json:"base_type,omitempty"`
+		// AttrType 字段的数据库类型。如"filed.Int64"在PostgreSQL中对应"int8"，
 		// 这AttrType的值为"int8"，这个通过AttrType()获得，所以自定义类型应该正确定义这个方法。
 		AttrType string `json:"attr_type,omitempty"`
 		// Size 字段的长度大小。
@@ -175,6 +212,18 @@ type (
 		Sequence Sequence `json:"validators,omitempty"`
 		// Validators 字段验证函数。
 		Validators []any `json:"sequence,omitempty"`
+		// Depth 字段的值类型的深度，例如[]int64的深度为1，[][]int64的深度为2。
+		Depth int `json:"depth,omitempty"`
+		// Uniques 字段的唯一约束信息。序号相同的字段构成联合唯一约束
+		Uniques []int `json:"uniques,omitempty"`
+		// CheckConstraint 存储字段的CHECK约束语句
+		CheckConstraint string `json:"check_constraint,omitempty"`
+		// Indexes 字段的索引信息。key是索引序号，如果序号相同表示是联合索引
+		Indexes []int `json:"indexes,omitempty"`
+		// IndexName 索引名称。如果为空，会根据表名和字段名自动生成。
+		IndexName string `json:"index_name,omitempty"`
+		// IndexMethod 索引的方法，例如B-tree,Hash等。空值默认为B-tree。
+		IndexMethod string `json:"index_method,omitempty"`
 	}
 
 	// Sequence 字段使用的序列，序列的类型默认为Int64。

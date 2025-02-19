@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	stringutil "github.com/yohobala/taurus_go/encoding/string"
+	stringutil "github.com/yohobala/taurus_go/datautil/string"
 	"github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/dialect"
 )
@@ -24,6 +24,8 @@ type (
 		EntityMap EntityMap
 		// Entities 数据库中的entity的信息。
 		Entities map[string]*Entity
+		// 添加触发器配置
+		Triggers []entity.TriggerConfig
 	}
 
 	// Entity 表示了从已经编译好的用户的package中加载的entity
@@ -50,8 +52,6 @@ type (
 	// 继承了entity.Descriptor
 	Field struct {
 		entity.Descriptor
-		// ValueType 字段的值在go中对应的类型，比如"entity.Int64"的ValueType为"int64"。
-		ValueType string `json:"value_type,omitempty"`
 		// Validators 字段的验证器数量
 		Validators int `json:"validators,omitempty"`
 		// StoragerType 字段的存储器的类型，这个是字段的作用是关联已经定义的好的存储器。比如field.IntStorage[int16]
@@ -60,6 +60,10 @@ type (
 		StoragerOrigType string `json:"storager_orig_type,omitempty"`
 		// StoragerPkg 字段的存储器的包路径
 		StoragerPkg string `json:"storager_pkg,omitempty"`
+		// Templates 字段关联的额外模版
+		Templates []string `json:"templates,omitempty"`
+		// Tag 字段的标签信息
+		Tag string `json:"tag,omitempty"`
 	}
 
 	// Relation 表示entity之间的关系
@@ -103,6 +107,7 @@ type (
 
 	// fieldInfo entiy中字段的信息
 	fieldInfo struct {
+		Tag      string
 		Builder  entity.FieldBuilder
 		Storager fieldInfoStorager
 	}
@@ -121,6 +126,28 @@ var (
 	ImportPkgs []string = []string{}
 	// db 从Schema中加载的database。
 	db *Database = &Database{}
+	// PostgreSQL保留关键字
+	postgresKeywords = []string{
+		"all", "analyse", "analyze", "and", "any", "array", "as", "asc",
+		"asymmetric", "authorization", "binary", "both", "case", "cast",
+		"check", "collate", "column", "constraint", "create", "cross",
+		"current_date", "current_role", "current_time", "current_timestamp",
+		"current_user", "default", "deferrable", "desc", "distinct", "do",
+		"else", "end", "except", "false", "for", "foreign", "freeze", "from",
+		"full", "grant", "group", "having", "ilike", "in", "initially", "inner",
+		"intersect", "into", "is", "isnull", "join", "leading", "left", "like",
+		"limit", "localtime", "localtimestamp", "natural", "not", "notnull",
+		"null", "offset", "on", "only", "or", "order", "outer", "overlaps",
+		"placing", "primary", "references", "right", "select", "session_user",
+		"similar", "some", "symmetric", "table", "then", "to", "trailing",
+		"true", "union", "unique", "user", "using", "when", "where", "with",
+	}
+	// Go语言关键字和保留字
+	goKeywords = []string{
+		"break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct",
+		"chan", "else", "goto", "package", "switch", "const", "fallthrough", "if", "range", "type",
+		"continue", "for", "import", "return", "var",
+	}
 )
 
 // MarshalEntity 将entity.EntityInterface序列化为Entity，用于生成代码。
@@ -156,9 +183,19 @@ func MarshalEntity(ei entity.EntityInterface) (ent *Entity, err error) {
 	ImportPkgs = []string{}
 	// 加载entity的字段，调用[entity.EntityInterface]的Fields()方法
 	if err := ent.loadEntity(ei); err != nil {
-		return nil, entity.Err_0100020018.Sprintf(ent.Name, err)
+		return nil, err
 	}
 
+	for _, f := range ent.Fields {
+		ImportPkgs = append(ImportPkgs, f.StoragerPkg)
+	}
+	for _, pkgName := range ImportPkgs {
+		ps := strings.Split(pkgName, "/")
+		p := ps[len(ps)-1]
+		if entityName == p {
+			return nil, entity.Err_0100020018.Sprintf(ent.Name, fmt.Sprintf("entity name %q is the same as package name %q", entityName, pkgName))
+		}
+	}
 	ent.ImportPkgs = ImportPkgs
 	return ent, nil
 }
@@ -323,7 +360,7 @@ func (db *Database) extractEntity(e entity.EntityInterface) (*Entity, error) {
 	return nil, fmt.Errorf("not found entity %s", e.Config().AttrName)
 }
 
-// loadEntity 从entity.EntityInterface中加载Schema定义的entity信息。
+// loadEntity 从entity.EntityInterface中加载Schema定义的entity。
 //
 // Params:
 //
@@ -349,18 +386,18 @@ func (e *Entity) loadEntity(ei entity.EntityInterface) error {
 			sf.StoragerPkg = f.field.Storager.Pkg
 			sf.StoragerType = f.field.Storager.Type
 			sf.StoragerOrigType = f.field.Storager.OrigType
+			sf.Tag = f.field.Tag
 			e.Fields = append(e.Fields, sf)
 		}
 	}
-	// 判断一些值是否符合要求
-	var hasPrimary bool
-	for _, f := range e.Fields {
-		if f.Primary >= 1 {
-			hasPrimary = true
-		}
+
+	// 对entity检查
+	if err := checkEntity(e); err != nil {
+		return err
 	}
-	if !hasPrimary {
-		return entity.Err_0100020021.Sprintf(e.Name)
+	// 对字段进行检查
+	if err := checkEntityFields(e); err != nil {
+		return err
 	}
 	return nil
 }
@@ -392,6 +429,7 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 	// 遍历结构体的字段
 	for i := 0; i < val.NumField(); i++ {
 		fieldVal := val.Field(i)
+		fieldTags := t.Field(i).Tag
 		fieldName := t.Field(i).Name
 		ImportPkgs = append(ImportPkgs, fieldVal.Type().PkgPath())
 		fieldVal, ok := assertFieldBuilder(fieldVal)
@@ -411,8 +449,8 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 			continue
 		}
 		fy := fe.Type()
-		for i := 0; i < fe.NumField(); i++ {
-			storager := analyseField(fe.Field(i), fy.Field(i))
+		for j := 0; j < fe.NumField(); j++ {
+			storager := analyseField(fe.Field(j), fy.Field(j))
 			if storager != nil {
 				initDesc := &entity.Descriptor{
 					Name:       fieldName,
@@ -428,10 +466,11 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 						if err != nil {
 							return infos, err
 						}
-						// 很重要，将新的实例赋值给原来的字段
+						// 很重要，将新的实例赋值给���来的字段
 						fieldVal.Set(reflect.ValueOf(ef))
 						f := entityInfo{
 							field: &fieldInfo{
+								Tag:      string(fieldTags),
 								Builder:  ef,
 								Storager: *storager,
 							},
@@ -446,6 +485,7 @@ func (e *Entity) initEntity(ei entity.EntityInterface) ([]entityInfo, error) {
 						}
 						f := entityInfo{
 							field: &fieldInfo{
+								Tag:      string(fieldTags),
 								Builder:  ef,
 								Storager: *storager,
 							},
@@ -484,29 +524,6 @@ func (e *Entity) initField(ei entity.EntityInterface, f entity.FieldBuilder, ini
 	return nil
 }
 
-// checkFields 检查entity的Fields()方法是否有panic，并得到返回值。
-//
-// Params:
-//
-//   - fd: 实现了entity.EntityInterface的entity。
-//
-// Returns:
-//
-//	0: entity中的字段信息。
-//	1: 错误信息。
-func checkFields(fd interface {
-	Fields() []entity.FieldBuilder
-}) (fields []entity.FieldBuilder, err error) {
-	defer func() {
-		// 如果不是panic那recover为nil
-		if v := recover(); v != nil {
-			err = fmt.Errorf("%T.Fields panics: %v", fd, v)
-			fields = nil
-		}
-	}()
-	return fd.Fields(), nil
-}
-
 // newField 根据Descriptor创建新的Field
 //
 // Params:
@@ -529,16 +546,16 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	if valueType == "" {
 		panic(fmt.Sprintf("Unsupported value type for entity %q in database %s: attribute %q", ed.EntityName, db.Name, ed.AttrName))
 	}
+	tmpls := f.ExtTemplate()
 
 	ef := &Field{}
+	// 只复制需要序列化的基本类型字段
 	ef.EntityName = ed.EntityName
 	ef.Name = ed.Name
 	ef.AttrName = ed.AttrName
 	ef.Type = ed.Type
 	ef.AttrType = ed.AttrType
-	if size := int64(ed.Size); size != 0 {
-		ef.Size = size
-	}
+	ef.Size = int64(ed.Size)
 	ef.Required = ed.Required
 	ef.Primary = ed.Primary
 	ef.Comment = ed.Comment
@@ -546,8 +563,18 @@ func newField(f entity.FieldBuilder, ed *entity.Descriptor) (*Field, error) {
 	ef.DefaultValue = ed.DefaultValue
 	ef.Locked = ed.Locked
 	ef.Sequence = ed.Sequence
-	ef.Validators = len(ed.Validators)
+	ef.Depth = ed.Depth
+	ef.BaseType = ed.BaseType
+	ef.Uniques = ed.Uniques
+	ef.CheckConstraint = ed.CheckConstraint
+	ef.Indexes = ed.Indexes
+	ef.IndexName = ed.IndexName
+	ef.IndexMethod = ed.IndexMethod
+
+	// 设置Field特有的字段
 	ef.ValueType = valueType
+	ef.Templates = tmpls
+	ef.Validators = len(ed.Validators)
 
 	err := checkSequence(ef.Sequence)
 	if err != nil {
@@ -578,7 +605,7 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 		return &fieldInfoStorager{
 			Pkg:      v.Type().PkgPath(),
 			Name:     s.Name,
-			Type:     typeName,
+			Type:     extractTypeName(s.Type),
 			OrigType: OrigTypeName,
 		}
 
@@ -586,6 +613,54 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 	return nil
 }
 
+// extractOrigTypeName 提取字段的类型的类型名称。含有泛型参数。
+//
+// 例如: geo.GeometryStorage[github.com/yohobala/taurus_go/encoding/geo.LineString,github.com/yohobala/taurus_go/encoding/geo.SDefault]
+// -> geo.GeometryStorage[geo.LineString,geo.SDefault]
+func extractTypeName(t reflect.Type) string {
+	typeName := t.String()
+
+	// 自定义函数来处理单个类型名称，保留最后的包名
+	trimPackagePath := func(fullTypeName string) string {
+		parts := strings.Split(fullTypeName, "/")
+		simpleName := parts[len(parts)-1] // 获取最后一部分，可能包含包名和类型名
+		return simpleName
+	}
+
+	// 检查是否有泛型参数
+	if start := strings.Index(typeName, "["); start != -1 {
+		// 基本类型部分
+		base := trimPackagePath(typeName[:start])
+
+		// 泛型参数部分
+		end := strings.LastIndex(typeName, "]")
+		params := typeName[start+1 : end]
+
+		// 处理泛型参数，这可能是逗号分隔的列表
+		paramTypes := strings.Split(params, ",")
+		for i, paramType := range paramTypes {
+			trimmedParam := strings.TrimSpace(paramType)
+			newParam := trimPackagePath(trimmedParam)
+			firstChar := trimmedParam[0]
+			if firstChar == '*' {
+				// 指针类型
+				newParam = "*" + newParam
+			}
+
+			paramTypes[i] = trimPackagePath(newParam)
+		}
+
+		// 重组类型名称
+		return base + "[" + strings.Join(paramTypes, ", ") + "]"
+	} else {
+		// 非泛型类型，直接处理类型名称
+		return trimPackagePath(typeName)
+	}
+}
+
+// extractOrigTypeName 提取字段的类型的原始类型名称。不含泛型参数和包名。
+//
+// 例如: field.IntStorage[int16] -> field.IntStorage
 func extractOrigTypeName(typeName string) string {
 	// 先移除泛型参数
 	if genIndex := strings.Index(typeName, "["); genIndex != -1 {
@@ -599,6 +674,29 @@ func extractOrigTypeName(typeName string) string {
 	}
 
 	return typeName
+}
+
+// checkFields 检查entity的Fields()方法是否有panic，并得到返回值。
+//
+// Params:
+//
+//   - fd: 实现了entity.EntityInterface的entity。
+//
+// Returns:
+//
+//	0: entity中的字段信息。
+//	1: 错误信息。
+func checkFields(fd interface {
+	Fields() []entity.FieldBuilder
+}) (fields []entity.FieldBuilder, err error) {
+	defer func() {
+		// 如果不是panic那recover为nil
+		if v := recover(); v != nil {
+			err = fmt.Errorf("%T.Fields panics: %v", fd, v)
+			fields = nil
+		}
+	}()
+	return fd.Fields(), nil
 }
 
 // checkSequence 检查序列的值。
@@ -662,7 +760,54 @@ func checkRelationships(r interface {
 	return r.Relationships(), nil
 }
 
-// indirect 穿透指针类型，获取不是指针类型的基础类型
+func checkEntity(e *Entity) error {
+	if e.AttrName == "" {
+		return entity.Err_0100020022
+	}
+
+	// 检查是否为PostgreSQL关键字
+	lowerAttrName := strings.ToLower(e.AttrName)
+	for _, keyword := range postgresKeywords {
+		if lowerAttrName == keyword {
+			return entity.Err_0100020023.Sprintf(e.AttrName)
+		}
+	}
+	// 检查是否为Go语言关键字和保留字
+	for _, keyword := range goKeywords {
+		if lowerAttrName == keyword {
+			return entity.Err_0100020023.Sprintf(e.AttrName)
+		}
+	}
+
+	return nil
+}
+
+func checkEntityFields(e *Entity) error {
+	var hasPrimary bool
+	for _, f := range e.Fields {
+		if f.Primary >= 1 {
+			hasPrimary = true
+		}
+		lowerAttrName := strings.ToLower(f.AttrName)
+		for _, keyword := range postgresKeywords {
+			if lowerAttrName == keyword {
+				return entity.Err_0100020023.Sprintf(f.AttrName)
+			}
+		}
+		// 检查是否为Go语言关键字和保留字
+		for _, keyword := range goKeywords {
+			if lowerAttrName == keyword {
+				return entity.Err_0100020023.Sprintf(f.AttrName)
+			}
+		}
+	}
+	if !hasPrimary {
+		return entity.Err_0100020021.Sprintf(e.Name)
+	}
+	return nil
+}
+
+// indirect 穿透指针类型���获取不是指针类型的基础类型
 //
 // Params:
 //

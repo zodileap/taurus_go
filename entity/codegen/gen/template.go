@@ -120,7 +120,7 @@ func initTemplates(builder *Builder, dbType dialect.DbDriver) {
 	// 根据数据库类型选择模版
 	if dbType == dialect.PostgreSQL {
 		templates = template.MustParse(template.NewTemplate("templates").
-			Funcs(funcMap).
+			Funcs(FuncMap).
 			ParseFS(templateDir,
 				"template/*.tmpl",
 				"template/internal/*.tmpl",
@@ -131,7 +131,7 @@ func initTemplates(builder *Builder, dbType dialect.DbDriver) {
 			))
 	} else {
 		templates = template.MustParse(template.NewTemplate("templates").
-			Funcs(funcMap).
+			Funcs(FuncMap).
 			ParseFS(templateDir,
 				"template/*.tmpl",
 				"template/internal/*.tmpl",

@@ -3,8 +3,9 @@ package gen
 import (
 	"strings"
 
-	stringutil "github.com/yohobala/taurus_go/encoding/string"
+	stringutil "github.com/yohobala/taurus_go/datautil/string"
 	"github.com/yohobala/taurus_go/entity/codegen/load"
+	"github.com/yohobala/taurus_go/entity/dialect"
 )
 
 type (
@@ -17,6 +18,14 @@ type (
 	// EntityInfo 表示一个Builder中的一个实体节点的信息
 	EntityInfo struct {
 		*Config
+		Entity   *load.Entity
+		Database *load.Database
+	}
+
+	FieldInfo struct {
+		*Config
+		Type   string
+		Field  *load.Field
 		Entity *load.Entity
 	}
 )
@@ -51,10 +60,21 @@ func NewDatabaseInfo(c *Config, database *load.Database) (*DatabaseInfo, error) 
 //
 //	0: 实体信息。
 //	1: 错误信息。
-func NewEntityInfo(c *Config, entity *load.Entity) (*EntityInfo, error) {
+func NewEntityInfo(c *Config, entity *load.Entity, database *load.Database) (*EntityInfo, error) {
 	typ := &EntityInfo{
+		Config:   c,
+		Entity:   entity,
+		Database: database,
+	}
+	return typ, nil
+}
+
+func NewFieldInfo(c *Config, field *load.Field, entity *load.Entity, t dialect.DbDriver) (*FieldInfo, error) {
+	typ := &FieldInfo{
 		Config: c,
+		Field:  field,
 		Entity: entity,
+		Type:   string(t),
 	}
 	return typ, nil
 }
@@ -67,4 +87,9 @@ func (t DatabaseInfo) Dir() string {
 // Dir 返回包目录名称
 func (t EntityInfo) Dir() string {
 	return stringutil.ToSnakeCase(t.Entity.AttrName)
+}
+
+// Dir 返回包目录名称
+func (t FieldInfo) Dir() string {
+	return stringutil.ToSnakeCase(t.Field.AttrName)
 }

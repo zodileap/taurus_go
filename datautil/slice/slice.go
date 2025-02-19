@@ -86,3 +86,22 @@ func IsSliceOrArray(x interface{}) bool {
 	kind := reflect.TypeOf(x).Kind()
 	return kind == reflect.Slice || kind == reflect.Array
 }
+
+func Filter[T any](slice []T, f func(T) bool) []T {
+	filtered := make([]T, 0)
+	for _, v := range slice {
+		if f(v) {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
+}
+
+func Find[T any](slice []T, f func(T) bool) (*T, error) {
+	for _, v := range slice {
+		if f(v) {
+			return &v, nil
+		}
+	}
+	return nil, nil
+}

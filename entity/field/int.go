@@ -9,114 +9,110 @@ import (
 
 // Int16 用于定义int16类型的字段。
 type Int16 struct {
-	IntStorage[int16]
 	IntBuilder[int16]
+	IntStorage[int16]
 }
 
 // Int16A1 用于定义int16类型的数组字段。1维数组。
 type Int16A1 struct {
-	IntStorage[[]int16]
 	IntBuilder[[]int16]
+	IntStorage[[]int16]
 }
 
 // Int16A2 用于定义int16类型的数组字段。2维数组。
 type Int16A2 struct {
-	IntStorage[[][]int16]
 	IntBuilder[[][]int16]
+	IntStorage[[][]int16]
 }
 
 // Int16A3 用于定义int16类型的数组字段。3维数组。
 type Int16A3 struct {
-	IntStorage[[][][]int16]
 	IntBuilder[[][][]int16]
+	IntStorage[[][][]int16]
 }
 
 // Int16A4 用于定义int16类型的数组字段。4维数组。
 type Int16A4 struct {
-	IntStorage[[][][][]int16]
 	IntBuilder[[][][][]int16]
+	IntStorage[[][][][]int16]
 }
 
 // Int16A5 用于定义int16类型的数组字段。5维数组。
 type Int16A5 struct {
-	IntStorage[[][][][][]int16]
 	IntBuilder[[][][][][]int16]
+	IntStorage[[][][][][]int16]
 }
 
 // Int32 用于定义int32类型的字段。
 type Int32 struct {
-	IntStorage[int32]
 	IntBuilder[int32]
+	IntStorage[int32]
 }
 
 // Int32A1 用于定义int32类型的数组字段。1维数组。
 type Int32A1 struct {
-	IntStorage[[]int32]
 	IntBuilder[[]int32]
+	IntStorage[[]int32]
 }
 
 // Int32A2 用于定义int32类型的数组字段。2维数组。
 type Int32A2 struct {
-	IntStorage[[][]int32]
 	IntBuilder[[][]int32]
+	IntStorage[[][]int32]
 }
 
 // Int32A3 用于定义int32类型的数组字段。3维数组。
 type Int32A3 struct {
-	IntStorage[[][][]int32]
 	IntBuilder[[][][]int32]
+	IntStorage[[][][]int32]
 }
 
 // Int32A4 用于定义int32类型的数组字段。4维数组。
 type Int32A4 struct {
-	IntStorage[[][][][]int32]
 	IntBuilder[[][][][]int32]
+	IntStorage[[][][][]int32]
 }
 
 // Int32A5 用于定义int32类型的数组字段。5维数组。
 type Int32A5 struct {
-	IntStorage[[][][][][]int32]
 	IntBuilder[[][][][][]int32]
+	IntStorage[[][][][][]int32]
 }
 
 // Int64 用于定义int64类型的字段。
 type Int64 struct {
-	IntStorage[int64]
 	IntBuilder[int64]
+	IntStorage[int64]
 }
 
 // Int64A1 用于定义int64类型的数组字段。1维数组。
 type Int64A1 struct {
-	IntStorage[[]int64]
 	IntBuilder[[]int64]
+	IntStorage[[]int64]
 }
 
 // Int64A2 用于定义int64类型的数组字段。2维数组。
 type Int64A2 struct {
-	IntStorage[[][]int64]
 	IntBuilder[[][]int64]
+	IntStorage[[][]int64]
 }
 
 // Int64A3 用于定义int64类型的数组字段。3维数组。
 type Int64A3 struct {
-	IntStorage[[][][]int64]
 	IntBuilder[[][][]int64]
+	IntStorage[[][][]int64]
 }
 
 // Int64A4 用于定义int64类型的数组字段。4维数组。
 type Int64A4 struct {
-	IntStorage[[][][][]int64]
 	IntBuilder[[][][][]int64]
+	IntStorage[[][][][]int64]
 }
 
 // Int64A5 用于定义int64类型的数组字段。5维数组。
 type Int64A5 struct {
-	IntStorage[[][][][][]int64]
 	IntBuilder[[][][][][]int64]
-}
-
-type IntStorage[T any] struct {
-	BaseStorage[T]
+	IntStorage[[][][][][]int64]
 }
 
 // IntBuilder 用于构建int类型的字段。
@@ -208,4 +204,8 @@ func (i *IntBuilder[T]) Sequence(s entity.Sequence) *IntBuilder[T] {
 func (i *IntBuilder[T]) Locked() *IntBuilder[T] {
 	i.desc.Locked = true
 	return i
+}
+
+type IntStorage[T any] struct {
+	BaseStorage[T]
 }

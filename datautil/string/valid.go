@@ -54,3 +54,12 @@ func Container(slice []string, str string) bool {
 	}
 	return false
 }
+
+func FindIndex(slice []string, str string) int {
+	for i, s := range slice {
+		if s == str {
+			return i
+		}
+	}
+	return -1
+}

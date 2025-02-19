@@ -268,7 +268,7 @@ var Err_0100020017 err.ErrCode = err.New(
 var Err_0100020018 err.ErrCode = err.New(
 	"0100020018",
 	"marshal entity %q : %v",
-	"",
+	"1. Check entity field type, the field should implement interfaces FieldStorager and FieldBuilder.",
 )
 
 // Err_0100020019 在创建实体关系时，出现依赖字段类型不等于主键字段类型。
@@ -306,6 +306,24 @@ var Err_0100020020 err.ErrCode = err.New(
 var Err_0100020021 err.ErrCode = err.New(
 	"0100020021",
 	"entity %q has no primary key",
+	"",
+)
+
+// Err_0100020022 在读取实体时，AttrName为空。
+var Err_0100020022 err.ErrCode = err.New(
+	"0100020022",
+	"entity attrName is empty",
+	"",
+)
+
+// Err_0100020023 在读取实体时，实体的AttrName为关键字。
+//
+// Verbs:
+//
+//	0: 实体的AttrName。
+var Err_0100020023 err.ErrCode = err.New(
+	"0100020023",
+	"entity attrName %q is a keyword",
 	"",
 )
 

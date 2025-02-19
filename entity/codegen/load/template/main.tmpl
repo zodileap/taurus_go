@@ -71,6 +71,7 @@ func Marshal(di entity.DbInterface,name string, de EntityMap) (b []byte, err err
 		Type:  	  config.Type,
 		EntityMap: map[string]string{},
 		Entities: 	map[string]*Entity{},
+		Triggers: config.Triggers,
 	}
 	v := reflect.ValueOf(di).Elem()
 	for key, entityName := range de {

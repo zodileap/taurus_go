@@ -3,8 +3,11 @@ package entitysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
+	"github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/yohobala/taurus_go/tlog"
 )
 
 // DeleteSpec 用于生成删除语句。
@@ -62,6 +65,10 @@ func (b *deleteBuilder) delete(ctx context.Context, drv dialect.Tx) error {
 		return err
 	}
 	for _, spec := range specs {
+		config := entity.GetConfig()
+		if *(config.SqlConsole) {
+			tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+		}
 		var res sql.Result
 		if err := drv.Exec(ctx, spec.Query, spec.Args, &res); err != nil {
 			return err
@@ -86,12 +93,12 @@ func (b *deleteBuilder) delete(ctx context.Context, drv dialect.Tx) error {
 //	0: 删除语句生成器。
 func (b *deleteBuilder) deleter(ctx context.Context) (*Deleter, error) {
 	deleter := NewDeleter(ctx)
-	t := b.entityBuilder.builder.Table(b.Entity.Name)
+	// t := b.entityBuilder.builder.Table(b.Entity.Name)
 	deleter.SetDialect(b.builder.dialect)
 	deleter.SetEntity(b.Entity.Name)
 	if pred := b.Predicate; pred != nil {
 		deleter.where = P(deleter.Builder)
-		pred(deleter.where, t.as)
+		pred(deleter.where)
 	}
 	return deleter, nil
 }

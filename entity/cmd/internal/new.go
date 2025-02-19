@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yohobala/taurus_go/asset"
-	stringutil "github.com/yohobala/taurus_go/encoding/string"
+	stringutil "github.com/yohobala/taurus_go/datautil/string"
 	entity "github.com/yohobala/taurus_go/entity"
 	"github.com/yohobala/taurus_go/entity/codegen/gen"
 	"github.com/yohobala/taurus_go/template"

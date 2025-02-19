@@ -42,6 +42,11 @@ type (
 	tableError struct {
 		msg string
 	}
+
+	extInstanceTemplate struct {
+		Paths []string
+		Tmpl  InstanceTemplate
+	}
 )
 
 // NewBuilder 根据提供的Schema，初始化一个生成器。
@@ -86,14 +91,52 @@ func (b *Builder) Gen() error {
 //
 //	0: 模版。
 //	1: 外部模版。
-func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []InstanceTemplate) {
+func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []extInstanceTemplate, map[string][]InstanceTemplate) {
 	initTemplates(b, dbType)
 	var (
-		external = make([]InstanceTemplate, 0, len(b.Templates))
+		external       = make([]extInstanceTemplate, 0)
+		field_external = make(map[string][]InstanceTemplate)
 	)
+	for _, node := range b.Nodes {
+		entities := node.Database.Entities
+		for _, entity := range entities {
+			entityName := entity.AttrName
+			for _, field := range entity.Fields {
+				if field.Templates != nil && len(field.Templates) > 0 {
+					attrName := field.AttrName
+					fieldTmpls := template.NewTemplate("field_external")
+					fieldTmpls.ParseFiles(field.Templates...)
+					field_external[entityName+attrName] = []InstanceTemplate{}
+					for _, t := range fieldTmpls.Templates() {
+						name := t.Name()
+						ext := filepath.Ext(name)
+						if ext == "" {
+							ext = ".go"
+						} else {
+							continue
+						}
+						field_external[entityName+attrName] = append(field_external[entityName+attrName], InstanceTemplate{
+							Name: name,
+							Format: func(t template.TemplatePathFormat) string {
+								lastSlashIndex := strings.LastIndex(name, "/")
+								if lastSlashIndex == -1 {
+									return t.Dir() + "_" + attrName + "_" + name + ext
+								}
+								return filepath.Join(t.Dir(), attrName+"_"+name[lastSlashIndex+1:]+ext)
+							},
+						})
+						if templates.Lookup(name) == nil {
+							templates = template.MustParse(templates.AddParseTree(name, t.Tree))
+						}
+					}
+
+				}
+			}
+		}
+	}
 	for _, extTmpl := range b.Templates {
-		templates.Funcs(extTmpl.FuncMap)
-		for _, tmpl := range extTmpl.Templates() {
+		templates.Funcs(extTmpl.Tmpl.FuncMap)
+		for _, tmpl := range extTmpl.Tmpl.Templates() {
 			if parse.IsEmptyTree(tmpl.Root) {
 				continue
 			}
@@ -104,25 +147,48 @@ func (b *Builder) templates(dbType dialect.DbDriver) (*template.Template, []Inst
 			} else {
 				name = strings.TrimSuffix(name, ext)
 			}
-			// 如果模版不是已经定义的模版或扩展，则生成一个新的文件。
-			if templates.Lookup(name) == nil {
-				external = append(external, InstanceTemplate{
-					Name: name,
-					Format: func(t template.TemplatePathFormat) string {
-						lastSlashIndex := strings.LastIndex(name, "/")
-						if lastSlashIndex == -1 {
-							// 没有斜杠，直接添加前缀
-							return "db_" + t.Dir() + "_" + name + ext
-						}
-						// 在最后一个斜杠之后添加前缀
-						return name[:lastSlashIndex+1] + t.Dir() + "_" + name[lastSlashIndex+1:] + ext
+			targetPaths := extTmpl.TargetPaths
+			if len(targetPaths) == 0 {
+				// 如果模版不是已经定义的模版或扩展，则生成一个新的文件。
+				if templates.Lookup(name) == nil {
+					external = append(external, extInstanceTemplate{
+						Paths: targetPaths,
+						Tmpl: InstanceTemplate{
+							Name: name,
+							Format: func(t template.TemplatePathFormat) string {
+								lastSlashIndex := strings.LastIndex(name, "/")
+								if lastSlashIndex == -1 {
+									// 没有斜杠，直接添加前缀
+									return "db_" + t.Dir() + "_" + name + ext
+								}
+								// 在最后一个斜杠之后添加前缀
+								return name[:lastSlashIndex+1] + name[lastSlashIndex+1:] + ext
+							},
+						},
 					},
-				})
-				templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
+					)
+					templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
+				}
+			} else {
+				// 如果模版不是已经定义的模版或扩展，则生成一个新的文件。
+				if templates.Lookup(name) == nil {
+					external = append(external, extInstanceTemplate{
+						Paths: targetPaths,
+						Tmpl: InstanceTemplate{
+							Name: name,
+							Format: func(t template.TemplatePathFormat) string {
+								// 在最后一个斜杠之后添加前缀
+								return name + ext
+							},
+						},
+					},
+					)
+					templates = template.MustParse(templates.AddParseTree(name, tmpl.Tree))
+				}
 			}
 		}
 	}
-	return templates, external
+	return templates, external, field_external
 }
 
 // addNode 添加一个数据库节点到Builder中。
@@ -178,8 +244,8 @@ func generate(t *Builder) error {
 	// 获取模版。
 	// 为每个节点生成代码：
 	for _, n := range t.Nodes {
-		templates, extend := t.templates(n.Database.Type)
-		for _, tmpl := range append(DatabaseTemplates, extend...) {
+		templates, extend, field_external := t.templates(n.Database.Type)
+		for _, tmpl := range append(DatabaseTemplates) {
 			if dir := filepath.Dir(tmpl.Format(n)); dir != "." {
 				assets.AddDir(filepath.Join(t.Config.Target, dir))
 			}
@@ -189,9 +255,29 @@ func generate(t *Builder) error {
 			}
 			assets.Add(filepath.Join(t.Config.Target, tmpl.Format(n)), b.Bytes())
 		}
+		for _, ext := range extend {
+			b := bytes.NewBuffer(nil)
+			if err := templates.ExecuteTemplate(b, ext.Tmpl.Name, n); err != nil {
+				return fmt.Errorf("execute template %q: %w", ext.Tmpl.Name, err)
+			}
+			if len(ext.Paths) == 0 {
+				if dir := filepath.Dir(ext.Tmpl.Format(n)); dir != "." {
+					assets.AddDir(filepath.Join(t.Config.Target, dir))
+				}
+				assets.Add(filepath.Join(t.Config.Target, ext.Tmpl.Format(n)), b.Bytes())
+			} else {
+				for _, path := range ext.Paths {
+					assets.AddDir(path)
+					targetDir := filepath.Dir(filepath.Join(path, ext.Tmpl.Format(n)))
+					assets.AddDir(targetDir)
+					assets.Add(filepath.Join(path, ext.Tmpl.Format(n)), b.Bytes())
+				}
+			}
+		}
 		// 为节点的每个entity生成代码
 		for _, e := range n.Database.Entities {
-			ei, err := NewEntityInfo(t.Config, e)
+			entityName := e.AttrName
+			ei, err := NewEntityInfo(t.Config, e, n.Database)
 			if err != nil {
 				return err
 			}
@@ -203,9 +289,25 @@ func generate(t *Builder) error {
 				}
 				assets.Add(filepath.Join(t.Config.Target, tmpl.Format(ei)), b.Bytes())
 			}
+			for _, field := range e.Fields {
+				fieldName := field.AttrName
+				if field_external[entityName+fieldName] != nil {
+					for _, tmpl := range field_external[entityName+fieldName] {
+						b := bytes.NewBuffer(nil)
+						fi, err := NewFieldInfo(t.Config, field, e, n.Database.Type)
+						if err != nil {
+							return err
+						}
+						if err := templates.ExecuteTemplate(b, tmpl.Name, fi); err != nil {
+							return fmt.Errorf("execute template %q: %w", tmpl.Name, err)
+						}
+						assets.Add(filepath.Join(t.Config.Target, tmpl.Format(ei)), b.Bytes())
+					}
+				}
+			}
 		}
 	}
-	templates, _ := t.templates("")
+	templates, _, _ := t.templates("")
 	// 通用的核心功能的模板:
 	for _, tmpl := range InstanceTemplates {
 		if tmpl.Skip != nil && tmpl.Skip(t) {

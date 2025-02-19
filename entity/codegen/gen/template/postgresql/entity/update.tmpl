@@ -1,10 +1,10 @@
 {{ define "entity/update" }}
-{{ $entity := toFirstLower $.Entity.Name}}
+{{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := dict "Package" "entity" }}
+{{ $header := createMap "Package" "entity" }}
 {{ template "header" $header }}
 
-{{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
+{{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
 
 // {{ $entity }}Update is the update action for the {{ $entity }}.
@@ -12,15 +12,15 @@ type {{ $entity }}Update struct {
 	config *internal.Dialect
 	ctx *entitysql.QueryContext
 	tracker entity.Tracker
-	es  []*{{ toFirstCap $entity }}
+	es  []*{{ stringToFirstCap $entity }}
 	predicates [][]entitysql.PredicateFunc
 	sets       []map[string]entitysql.CaseSpec
 	total      int
 	batchIndex []int
 }
 
-// new{{ toFirstCap $entity }}Update creates a new {{ $entity }}Update.
-func new{{ toFirstCap $entity }}Update(c *internal.Dialect, es ...*{{ toFirstCap $entity }}) *{{ $entity }}Update {
+// new{{ stringToFirstCap $entity }}Update creates a new {{ $entity }}Update.
+func new{{ stringToFirstCap $entity }}Update(c *internal.Dialect, es ...*{{ stringToFirstCap $entity }}) *{{ $entity }}Update {
 	return &{{ $entity }}Update{
 		config: c,
 		ctx:    &entitysql.QueryContext{},
@@ -106,12 +106,15 @@ func (o *{{ $entity }}Update) setEntity(spec *entitysql.UpdateSpec) error {
 			switch f {
 			{{- range $i, $f := $.Entity.Fields }}
 			case {{ $entityAttr }}.Field{{ $f.Name }}.Name.String():
-				v, err := e.{{ $f.Name }}.Value(o.config.Driver.Dialect())
+				v, err := e.{{ $f.Name }}.SqlParam(o.config.Driver.Dialect())
 				if err != nil {
 					return err
 				}
+				fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $f.Name }}.Name)
+				fieldSpace.Param = v
+				fieldSpace.ParamFormat = e.{{ $f.Name }}.SqlFormatParam()
 				o.sets[index][{{ $entityAttr }}.Field{{ $f.Name }}.Name.String()] = entitysql.CaseSpec{
-					Value: v,
+					Field: fieldSpace,
 					When:  pred{{ $predField }}.EQ(*e.{{ $predField }}.Get()),
 				}
 				num++
@@ -147,9 +150,9 @@ func (o *{{ $entity }}Update) mergeArgs(spec *entitysql.UpdateSpec) {
 				set[k] = append(set[k], v)
 			}
 		}
-		spec.Predicate = append(spec.Predicate, func(p *entitysql.Predicate, as string) {
+		spec.Predicate = append(spec.Predicate, func(p *entitysql.Predicate) {
 			for _, f := range pred {
-				f(p, as)
+				f(p)
 			}
 		})
 		spec.Sets = append(spec.Sets, set)

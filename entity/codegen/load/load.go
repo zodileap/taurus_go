@@ -300,31 +300,44 @@ func (c *Config) load() (*BuilderInfo, error) {
 				// 检查函数是否符合条件
 				if n.Recv != nil && len(n.Recv.List) > 0 {
 					// 获取函数接收器的类型
-					if recvType, ok := n.Recv.List[0].Type.(*ast.Ident); ok {
-						recvTypeName := recvType.Name
+					recvTypeExpr := n.Recv.List[0].Type
+					var recvTypeName string
+					switch recvType := recvTypeExpr.(type) {
+					case *ast.Ident:
+						recvTypeName = recvType.Name
+					case *ast.StarExpr:
+						if ident, ok := recvType.X.(*ast.Ident); ok {
+							recvTypeName = "*" + ident.Name
+						}
+					}
+
+					if recvTypeName != "" {
 						var recvTypeDefinition *types.TypeName
 						for _, def := range loadPkg.TypesInfo.Defs {
-							if typeName, ok := def.(*types.TypeName); ok && typeName.Name() == recvTypeName {
+							if typeName, ok := def.(*types.TypeName); ok && typeName.Name() == strings.TrimPrefix(recvTypeName, "*") {
 								recvTypeDefinition = typeName
 								break
 							}
 						}
 						if recvTypeDefinition != nil {
-							if types.Implements(recvTypeDefinition.Type(), iface) || types.Implements(recvTypeDefinition.Type(), dbIface) {
+							recvType := recvTypeDefinition.Type()
+							if strings.HasPrefix(recvTypeName, "*") {
+								recvType = types.NewPointer(recvType)
+							}
+							if types.Implements(recvType, iface) || types.Implements(recvType, dbIface) {
 								// 接收器类型符合条件，跳过该函数
 								continue
 							}
 						}
-						if recvType.IsExported() {
+						recvTypeName = strings.TrimPrefix(recvTypeName, "*")
+						if ast.IsExported(recvTypeName) {
 							addNonConformingCode(n, loadPkg.Fset, &extraCodes)
-							continue
 						}
 					}
 				} else if n.Name.IsExported() {
 					// 函数没有接收器，直接检查函数名是否导出
 					addNonConformingCode(n, loadPkg.Fset, &extraCodes)
 				}
-
 			}
 		}
 	}
