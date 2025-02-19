@@ -5,13 +5,17 @@ import (
 	"reflect"
 )
 
-// 从数组中移除指定元素之前的全部元素，并将该元素放到数组末尾
+// 将指定元素及其之前的所有元素移到数组末尾。这个函数会修改原始数组的顺序，
+// 将目标元素之前的所有元素（包括目标元素）移动到数组的末尾。
 //
-// 例如：数组[1,2,3,4,5]，移除元素3，结果为[4,5,1,2,3]
+// Example:
 //
-// 参数：
-//   - arr: 需要修改的数组
-//   - elementIndex: 需要移除的元素的索引
+//	arr := []int{1, 2, 3, 4, 5}
+//	result, _ := MoveElementToEndAndRemovePrevious(arr, 2)
+//	// result = [4, 5, 1, 2, 3]
+//
+// ErrCodes:
+//   - text_err_index_out_of_range
 func MoveElementToEndAndRemovePrevious[T any](arr []T, elementIndex int) ([]T, error) {
 	if elementIndex >= len(arr) || elementIndex < 0 {
 		return nil, fmt.Errorf(text_err_index_out_of_range)
@@ -24,54 +28,13 @@ func MoveElementToEndAndRemovePrevious[T any](arr []T, elementIndex int) ([]T, e
 	return arr, nil
 }
 
-// 寻找两个有序数组的中位数
+// 检查整数切片中是否包含指定的整数值。
 //
-// 例如：数组1[1,3]，数组2[2]，中位数为2.0
+// Example:
 //
-// 参数：
-//   - nums1: 数组1
-//   - nums2: 数组2
-func findMedianSortedArrays(nums1 []int, nums2 []int) (float64, error) {
-	length := len(nums1) + len(nums2)
-	index1 := 0
-	index2 := 0
-	num := 0
-	for i := 0; i < length/2; i++ {
-		if index1 == len(nums1) {
-			num = nums2[index2]
-			index2++
-			continue
-		}
-		if index2 == len(nums2) {
-			num = nums1[index1]
-			index1++
-			continue
-		}
-		if nums1[index1] < nums2[index2] {
-			num = nums1[index1]
-			index1++
-		} else {
-			num = nums2[index2]
-			index2++
-		}
-	}
-	var num2 int
-	if index2 == len(nums2) {
-		num2 = nums1[index1]
-	} else if index1 == len(nums1) || nums1[index1] > nums2[index2] {
-		num2 = nums2[index2]
-	} else {
-		num2 = nums1[index1]
-	}
-	if length%2 == 0 {
-
-		return float64(float64(num2+num) / 2.0), nil
-	} else {
-		return float64(num2), nil
-	}
-}
-
-// 判断数组中是否包含指定元素
+//	arr := []int{1, 2, 3, 4, 5}
+//	exists := ContainByInt(arr, 3)
+//	// exists = true
 func ContainByInt(arr []int, element int) bool {
 	for _, v := range arr {
 		if v == element {
@@ -81,12 +44,28 @@ func ContainByInt(arr []int, element int) bool {
 	return false
 }
 
-// 判断是否是切片或者数组
+// 判断给定的接口值是否为切片或数组类型。使用反射来检查类型。
+//
+// Example:
+//
+//	arr := []int{1, 2, 3}
+//	isSlice := IsSliceOrArray(arr)
+//	// isSlice = true
 func IsSliceOrArray(x interface{}) bool {
 	kind := reflect.TypeOf(x).Kind()
 	return kind == reflect.Slice || kind == reflect.Array
 }
 
+// 根据提供的过滤函数筛选切片中的元素。返回一个新的切片，
+// 其中包含所有满足过滤条件的元素。
+//
+// Example:
+//
+//	numbers := []int{1, 2, 3, 4, 5}
+//	even := Filter(numbers, func(n int) bool {
+//	    return n%2 == 0
+//	})
+//	// even = [2, 4]
 func Filter[T any](slice []T, f func(T) bool) []T {
 	filtered := make([]T, 0)
 	for _, v := range slice {
@@ -97,6 +76,16 @@ func Filter[T any](slice []T, f func(T) bool) []T {
 	return filtered
 }
 
+// 在切片中查找第一个满足条件的元素。如果找到则返回该元素的指针，
+// 如果未找到则返回 nil。
+//
+// Example:
+//
+//	numbers := []int{1, 2, 3, 4, 5}
+//	found, _ := Find(numbers, func(n int) bool {
+//	    return n > 3
+//	})
+//	// found = &4
 func Find[T any](slice []T, f func(T) bool) (*T, error) {
 	for _, v := range slice {
 		if f(v) {
