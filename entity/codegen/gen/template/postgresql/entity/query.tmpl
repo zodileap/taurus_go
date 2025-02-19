@@ -166,7 +166,7 @@ func (o *{{ $entity }}Query) querySpec() *entitysql.QuerySpec {
 		switch {{ $entityAttr }}.Columns[i] {
 			{{- range $i, $field := $.Entity.Fields }}
 			case {{ $entityAttr }}.Field{{ $field.Name }}.Name:
-				var a *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} = new({{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }})
+				var a *{{ snakeCaseToLowerCamelCase $entityAttr  }}_{{ $field.Name }} = new({{ snakeCaseToLowerCamelCase $entityAttr  }}_{{ $field.Name }})
 				fieldSpace := entitysql.NewFieldSpec({{ $entityAttr }}.Field{{ $field.Name }}.Name)
 				fieldSpace.NameFormat = a.SqlSelectFormat()
 				s.Entity.Columns[i] = fieldSpace

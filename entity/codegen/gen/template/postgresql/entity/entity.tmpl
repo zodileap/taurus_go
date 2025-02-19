@@ -12,7 +12,7 @@ type {{ $entity }} struct {
 	internal.Entity `json:"-"`
     config      *{{ stringToLower $entity}}Config 
     {{- range $i,$field := $.Entity.Fields }}
-        {{ $field.Name }} *{{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} {{ if ne $field.Tag "" }}`{{ $field.Tag }}`{{ end }} {{ if $field.Comment }} // {{ $field.Name }} {{ $field.Comment }} {{- end }}
+        {{ $field.Name }} *{{ snakeCaseToLowerCamelCase $entityAttr  }}_{{ $field.Name }} {{ if ne $field.Tag "" }}`{{ $field.Tag }}`{{ end }} {{ if $field.Comment }} // {{ $field.Name }} {{ $field.Comment }} {{- end }}
     {{- end }}
 
 	{{- range $relation :=  .Entity.Relations }}
@@ -53,7 +53,7 @@ func (c *{{ stringToLower $entity}}Config) New() internal.Entity {
 	}
 	e.setState(entity.Detached)
 	{{- range $i,$field := $.Entity.Fields }}
-		e.{{ $field.Name }} = new{{ stringToFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}{{ $field.Name }}(e.config)
+		e.{{ $field.Name }} = new{{ stringToFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}_{{ $field.Name }}(e.config)
 	{{- end }}
 	return e
 }

@@ -12,21 +12,21 @@ import "{{ $field.StoragerPkg }}"
 
 
 {{- range $i,$field := $.Entity.Fields }}
-// {{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }} is {{ $field.Name }} field
-type {{ snakeCaseToLowerCamelCase $entityAttr  }}{{ $field.Name }} struct {
+// {{ snakeCaseToLowerCamelCase $entityAttr }}_{{ $field.Name }} is {{ $field.Name }} field
+type {{ snakeCaseToLowerCamelCase $entityAttr  }}_{{ $field.Name }} struct {
 	{{ $field.StoragerType }}
 	config *{{ stringToLower $entity }}Config
 }
 
-// new{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }} creates a new {{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}
-func new{{ stringToFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}{{ $field.Name }}(c *{{stringToLower $entity }}Config) *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }} {
-	t := &{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}{}
+// new{{ snakeCaseToLowerCamelCase $entityAttr }}_{{ $field.Name }} creates a new {{ snakeCaseToLowerCamelCase $entityAttr }}_{{ $field.Name }}
+func new{{ stringToFirstCap ( snakeCaseToLowerCamelCase $entityAttr ) }}_{{ $field.Name }}(c *{{stringToLower $entity }}Config) *{{ snakeCaseToLowerCamelCase $entityAttr }}_{{ $field.Name }} {
+	t := &{{ snakeCaseToLowerCamelCase $entityAttr }}_{{ $field.Name }}{}
 	t.config = c
 	return t
 }
 
 // Set sets the value of {{ $field.Name }} field
-func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Set(v {{ $field.ValueType }}) {
+func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}_{{ $field.Name }}) Set(v {{ $field.ValueType }}) {
 	t.{{ $field.StoragerOrigType }}.Set(v)
 	if (t.config.State() == entity.Unchanged || t.config.State() == entity.Modified) {
 		t.config.{{ stringToLower $entity}}Mutations.ChangeEntityState(t.config.Mutation, entity.Modified)
@@ -41,7 +41,7 @@ func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Set(v {{ 
 {{- if not $field.Required }}
 	{{ $returnType = stringJoin "*" $field.ValueType }}
 {{- end }}
-func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}{{ $field.Name }}) Get() {{ $returnType }} {
+func (t *{{ snakeCaseToLowerCamelCase $entityAttr }}_{{ $field.Name }}) Get() {{ $returnType }} {
 	{{- if $field.Required }}
 		return *t.{{ $field.StoragerOrigType }}.Get()
 	{{- else }}
