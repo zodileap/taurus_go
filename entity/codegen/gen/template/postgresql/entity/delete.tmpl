@@ -68,12 +68,19 @@ func (o *{{ $entity }}Delete) deleteSpec() (*entitysql.DeleteSpec, error) {
 			o.predicates = make([]entitysql.PredicateFunc, 0, len(o.es))
 		}
 		for i, e := range o.es {
+			{{- if $f.Required }}
+			if i >= 1 {
+				o.predicates = append(o.predicates, entitysql.Or)
+			}
+			o.predicates = append(o.predicates, pred{{ $f.Name }}.EQ(e.{{ $f.Name }}.Get()))
+			{{- else }}
 			if e.{{ $f.Name }}.Get() != nil {
 				if i >= 1 {
 					o.predicates = append(o.predicates, entitysql.Or)
 				}
 				o.predicates = append(o.predicates, pred{{ $f.Name }}.EQ(*e.{{ $f.Name }}.Get()))
 			}
+			{{- end }}
 		}
 		{{- end }}
 	{{- end }}

@@ -368,6 +368,7 @@ const (
 	sliceTypeCommon sliceType = 0
 	sliceTypeBool   sliceType = 1
 	sliceTypeTime   sliceType = 2
+	sliceTypeString sliceType = 3
 )
 
 // BytesToSlice 处理通用切片类型的转换
@@ -400,6 +401,13 @@ func BytesToSlice(dest any, src []byte) error {
 			return fmt.Errorf("slice parse error: %v", err)
 		}
 		return nil
+	} else if t == sliceTypeString {
+		stingSlice, err := bytesToStrings(src)
+		if err != nil {
+			return fmt.Errorf("slice parse error: %v", err)
+		}
+		e.Set(reflect.ValueOf(stingSlice))
+		return nil
 	}
 
 	if err := json.Unmarshal(src, e.Addr().Interface()); err != nil {
@@ -419,6 +427,8 @@ func validSliceType(v reflect.Value) sliceType {
 				return sliceTypeBool
 			} else if v.Kind() == reflect.TypeOf(time.Time{}).Kind() {
 				return sliceTypeTime
+			} else if v.Kind() == reflect.String {
+				return sliceTypeString
 			} else {
 				return sliceTypeCommon
 			}
@@ -455,4 +465,41 @@ func parseTimeRecursive(data interface{}, result *[]time.Time) error {
 	}
 
 	return nil
+}
+
+// bytesToStrings 将形如 [91 97 98 44 98 99 93] 的字节数组转换为字符串数组
+// 过程：去除方括号 -> 按逗号分割 -> 转换为字符串数组
+func bytesToStrings(input []byte) ([]string, error) {
+	// 检查输入是否有效
+	if len(input) < 2 {
+		return nil, fmt.Errorf("输入字节数组长度过短")
+	}
+
+	// 检查首尾是否为方括号
+	if input[0] != '[' || input[len(input)-1] != ']' {
+		return nil, fmt.Errorf("输入格式错误：需要以 [ 开头，] 结尾")
+	}
+
+	// 去除首尾的方括号
+	content := input[1 : len(input)-1]
+
+	// 如果去除方括号后为空，返回空数组
+	if len(content) == 0 {
+		return []string{}, nil
+	}
+
+	// 按逗号分割
+	parts := bytes.Split(content, []byte{44}) // 44 是逗号的 ASCII 码
+
+	// 转换每个部分为字符串
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		// 去除可能存在的空白字符
+		part = bytes.TrimSpace(part)
+		if len(part) > 0 {
+			result = append(result, string(part))
+		}
+	}
+
+	return result, nil
 }

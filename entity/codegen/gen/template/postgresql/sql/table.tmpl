@@ -39,16 +39,36 @@ $$;
 -- ********
 -- Sequence {{ $seq.Name }}
 -- ********
-DO $$
+DO $$ 
+BEGIN     
+    -- 创建随机种子序列
+    CREATE SEQUENCE IF NOT EXISTS {{ $schema }}."{{ $seq.Name }}_seed"
+    INCREMENT 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    START 1
+    CACHE 1;
+END $$;
+CREATE OR REPLACE FUNCTION {{ $schema }}.{{ $seq.Name }}() 
+RETURNS BIGINT AS $$
+DECLARE
+    timestamp_part BIGINT;
+    sequence_part BIGINT;
+    random_part BIGINT;
 BEGIN
-    CREATE  SEQUENCE IF NOT EXISTS {{ $schema }}."{{ $seq.Name }}" 
-    INCREMENT {{ $seq.Increament }}
-    MINVALUE  {{ $seq.Min }}
-    MAXVALUE {{ $seq.Max }}
-    START {{ $seq.Start }}
-    CACHE {{ $seq.Cache }};
-END
-$$;
+    -- 获取当前时间戳（毫秒）
+    timestamp_part := (extract(epoch from current_timestamp) * 1000)::BIGINT;
+    
+    -- 获取序列号
+    sequence_part := nextval('{{ $schema }}.{{ $seq.Name }}') % 512;
+    
+    -- 获取随机数部分
+    random_part := nextval('{{ $schema }}.{{ $seq.Name }}_seed') % 512;
+    
+    -- 组合TSID：41位时间戳 + 9位序列号 + 9位随机数
+    RETURN (timestamp_part << 18) | (sequence_part << 9) | random_part;
+END;
+$$ LANGUAGE plpgsql;
 {{ end -}}
 
 -- ********

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/yohobala/taurus_go/tlog"
 	"golang.org/x/tools/imports"
 )
 
@@ -105,6 +106,7 @@ func (fo FileOperator) String() string {
 
 // ReadFile 读取文件内容
 func (fo *FileOperator) ReadFile() error {
+	fo.lines = make([]string, 0)
 	file, err := os.Open(fo.FilePath)
 	if err != nil {
 		return Err_0200020003.Sprintf(fo.FilePath, err)
@@ -231,7 +233,7 @@ func (fo *FileOperator) FindRange(startMarker, endMarker string, isLike bool, st
 //
 // Params:
 //
-//   - pos: 插入位置，会在这个位置插入，从1开始。比如 pos = 1，会在第一行后面插入，原本的第一行会变成第二行。
+//   - pos: 插入位置，会在这个位置插入，从1开始。比如 pos = 1，会在第一行插入新的内容，原本的第一行会变成第二行。如果为-1，则在文件末尾插入。
 //   - content: 要插入的内容。
 //
 // Returns:
@@ -240,7 +242,7 @@ func (fo *FileOperator) FindRange(startMarker, endMarker string, isLike bool, st
 //	1: 错误信息。
 func (fo *FileOperator) Insert(pos int, content string) (nextPos int, err error) {
 	if pos < 1 {
-		return -1, Err_0200020008.Sprintf(1)
+		pos = fo.Len() + 1
 	}
 
 	newLines := make([]string, 0, len(fo.lines))
@@ -255,6 +257,7 @@ func (fo *FileOperator) Insert(pos int, content string) (nextPos int, err error)
 		return pos + 1, nil
 	} else {
 		newLines = append(newLines, fo.lines[:pos-1]...)
+		tlog.Print(newLines, pos)
 		newLines = append(newLines, content)
 		newLines = append(newLines, fo.lines[pos-1:]...)
 		fo.lines = newLines
@@ -266,7 +269,7 @@ func (fo *FileOperator) Insert(pos int, content string) (nextPos int, err error)
 //
 // Params:
 //
-//   - index: 插入位置，会在这个位置插入，从1开始。比如 pos = 1，会在第一行后面插入，原本的第一行会变成第二行。
+//   - index: 插入位置，会在这个位置插入，从1开始。比如 pos = 1，会在第一行插入新的内容，原本的第一行会变成第二行。如果为-1，则在文件末尾插入。
 //   - contents: 要插入的内容列表。
 //
 // Returns:
@@ -401,6 +404,11 @@ func (fo *FileOperator) Save() error {
 		return Err_0200020001.Sprintf(fo.FilePath, err)
 	}
 
+	// 重新读取文件
+	if err := fo.ReadFile(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -412,4 +420,8 @@ func (fo *FileOperator) getContent() string {
 		buffer.WriteString("\n")
 	}
 	return buffer.String()
+}
+
+func (fo *FileOperator) Len() int {
+	return len(fo.lines)
 }

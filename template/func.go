@@ -16,8 +16,8 @@ var (
 		"filePathBase":        filepath.Base,
 		"createMap":           dict,
 		"stringToLower":       toLower,
-		"stringToFirstCap":    toFirstCap,
-		"stringToFirstLower":  toFirstLower,
+		"stringToFirstCap":    stringToFirstCap,
+		"stringToFirstLower":  stringToFirstLower,
 		"stringToSnakeCase":   stringutil.ToSnakeCase,
 		"stringToCamelCase":   stringutil.ToCamelCase,
 		"stringReplace":       strings.Replace,
@@ -59,11 +59,11 @@ func toLower(s string) string {
 	return strings.ToLower(s)
 }
 
-func toFirstCap(s string) string {
+func stringToFirstCap(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
 }
 
-func toFirstLower(s string) string {
+func stringToFirstLower(s string) string {
 	return strings.ToLower(s[0:1]) + s[1:]
 }
 
