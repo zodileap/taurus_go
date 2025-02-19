@@ -195,7 +195,7 @@ func (i *IntBuilder[T]) Default(value T) *IntBuilder[T] {
 //   - s: 序列。
 func (i *IntBuilder[T]) Sequence(s entity.Sequence) *IntBuilder[T] {
 	i.desc.Default = true
-	i.desc.DefaultValue = fmt.Sprintf(`nextval('%s'::regclass)`, *s.Name)
+	i.desc.DefaultValue = fmt.Sprintf(`%s()`, *s.Name)
 	i.desc.Sequence = s
 	return i
 }
