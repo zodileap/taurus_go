@@ -6,6 +6,12 @@
 */
 
 -- ********
+-- EXTENSION
+-- ********
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+
+-- ********
 -- Delete Foreign Key
 -- ********
 DO $$
@@ -41,6 +47,13 @@ $$;
 -- ********
 DO $$ 
 BEGIN     
+    -- 创建基础序列
+    CREATE SEQUENCE IF NOT EXISTS {{ $schema }}.{{ $seq.Name }}
+        INCREMENT 1
+        MINVALUE 1
+        MAXVALUE 9223372036854775807
+        START 1
+        CACHE 1;
     -- 创建随机种子序列
     CREATE SEQUENCE IF NOT EXISTS {{ $schema }}."{{ $seq.Name }}_seed"
     INCREMENT 1
