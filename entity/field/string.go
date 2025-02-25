@@ -237,7 +237,16 @@ type UUIDBuilder[T any] struct {
 func (u *UUIDBuilder[T]) AttrType(dbType dialect.DbDriver) string {
 	switch dbType {
 	case dialect.PostgreSQL:
-		return "uuid"
+		var t T
+		concrete := any(t)
+		switch concrete.(type) {
+		case string:
+			return "uuid"
+		case []string:
+			return "uuid[]"
+		default:
+			return ""
+		}
 	default:
 		return ""
 	}
