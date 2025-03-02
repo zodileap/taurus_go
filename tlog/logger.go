@@ -94,13 +94,13 @@ var levelColors = map[Level]string{
 }
 
 // FormatLog 格式化日志信息并返回带颜色和不带颜色的字符串
-func (l *Logger) FormatLog(level Level, msg string, fields ...Field) (plainContent, colorContent string) {
+func (l *Logger) FormatLog(level Level, skip int, msg string, fields ...Field) (plainContent, colorContent string) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 
 	// 调用信息
 	var caller string
 	if l.hasCaller {
-		_, file, line, ok := runtime.Caller(3)
+		_, file, line, ok := runtime.Caller(skip)
 		if ok {
 			caller = fmt.Sprintf("%s:%d", file, line)
 		}
@@ -149,7 +149,7 @@ func (l *Logger) FormatLog(level Level, msg string, fields ...Field) (plainConte
 	return plainContent, colorContent
 }
 
-func (l *Logger) log(level Level, msg string, fields ...Field) {
+func (l *Logger) log(level Level, skip int, msg string, fields ...Field) {
 	if level < l.level {
 		return
 	}
@@ -157,7 +157,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	plainContent, colorContent := l.FormatLog(level, msg, fields...)
+	plainContent, colorContent := l.FormatLog(level, skip, msg, fields...)
 
 	// 分别输出到控制台和文件
 	if l.writer != nil {
@@ -172,26 +172,26 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 }
 
 // Debug 输出Debug级别日志
-func (l *Logger) Debug(msg string, fields ...Field) {
-	l.log(DebugLevel, msg, fields...)
+func (l *Logger) Debug(msg string, skip int, fields ...Field) {
+	l.log(DebugLevel, skip, msg, fields...)
 }
 
 // Info 输出Info级别日志
-func (l *Logger) Info(msg string, fields ...Field) {
-	l.log(InfoLevel, msg, fields...)
+func (l *Logger) Info(msg string, skip int, fields ...Field) {
+	l.log(InfoLevel, skip, msg, fields...)
 }
 
 // Warn 输出Warn级别日志
-func (l *Logger) Warn(msg string, fields ...Field) {
-	l.log(WarnLevel, msg, fields...)
+func (l *Logger) Warn(msg string, skip int, fields ...Field) {
+	l.log(WarnLevel, skip, msg, fields...)
 }
 
 // Error 输出Error级别日志
-func (l *Logger) Error(msg string, fields ...Field) {
-	l.log(ErrorLevel, msg, fields...)
+func (l *Logger) Error(msg string, skip int, fields ...Field) {
+	l.log(ErrorLevel, skip, msg, fields...)
 }
 
 // Fatal 输出Fatal级别日志
-func (l *Logger) Fatal(msg string, fields ...Field) {
-	l.log(FatalLevel, msg, fields...)
+func (l *Logger) Fatal(msg string, skip int, fields ...Field) {
+	l.log(FatalLevel, skip, msg, fields...)
 }
