@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/entity/dialect"
 )
 
 type (

@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/dialect"
 )
 
 // Scanner 用于扫描返回的数据。

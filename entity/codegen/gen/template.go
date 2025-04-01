@@ -4,8 +4,8 @@ import (
 	"embed"
 	"fmt"
 
-	"github.com/yohobala/taurus_go/entity/dialect"
-	"github.com/yohobala/taurus_go/template"
+	"github.com/zodileap/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/template"
 )
 
 type (

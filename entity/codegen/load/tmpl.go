@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	entity "github.com/yohobala/taurus_go/entity"
+	entity "github.com/zodileap/taurus_go/entity"
 )
 
 type (

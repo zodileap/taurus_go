@@ -3,7 +3,7 @@ package rsa
 import (
 	"testing"
 
-	tlog "github.com/yohobala/taurus_go/tlog"
+	tlog "github.com/zodileap/taurus_go/tlog"
 )
 
 func TestGenerateKey(t *testing.T) {

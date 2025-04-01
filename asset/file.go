@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/yohobala/taurus_go/tlog"
+	"github.com/zodileap/taurus_go/tlog"
 	"golang.org/x/tools/imports"
 )
 

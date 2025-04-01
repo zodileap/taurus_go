@@ -2,7 +2,7 @@ package gen
 
 import (
 	"entgo.io/ent/schema/field"
-	"github.com/yohobala/taurus_go/template"
+	"github.com/zodileap/taurus_go/template"
 )
 
 // ExtTemplate 用于外部传入的template

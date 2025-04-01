@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"github.com/yohobala/taurus_go/err"
+	"github.com/zodileap/taurus_go/err"
 )
 
 /**************** 初始化遇到的问题 ***************/

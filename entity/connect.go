@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yohobala/taurus_go/entity/dialect"
-	dsql "github.com/yohobala/taurus_go/entity/dialect/sql"
+	"github.com/zodileap/taurus_go/entity/dialect"
+	dsql "github.com/zodileap/taurus_go/entity/dialect/sql"
 )
 
 var (

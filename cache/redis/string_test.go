@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	terr "github.com/yohobala/taurus_go/err"
-	"github.com/yohobala/taurus_go/tlog"
+	terr "github.com/zodileap/taurus_go/err"
+	"github.com/zodileap/taurus_go/tlog"
 
-	"github.com/yohobala/taurus_go/testutil/unit"
+	"github.com/zodileap/taurus_go/testutil/unit"
 )
 
 func TestString(t *testing.T) {

@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yohobala/taurus_go/entity/codegen"
-	"github.com/yohobala/taurus_go/entity/codegen/gen"
+	"github.com/zodileap/taurus_go/entity/codegen"
+	"github.com/zodileap/taurus_go/entity/codegen/gen"
 )
 
-// GenerateCmd 生成Schema的资源文件，通过运行`github.com/yohobala/taurus_go/entity/cmd generate`调用。
+// GenerateCmd 生成Schema的资源文件，通过运行`github.com/zodileap/taurus_go/entity/cmd generate`调用。
 //
 // Returns:
 //
@@ -21,7 +21,7 @@ func GenerateCmd() *cobra.Command {
 		cmd       = &cobra.Command{
 			Use:     "generate [flags] path",
 			Short:   "generate go code for the entity directory",
-			Example: "go run -mod=mod github.com/yohobala/taurus_go/entity/cmd generate ./entity",
+			Example: "go run -mod=mod github.com/zodileap/taurus_go/entity/cmd generate ./entity",
 			// 要求至少有一个参数
 			Args: cobra.ExactArgs(1),
 			Run: func(cmd *cobra.Command, path []string) {

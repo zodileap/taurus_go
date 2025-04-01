@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/entity/dialect"
 )
 
 type RawBytes []byte

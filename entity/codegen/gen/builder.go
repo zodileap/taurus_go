@@ -11,10 +11,10 @@ import (
 	"strings"
 	"text/template/parse"
 
-	"github.com/yohobala/taurus_go/asset"
-	"github.com/yohobala/taurus_go/entity/codegen/load"
-	"github.com/yohobala/taurus_go/entity/dialect"
-	"github.com/yohobala/taurus_go/template"
+	"github.com/zodileap/taurus_go/asset"
+	"github.com/zodileap/taurus_go/entity/codegen/load"
+	"github.com/zodileap/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/template"
 )
 
 type (

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	stringutil "github.com/yohobala/taurus_go/datautil/string"
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/dialect"
+	stringutil "github.com/zodileap/taurus_go/datautil/string"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/dialect"
 )
 
 type (
@@ -615,7 +615,7 @@ func analyseField(v reflect.Value, s reflect.StructField) *fieldInfoStorager {
 
 // extractOrigTypeName 提取字段的类型的类型名称。含有泛型参数。
 //
-// 例如: geo.GeometryStorage[github.com/yohobala/taurus_go/encoding/geo.LineString,github.com/yohobala/taurus_go/encoding/geo.SDefault]
+// 例如: geo.GeometryStorage[github.com/zodileap/taurus_go/encoding/geo.LineString,github.com/zodileap/taurus_go/encoding/geo.SDefault]
 // -> geo.GeometryStorage[geo.LineString,geo.SDefault]
 func extractTypeName(t reflect.Type) string {
 	typeName := t.String()

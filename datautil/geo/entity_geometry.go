@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/dialect"
 )
 
 type GeometryBuilder[G PostGISGeometry, S SRID, T GeomType] struct {
@@ -69,7 +69,7 @@ func (g *GeometryBuilder[G, S, T]) ValueType() string {
 }
 
 // ExtTemplate 用于在使用字段时，调用外部模版生成代码，
-// 这个相比在 go run github.com/yohobala/taurus_go/entity/cmd generate -t <template>，
+// 这个相比在 go run github.com/zodileap/taurus_go/entity/cmd generate -t <template>，
 // `ExtTemplate`是和字段相关联，只要调用字段就会生成代码，避免了每次都要手动调用模版。
 //
 // Returns:

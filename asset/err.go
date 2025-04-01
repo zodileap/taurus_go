@@ -1,6 +1,6 @@
 package asset
 
-import "github.com/yohobala/taurus_go/err"
+import "github.com/zodileap/taurus_go/err"
 
 /**************** 通用错误 ***************/
 

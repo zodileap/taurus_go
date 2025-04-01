@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	stringutil "github.com/yohobala/taurus_go/datautil/string"
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/codegen/load"
-	"github.com/yohobala/taurus_go/template"
+	stringutil "github.com/zodileap/taurus_go/datautil/string"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/codegen/load"
+	"github.com/zodileap/taurus_go/template"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

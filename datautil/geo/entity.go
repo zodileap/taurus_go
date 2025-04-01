@@ -3,7 +3,7 @@ package geo
 import (
 	"fmt"
 
-	"github.com/yohobala/taurus_go/entity/entitysql"
+	"github.com/zodileap/taurus_go/entity/entitysql"
 )
 
 // PostGIS 这个是'taurus_go/entity'字段类型的拓展，用于支持PostGIS的字段类型。

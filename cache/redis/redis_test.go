@@ -3,7 +3,7 @@ package redis
 import (
 	"testing"
 
-	"github.com/yohobala/taurus_go/tlog"
+	"github.com/zodileap/taurus_go/tlog"
 )
 
 func TestDel(t *testing.T) {

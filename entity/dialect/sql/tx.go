@@ -3,7 +3,7 @@ package sql
 import (
 	"database/sql/driver"
 
-	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/entity/dialect"
 )
 
 // Tx 包装了数据库事务,实现了driver.Tx接口。

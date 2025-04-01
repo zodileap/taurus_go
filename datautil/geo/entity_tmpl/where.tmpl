@@ -7,8 +7,8 @@
 {{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
 {{ template "import/load" $importPkgs }}
 import (
-	"github.com/yohobala/taurus_go/datautil/geo"
-	"github.com/yohobala/taurus_go/entity/entitysql"
+	"github.com/zodileap/taurus_go/datautil/geo"
+	"github.com/zodileap/taurus_go/entity/entitysql"
 )
 
 {{ $fieldName := joinStrings "Pred" .Field.Name }}

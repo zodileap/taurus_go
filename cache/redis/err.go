@@ -2,7 +2,7 @@ package redis
 
 import (
 	goRedis "github.com/redis/go-redis/v9"
-	"github.com/yohobala/taurus_go/err"
+	"github.com/zodileap/taurus_go/err"
 )
 
 func (c *Client) validErr(err error, m *Mutation) error {

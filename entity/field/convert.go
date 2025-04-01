@@ -12,7 +12,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	byteutil "github.com/yohobala/taurus_go/datautil/byte"
+	byteutil "github.com/zodileap/taurus_go/datautil/byte"
 )
 
 // errNilPtr 新建一个错误，表示目标指针为空。

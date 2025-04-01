@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/dialect"
 )
 
 // Timestamp 时间戳类型的字段。

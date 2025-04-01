@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/yohobala/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity"
 )
 
 // Int16 用于定义int16类型的字段。

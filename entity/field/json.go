@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/dialect"
-	"github.com/yohobala/taurus_go/tlog"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/tlog"
 )
 
 // JSON 用于定义 json 类型的字段

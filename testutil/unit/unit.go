@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	terr "github.com/yohobala/taurus_go/err"
+	terr "github.com/zodileap/taurus_go/err"
 )
 
 type TestCase[I any, ER any] struct {

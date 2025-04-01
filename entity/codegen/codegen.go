@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/codegen/gen"
-	"github.com/yohobala/taurus_go/entity/codegen/load"
-	"github.com/yohobala/taurus_go/template"
-	"github.com/yohobala/taurus_go/tlog"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/codegen/gen"
+	"github.com/zodileap/taurus_go/entity/codegen/load"
+	"github.com/zodileap/taurus_go/template"
+	"github.com/zodileap/taurus_go/tlog"
 )
 
 // Extra 用于在Config中添加额外的配置的回调函数。

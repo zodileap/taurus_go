@@ -1,7 +1,7 @@
 package geo
 
 import (
-	"github.com/yohobala/taurus_go/err"
+	"github.com/zodileap/taurus_go/err"
 )
 
 // Err_020002000x geo: %s.

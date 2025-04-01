@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/dialect"
-	"github.com/yohobala/taurus_go/tlog"
+	"github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/dialect"
+	"github.com/zodileap/taurus_go/tlog"
 )
 
 // CreateSpec 用于生成创建语句。

@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yohobala/taurus_go/cmd"
-	"github.com/yohobala/taurus_go/entity"
+	"github.com/zodileap/taurus_go/cmd"
+	"github.com/zodileap/taurus_go/entity"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 )

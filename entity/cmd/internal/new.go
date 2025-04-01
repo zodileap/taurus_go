@@ -12,11 +12,11 @@ import (
 	"unicode"
 
 	"github.com/spf13/cobra"
-	"github.com/yohobala/taurus_go/asset"
-	stringutil "github.com/yohobala/taurus_go/datautil/string"
-	entity "github.com/yohobala/taurus_go/entity"
-	"github.com/yohobala/taurus_go/entity/codegen/gen"
-	"github.com/yohobala/taurus_go/template"
+	"github.com/zodileap/taurus_go/asset"
+	stringutil "github.com/zodileap/taurus_go/datautil/string"
+	entity "github.com/zodileap/taurus_go/entity"
+	"github.com/zodileap/taurus_go/entity/codegen/gen"
+	"github.com/zodileap/taurus_go/template"
 )
 
 const defaultEntity = "entity"
@@ -27,7 +27,7 @@ const defaultGenerate = "generate.go"
 //go:embed template/*
 var templateDir embed.FS
 
-// NewCmd 新建Schema命令, 通过运行`github.com/yohobala/taurus_go/entity/cmd new`调用。
+// NewCmd 新建Schema命令, 通过运行`github.com/zodileap/taurus_go/entity/cmd new`调用。
 //
 // Returns:
 //
@@ -39,7 +39,7 @@ func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "new [entities]",
 		Short:   "initialize a new environment with zero or more entities",
-		Example: "go run -mod=mod github.com/yohobala/taurus_go/entity/cmd new User Group",
+		Example: "go run -mod=mod github.com/zodileap/taurus_go/entity/cmd new User Group",
 		Args: func(_ *cobra.Command, names []string) error {
 			for _, name := range names {
 				if !unicode.IsUpper(rune(name[0])) {
