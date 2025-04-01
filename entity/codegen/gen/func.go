@@ -31,6 +31,7 @@ var FuncMap = template.FuncMap{
 	"stringJoinIndexColumns":    stringJoinIndexColumns,
 	"stringJoinQuotedColumns":   stringJoinQuotedColumns,
 	"getUniqueGroups":           getUniqueGroups,
+	"getUniqueFieldGroups":      getUniqueFieldGroups,
 }
 
 // joinFieldAttrNames 把字段的AttrName连接起来。
@@ -329,6 +330,17 @@ func getUniqueGroups(fields []*load.Field) map[int][]string {
 	for _, field := range fields {
 		for _, idx := range field.Uniques {
 			groups[idx] = append(groups[idx], field.AttrName)
+		}
+	}
+	return groups
+}
+
+// getUniqueFieldGroups 获取实体中的唯一键字段，按组返回
+func getUniqueFieldGroups(entity *load.Entity) map[int][]*load.Field {
+	groups := make(map[int][]*load.Field)
+	for _, field := range entity.Fields {
+		for _, uniqueIdx := range field.Uniques {
+			groups[uniqueIdx] = append(groups[uniqueIdx], field)
 		}
 	}
 	return groups
