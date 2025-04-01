@@ -66,39 +66,39 @@ func Get(name string) *Logger {
 // 全局函数
 func Debug(name string, msg string, fields ...Field) {
 	logger := Get(name)
-	logger.log(DebugLevel, msg, fields...)
+	logger.log(DebugLevel, 3, msg, fields...)
 }
 
 func Info(name string, msg string, fields ...Field) {
 	looger := Get(name)
-	looger.log(InfoLevel, msg, fields...)
+	looger.log(InfoLevel, 3, msg, fields...)
 }
 
 func Warn(name string, msg string, fields ...Field) {
 	logger := Get(name)
-	logger.log(WarnLevel, msg, fields...)
+	logger.log(WarnLevel, 3, msg, fields...)
 }
 
 func Error(name string, msg string, fields ...Field) {
 	logger := Get(name)
-	logger.log(ErrorLevel, msg, fields...)
+	logger.log(ErrorLevel, 3, msg, fields...)
 }
 
 func Fatal(name string, msg string, fields ...Field) {
 	logger := Get(name)
-	logger.log(FatalLevel, msg, fields...)
+	logger.log(FatalLevel, 3, msg, fields...)
 }
 
 // Print 简单打印日志
 func Print(v ...interface{}) {
 	logger := Get("print")
 	msg := fmt.Sprint(v...)
-	logger.log(DebugLevel, msg)
+	logger.log(DebugLevel, 3, msg)
 }
 
 // Printf 格式化打印日志
 func Printf(format string, v ...interface{}) {
 	logger := Get("print")
 	msg := fmt.Sprintf(format, v...)
-	logger.log(DebugLevel, msg)
+	logger.log(DebugLevel, 3, msg)
 }

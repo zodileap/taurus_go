@@ -47,6 +47,11 @@ type UUID struct {
 	StringStorage[string]
 }
 
+type UUIDA1 struct {
+	UUIDBuilder[[]string]
+	StringStorage[[]string]
+}
+
 // VarcharBuilder 字符串类型的字段构造器。
 type VarcharBuilder[T any] struct {
 	BaseBuilder[T]
@@ -232,7 +237,16 @@ type UUIDBuilder[T any] struct {
 func (u *UUIDBuilder[T]) AttrType(dbType dialect.DbDriver) string {
 	switch dbType {
 	case dialect.PostgreSQL:
-		return "uuid"
+		var t T
+		concrete := any(t)
+		switch concrete.(type) {
+		case string:
+			return "uuid"
+		case []string:
+			return "uuid[]"
+		default:
+			return ""
+		}
 	default:
 		return ""
 	}
@@ -271,6 +285,23 @@ func (u *UUIDBuilder[T]) Required() *UUIDBuilder[T] {
 func (u *UUIDBuilder[T]) Primary(index int) *UUIDBuilder[T] {
 	u.desc.Required = true
 	u.desc.Primary = index
+	return u
+}
+
+// Default 设置字段的默认值。
+// 如果设置了默认值，则在插入数据时，如果没有设置字段的值，则会使用默认值。
+// 如果为空，则会使用"uuid-ossp"扩展的uuid_generate_v4()函数生成。
+//
+// Params:
+//
+//   - value: 字段的默认值。
+func (u *UUIDBuilder[T]) Default(value *string) *UUIDBuilder[T] {
+	u.desc.Default = true
+	if value == nil {
+		u.desc.DefaultValue = "uuid_generate_v4()"
+		return u
+	}
+	u.desc.DefaultValue = *value
 	return u
 }
 
