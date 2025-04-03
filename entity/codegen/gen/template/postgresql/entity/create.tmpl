@@ -1,7 +1,7 @@
 {{ define "entity/create" }}
 {{ $entity := $.Entity.Name}}
 {{ $entityAttr := $.Entity.AttrName }}
-{{ $header := createMap "Package" "entity" }}
+{{ $header := createMap "Package" .PackageName }}
 {{ template "header" $header }}
 
 {{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}

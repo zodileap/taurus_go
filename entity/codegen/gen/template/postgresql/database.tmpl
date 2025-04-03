@@ -1,5 +1,5 @@
 {{ define "database" }}
-{{ $header := createMap "Package" "entity" }}
+{{ $header := createMap "Package" .PackageName }}
 {{ template "header" $header }}
 {{ $db := stringToFirstCap ( snakeCaseToLowerCamelCase $.Database.Name )}}
 {{ $lowerDb := stringToLower $db }} 

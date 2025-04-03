@@ -16,15 +16,21 @@ import (
 //	0: "github.com/spf13/cobra"的Command对象。
 func GenerateCmd() *cobra.Command {
 	var (
-		templates []string
-		config    gen.Config
-		cmd       = &cobra.Command{
+		templates   []string
+		packageName string
+		config      gen.Config
+		cmd         = &cobra.Command{
 			Use:     "generate [flags] path",
 			Short:   "generate go code for the entity directory",
-			Example: "go run -mod=mod github.com/zodileap/taurus_go/entity/cmd generate ./entity",
+			Example: "go run -mod=mod github.com/zodileap/taurus_go/entity/cmd generate  -p=demo  ./entity",
 			// 要求至少有一个参数
 			Args: cobra.ExactArgs(1),
 			Run: func(cmd *cobra.Command, path []string) {
+				if packageName == "" {
+					packageName = "entity"
+				}
+				config.PackageName = packageName
+
 				// TODO: 目前只需要路径，没有别的flags
 				exts := []codegen.Extra{}
 				for _, tmpl := range templates {
@@ -58,6 +64,6 @@ func GenerateCmd() *cobra.Command {
 		}
 	)
 	cmd.Flags().StringSliceVarP(&templates, "template", "t", nil, "external templates to execute, format: dir=dirpath, file=filepath, glob=globpath")
-
+	cmd.Flags().StringVarP(&packageName, "package", "p", "", "package name for generated code, defaults to entity")
 	return cmd
 }

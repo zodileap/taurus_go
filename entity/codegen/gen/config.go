@@ -13,6 +13,9 @@ type ExtTemplate struct {
 
 // Config 代码生成的全局配置，并在所有生成的节点之间共享
 type Config struct {
+	// PackageName 保存生成的代码的包名。
+	PackageName string
+
 	// Target 保存生成的代码的目标路径。
 	//
 	// 默认情况下，代码生成器将生成代码到和Package上一级目录。

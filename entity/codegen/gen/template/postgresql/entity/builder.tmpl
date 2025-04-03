@@ -1,7 +1,7 @@
 {{ define "entity/builder" }}
 {{ $entity :=  .Entity.Name }}
 {{ $entityAttr := .Entity.AttrName }}
-{{ $header := createMap "Package" "entity" }}
+{{ $header := createMap "Package" .PackageName }}
 {{ template "header" $header }}
 {{ $BuilderName := stringJoin ( stringToLower  $entity ) "Builder" }}
 

@@ -1,5 +1,5 @@
 {{ define "extraCode" }}
-{{ $header := createMap "Package" "entity" }}
+{{ $header := createMap "Package" .PackageName }}
 {{ template "header" $header }}
 
 {{ if .Config.ExtraCodes }}

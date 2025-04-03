@@ -1,5 +1,5 @@
 {{ define "rel/rels" }}
-{{ $header := createMap "Package" "entity" }}
+{{ $header := createMap "Package" .PackageName }}
 {{ template "header" $header }}
 
 import (
