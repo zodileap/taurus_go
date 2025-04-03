@@ -477,12 +477,43 @@ func filename(pkg string) string {
 func addNonConformingCode(node ast.Node, fset *token.FileSet, codeList *[]string) {
 	startPos := fset.Position(node.Pos()).Offset
 	endPos := fset.Position(node.End()).Offset
-	fileContent, err := ioutil.ReadFile(fset.File(node.Pos()).Name())
+	fileName := fset.File(node.Pos()).Name()
+	fileContent, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		fmt.Printf("Error reading file: %s\n", err)
 		return
 	}
 	sourceCode := string(fileContent[startPos:endPos])
+
+	// 如果sourceCode有值，提取文件开头的所有import语句
+	if sourceCode != "" {
+		// 解析文件以获取所有import语句
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, fileName, fileContent, parser.ImportsOnly)
+		if err != nil {
+			fmt.Printf("Error parsing file: %s\n", err)
+		} else {
+			// 如果codeList为空，首先添加导入语句
+			if len(*codeList) == 0 && len(file.Imports) > 0 {
+				var importCode strings.Builder
+				importCode.WriteString("import (\n")
+				for _, imp := range file.Imports {
+					if imp.Name != nil {
+						// 带别名的导入
+						importCode.WriteString(fmt.Sprintf("\t%s %s\n", imp.Name.Name, imp.Path.Value))
+					} else {
+						// 普通导入
+						importCode.WriteString(fmt.Sprintf("\t%s\n", imp.Path.Value))
+					}
+				}
+				importCode.WriteString(")")
+				// 将导入语句添加到codeList的最开头
+				*codeList = append([]string{importCode.String()}, *codeList...)
+			}
+		}
+	}
+
+	// 将原代码添加到codeList
 	*codeList = append(*codeList, sourceCode)
 }
 
