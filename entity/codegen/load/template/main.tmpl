@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"bytes"
+	"unicode"
 	{{ template "imports" }}
 
 	entityPkg {{ printf "%q" .Package }}
@@ -90,7 +91,12 @@ func Marshal(di entity.DbInterface,name string, de EntityMap) (b []byte, err err
 		database.Entities[entityName] = me
 		field := v.FieldByName(key)
 		if field.IsValid() {
-			  // 确保传递给 Set 方法的值与字段的类型匹配
+			// 检查字段是否是导出的
+			if !unicode.IsUpper(rune(key[0])) {
+				fmt.Printf("Warning: field %s is not exported, cannot set value through reflection\n", key)
+				continue
+			}
+			// 确保传递给 Set 方法的值与字段的类型匹配
 			if field.Type().Kind() == reflect.Ptr {
 				field.Set(reflect.ValueOf(e)) // e 已经是指针类型
 			} else {
