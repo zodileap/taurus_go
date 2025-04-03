@@ -6,6 +6,9 @@
 
 {{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
 {{ template "import/load" $importPkgs }}
+{{- range $i,$field := $.Entity.Fields }}
+import "{{ $field.StoragerPkg }}"
+{{- end }}
 
 // {{ $entity }}Create is the create action for the {{ $entity }}.
 type {{ $entity }}Create struct {

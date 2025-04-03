@@ -8,6 +8,9 @@
 
 {{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
+{{- range $i,$field := $.Entity.Fields }}
+import "{{ $field.StoragerPkg }}"
+{{- end }}
 
 // {{ $BuilderName }} is a builder for the {{ $entity }} entity.
 //

@@ -6,6 +6,9 @@
 
 {{ $importPkgs := createMap "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package  "Entity" $.Entity  "Entity" $.Entity }}
 {{ template "import/load" $importPkgs }}
+{{- range $i,$field := $.Entity.Fields }}
+import "{{ $field.StoragerPkg }}"
+{{- end }}
 
 // {{ $entity }}Delete is the delete action for the {{ $entity }}.
 type {{ $entity }}Delete struct {
