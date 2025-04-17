@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	entgo.io/ent v0.14.4
-	git.zodileap.com/Taurus/zodileap_go_zspecs v1.0.1
+	git.zodileap.com/taurus/zodileap_go_zspecs v1.0.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
