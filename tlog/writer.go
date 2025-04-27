@@ -57,6 +57,12 @@ func (w *LogWriter) openFile() error {
 func (w *LogWriter) Write(p []byte) (n int, err error) {
 	// 检查文件是否存在
 	if _, err := os.Stat(w.filename); os.IsNotExist(err) {
+		// 创建目录
+		dir := filepath.Dir(w.filename)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			fmt.Printf("创建日志目录失败: %v\n", err)
+			return 0, err
+		}
 		// 文件不存在，重新打开
 		if err := w.openFile(); err != nil {
 			return 0, err
