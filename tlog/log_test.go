@@ -27,10 +27,10 @@ var testLogData = []testLogStruct{
 func testSetLogger(logger *Logger) {
 	l := logger
 	for _, data := range testLogData {
-		l.Debug(data.msg, data.fields...)
-		l.Info(data.msg, data.fields...)
-		l.Warn(data.msg, data.fields...)
-		l.Error(data.msg, data.fields...)
+		l.Debug(data.msg, 0, data.fields...)
+		l.Info(data.msg, 0, data.fields...)
+		l.Warn(data.msg, 0, data.fields...)
+		l.Error(data.msg, 0, data.fields...)
 	}
 }
 
@@ -53,7 +53,7 @@ func TestFileOutput(t *testing.T) {
 	logger.SetOutputPath(logPath, 1, 3, 1) // 1MB, 3 backups, 1 day
 
 	for i := 0; i < 10; i++ {
-		logger.Info("Test log message", Int("count", i))
+		logger.Info("Test log message", 0, Int("count", i))
 	}
 	// 验证文件是否创建
 	if _, err := os.Stat(logPath); os.IsNotExist(err) {
@@ -80,6 +80,7 @@ func TestLogRotation(t *testing.T) {
 	// 写入足够多的日志触发切割
 	for i := 0; i < 10000; i++ { // 写入足够多的行以触发日志切割
 		logger.Info(fmt.Sprintf("Log line %d: %s", i, line),
+			0,
 			Int("iteration", i),
 			String("test", "rotation"),
 			String("content", "readable text"))
@@ -122,7 +123,7 @@ func TestFields(t *testing.T) {
 		Any("map", map[string]string{"key": "value"}),
 	}
 
-	logger.Info("Test fields", fields...)
+	logger.Info("Test fields", 0, fields...)
 }
 
 // TestGlobalFunctions 测试全局函数
@@ -152,6 +153,7 @@ func BenchmarkLoggerInfo(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			logger.Info("Benchmark message",
+				0,
 				String("key1", "value1"),
 				Int("key2", 123))
 		}
@@ -169,7 +171,7 @@ func BenchmarkLoggerWithFields(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			logger.Info("Benchmark message", fields...)
+			logger.Info("Benchmark message", 0, fields...)
 		}
 	})
 }
@@ -187,7 +189,7 @@ func BenchmarkFileOutput(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			logger.Info("Benchmark message to file")
+			logger.Info("Benchmark message to file", 0)
 		}
 	})
 

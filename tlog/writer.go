@@ -55,6 +55,16 @@ func (w *LogWriter) openFile() error {
 
 // Write 实现io.Writer接口
 func (w *LogWriter) Write(p []byte) (n int, err error) {
+	// 检查文件是否存在
+	if _, err := os.Stat(w.filename); os.IsNotExist(err) {
+		// 文件不存在，重新打开
+		if err := w.openFile(); err != nil {
+			return 0, err
+		}
+		// 重置size为0
+		w.size = 0
+	}
+
 	n, err = w.file.Write(p)
 	w.size += int64(n)
 

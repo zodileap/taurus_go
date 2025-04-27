@@ -161,7 +161,10 @@ func (l *Logger) log(level Level, skip int, msg string, fields ...Field) {
 
 	// 分别输出到控制台和文件
 	if l.writer != nil {
-		fmt.Fprintln(l.writer, plainContent)
+		if _, err := fmt.Fprintln(l.writer, plainContent); err != nil {
+			// 写入失败时输出错误信息到控制台
+			fmt.Fprintf(os.Stderr, "写入日志到文件失败: %v\n", err)
+		}
 	}
 	fmt.Fprintln(os.Stdout, colorContent)
 
