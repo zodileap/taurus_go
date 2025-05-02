@@ -138,3 +138,41 @@ func TestNumberToLetters(t *testing.T) {
 		}
 	}
 }
+
+func TestToCamelCase(t *testing.T) {
+	data := []struct {
+		input string
+		want  string
+	}{
+		{
+			input: "hello world",
+			want:  "helloWorld",
+		},
+		{
+			input: "hello_world",
+			want:  "helloWorld",
+		},
+		{
+			input: "hello-world",
+			want:  "helloWorld",
+		},
+		{
+			input: "helloWorld",
+			want:  "helloWorld",
+		},
+		{
+			input: "HelloWorld",
+			want:  "helloWorld",
+		},
+		{
+			input: "foo_bar",
+			want:  "fooBar",
+		},
+	}
+
+	for _, d := range data {
+		if got := ToCamelCase(d.input); got != d.want {
+			t.Errorf("结果错误，ToCamelCase(%s) = %s, want %s", d.input, got, d.want)
+		}
+	}
+}

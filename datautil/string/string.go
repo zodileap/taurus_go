@@ -121,8 +121,10 @@ func ToSnakeCase(str string) string {
 
 // 函数将字符串转换为驼峰命名法（camelCase）。
 // 支持将蛇形命名法和大写驼峰命名法转换为小写驼峰命名法。
-// 例如，"foo_bar" -> "fooBar"。
-// "FooBar" -> "fooBar"
+// 例如，"hello_world" -> "helloWorld"。
+// "HelloWorld" -> "helloWorld"
+// "hello world" -> "helloWorld"
+// "hello-world" -> "helloWorld"
 func ToCamelCase(str string) string {
 	var result strings.Builder
 	nextUpper := false
@@ -131,8 +133,8 @@ func ToCamelCase(str string) string {
 	firstChar := true
 
 	for _, r := range str {
-		// 处理分隔符：星号和下划线
-		if r == '_' {
+		// 处理分隔符：下划线、空格和短横线
+		if r == '_' || r == ' ' || r == '-' {
 			nextUpper = true
 		} else {
 			if firstChar {
@@ -144,7 +146,12 @@ func ToCamelCase(str string) string {
 				result.WriteRune(unicode.ToUpper(r))
 				nextUpper = false
 			} else {
-				result.WriteRune(unicode.ToLower(r))
+				// 保留原有的大写字符
+				if unicode.IsUpper(r) {
+					result.WriteRune(r)
+				} else {
+					result.WriteRune(unicode.ToLower(r))
+				}
 			}
 		}
 	}
