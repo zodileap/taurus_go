@@ -165,8 +165,8 @@ func TestToCamelCase(t *testing.T) {
 			want:  "helloWorld",
 		},
 		{
-			input: "foo_bar",
-			want:  "fooBar",
+			input: "byId",
+			want:  "byId",
 		},
 	}
 

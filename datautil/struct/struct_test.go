@@ -7,7 +7,7 @@ import (
 
 func TestGetFields(t *testing.T) {
 	type Employee struct {
-		ID   int
+		Id   int
 		Name string
 	}
 	fields := GetFields(Employee{})

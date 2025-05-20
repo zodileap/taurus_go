@@ -51,7 +51,7 @@ var Err_0200020001 err.ErrCode = err.New(
 var Err_0200020002 err.ErrCode = err.New(
 	"0200020002",
 	"Format file  %s : %+v",
-	"可能得原因是：1.传入的文件内容缺少package。",
+	"可能得原因是：1.传入的文件内容缺少package。2.缺少go.mod文件。",
 )
 
 // Err_0200020003 打开文件失败。

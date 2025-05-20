@@ -7,12 +7,12 @@ import "reflect"
 // 示例:
 //
 //	type Employee struct {
-//		ID   int
+//		Id   int
 //	 Name string
 //	}
 //
 // fields := getFields(Employee{})
-// 输出：[ID Name]
+// 输出：[Id Name]
 func GetFields(input interface{}) []string {
 	val := reflect.TypeOf(input)
 	if val.Kind() == reflect.Ptr {

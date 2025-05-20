@@ -179,12 +179,12 @@ func (b *createBuilder) insertLastID(ctx context.Context, insert *Inserter) erro
 		// 如果是数字类型，可以使用LastInsertId。
 		// 如果没有自增主键会报错，同时只可能有一个自增主键。
 		// TODO 还没有完成
-		// if c.ID.Type.Numeric() {
+		// if c.Id.Type.Numeric() {
 		// 	id, err := res.LastInsertId()
 		// 	if err != nil {
 		// 		return err
 		// 	}
-		// 	c.ID.Value = id
+		// 	c.Id.Value = id
 		// }
 	}
 	return nil
