@@ -32,6 +32,7 @@ var FuncMap = template.FuncMap{
 	"stringJoinQuotedColumns":   stringJoinQuotedColumns,
 	"getUniqueGroups":           getUniqueGroups,
 	"getUniqueFieldGroups":      getUniqueFieldGroups,
+	"removeArrayBrackets":       removeArrayBrackets,
 }
 
 // joinFieldAttrNames 把字段的AttrName连接起来。
@@ -344,4 +345,13 @@ func getUniqueFieldGroups(entity *load.Entity) map[int][]*load.Field {
 		}
 	}
 	return groups
+}
+
+// removeArrayBrackets 根据深度移除字符串前面的[]前缀
+func removeArrayBrackets(s string, depth int) string {
+	result := s
+	for i := 0; i < depth; i++ {
+		result = strings.TrimPrefix(result, "[]")
+	}
+	return result
 }
