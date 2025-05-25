@@ -31,6 +31,7 @@ var (
 		"stringSplit":         strings.Split,
 		"toString":            toString,
 		"stringGetSpilceLast": stringLast,
+		"stringTrimPrefix":    strings.TrimPrefix,
 	}
 	acronyms = make(map[string]struct{})
 )
