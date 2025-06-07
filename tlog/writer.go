@@ -12,23 +12,35 @@ import (
 	"time"
 )
 
-// LogWriter 日志写入器
+// LogWriter 日志写入器，支持文件大小切割、按日期切割、自动压缩和备份清理
 type LogWriter struct {
-	filename   string
-	maxSize    int64
-	maxBackups int
-	maxAge     int
-	size       int64
-	file       *os.File
+	filename     string    // 日志文件完整路径
+	maxSize      int64     // 单个日志文件最大大小，超过此大小将触发切割(单位:字节)
+	maxBackups   int       // 保留的备份文件最大数量，超过将删除最旧的备份
+	maxAge       int       // 备份文件最大保留天数，超过此天数的文件将被删除
+	maxDays      int       // 按日期切割的天数间隔，默认1天切割一次
+	size         int64     // 当前日志文件已写入的字节数
+	file         *os.File  // 当前打开的日志文件句柄
+	lastRotate   time.Time // 上次切割时间
+	currentDate  string    // 当前日期(YYYY-MM-DD格式)
 }
 
-// 创建新的LogWriter
+// newLogWriter 创建新的LogWriter
 func newLogWriter(filename string, maxSize, maxBackups, maxAge int) (*LogWriter, error) {
+	return newLogWriterWithDays(filename, maxSize, maxBackups, maxAge, 1)
+}
+
+// newLogWriterWithDays 创建指定日期间隔的LogWriter
+func newLogWriterWithDays(filename string, maxSize, maxBackups, maxAge, maxDays int) (*LogWriter, error) {
+	now := time.Now()
 	writer := &LogWriter{
-		filename:   filename,
-		maxSize:    int64(maxSize) * 1024 * 1024, // 转换为字节
-		maxBackups: maxBackups,
-		maxAge:     maxAge,
+		filename:    filename,
+		maxSize:     int64(maxSize) * 1024 * 1024, // 转换为字节
+		maxBackups:  maxBackups,
+		maxAge:      maxAge,
+		maxDays:     maxDays,
+		lastRotate:  now,
+		currentDate: now.Format("2006-01-02"),
 	}
 
 	if err := writer.openFile(); err != nil {
@@ -38,7 +50,7 @@ func newLogWriter(filename string, maxSize, maxBackups, maxAge int) (*LogWriter,
 	return writer, nil
 }
 
-// 打开文件
+// openFile 打开文件
 func (w *LogWriter) openFile() error {
 	info, err := os.Stat(w.filename)
 	if err == nil {
@@ -71,17 +83,39 @@ func (w *LogWriter) Write(p []byte) (n int, err error) {
 		w.size = 0
 	}
 
+	// 检查是否需要按日期切割
+	if w.shouldRotateByDate() {
+		w.rotate()
+	}
+
 	n, err = w.file.Write(p)
 	w.size += int64(n)
 
-	if w.size > w.maxSize {
+	// 检查是否需要按大小切割
+	if w.shouldRotateBySize() {
 		w.rotate()
 	}
 
 	return n, err
 }
 
-// 执行日志切割
+// shouldRotateBySize 检查是否需要按大小切割
+func (w *LogWriter) shouldRotateBySize() bool {
+	return w.maxSize > 0 && w.size > w.maxSize
+}
+
+// shouldRotateByDate 检查是否需要按日期切割
+func (w *LogWriter) shouldRotateByDate() bool {
+	if w.maxDays <= 0 {
+		return false
+	}
+	now := time.Now()
+	// 计算距离上次切割的天数
+	daysSinceRotate := int(now.Sub(w.lastRotate).Hours() / 24)
+	return daysSinceRotate >= w.maxDays
+}
+
+// rotate 执行日志切割
 func (w *LogWriter) rotate() error {
 	if err := w.file.Close(); err != nil {
 		return err
@@ -108,13 +142,19 @@ func (w *LogWriter) rotate() error {
 		return err
 	}
 
+	// 更新状态
+	now := time.Now()
+	w.lastRotate = now
+	w.currentDate = now.Format("2006-01-02")
+	w.size = 0
+
 	// 清理旧日志文件
 	w.cleanup()
 
 	return nil
 }
 
-// 压缩文件
+// compress 压缩文件
 func (w *LogWriter) compress(src, dst string) error {
 	f, err := os.Open(src)
 	if err != nil {
@@ -137,7 +177,7 @@ func (w *LogWriter) compress(src, dst string) error {
 	return nil
 }
 
-// 清理旧日志文件
+// cleanup 清理旧日志文件
 func (w *LogWriter) cleanup() {
 	dir := filepath.Dir(w.filename)
 	base := filepath.Base(w.filename)

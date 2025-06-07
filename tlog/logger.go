@@ -28,8 +28,13 @@ var (
 	mu      sync.RWMutex
 )
 
-// SetOutputPath 设置日志输出路径
+// SetOutputPath 设置日志输出路径，默认按大小切割，1天日期切割
 func (l *Logger) SetOutputPath(path string, maxSize int, maxBackups int, maxAge int) *Logger {
+	return l.SetOutputPathWithDays(path, maxSize, maxBackups, maxAge, 1)
+}
+
+// SetOutputPathWithDays 设置日志输出路径和日期切割间隔
+func (l *Logger) SetOutputPathWithDays(path string, maxSize int, maxBackups int, maxAge int, maxDays int) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -41,7 +46,7 @@ func (l *Logger) SetOutputPath(path string, maxSize int, maxBackups int, maxAge 
 	}
 
 	// 创建LogWriter
-	writer, err := newLogWriter(path, maxSize, maxBackups, maxAge)
+	writer, err := newLogWriterWithDays(path, maxSize, maxBackups, maxAge, maxDays)
 	if err != nil {
 		fmt.Printf("创建日志写入器失败: %v\n", err)
 		return l
