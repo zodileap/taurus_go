@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,7 +20,6 @@ type LogWriter struct {
 	maxDays     int       // 按日期切割的天数间隔，默认1天切割一次
 	size        int64     // 当前日志文件已写入的字节数
 	file        *os.File  // 当前打开的日志文件句柄
-	lastRotate  time.Time // 上次切割时间
 	currentDate string    // 当前日期(YYYY-MM-DD格式)
 }
 
@@ -39,7 +37,6 @@ func newLogWriterWithDays(filename string, maxSize, maxBackups, maxAge, maxDays 
 		maxBackups:  maxBackups,
 		maxAge:      maxAge,
 		maxDays:     maxDays,
-		lastRotate:  now,
 		currentDate: now.Format("2006-01-02"),
 	}
 
@@ -111,19 +108,25 @@ func (w *LogWriter) shouldRotateByDate() bool {
 	if w.maxDays <= 0 {
 		return false
 	}
-	now := time.Now()
-	currentFileDate, err := time.Parse("2006-01-02", w.currentDate)
-	if err != nil {
-		return false
+	
+	// 获取当前日期字符串(YYYY-MM-DD格式)
+	nowDateStr := time.Now().Format("2006-01-02")
+	
+	// 如果日期字符串不同，说明跨日了
+	if nowDateStr != w.currentDate {
+		// 解析两个日期
+		nowDate, err1 := time.Parse("2006-01-02", nowDateStr)
+		fileDate, err2 := time.Parse("2006-01-02", w.currentDate)
+		if err1 != nil || err2 != nil {
+			return false
+		}
+		
+		// 计算日期差异的天数
+		daysDiff := int(nowDate.Sub(fileDate).Hours() / 24)
+		return daysDiff >= w.maxDays
 	}
-
-	// 只比较日期，忽略具体时间
-	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	fileDate := time.Date(currentFileDate.Year(), currentFileDate.Month(), currentFileDate.Day(), 0, 0, 0, 0, currentFileDate.Location())
-
-	// 计算日期差异的天数
-	daysDiff := int(nowDate.Sub(fileDate).Hours() / 24)
-	return daysDiff >= w.maxDays
+	
+	return false
 }
 
 // rotate 执行日志切割
@@ -154,9 +157,7 @@ func (w *LogWriter) rotate() error {
 	}
 
 	// 更新状态
-	now := time.Now()
-	w.lastRotate = now
-	w.currentDate = now.Format("2006-01-02")
+	w.currentDate = time.Now().Format("2006-01-02")
 	w.size = 0
 
 	// 清理旧日志文件
@@ -193,7 +194,7 @@ func (w *LogWriter) cleanup() {
 	dir := filepath.Dir(w.filename)
 	base := filepath.Base(w.filename)
 
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}

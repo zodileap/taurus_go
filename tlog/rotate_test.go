@@ -28,7 +28,7 @@ func TestRotateByDate(t *testing.T) {
 	}
 
 	// 模拟日期变化，设置为1天前
-	writer.lastRotate = time.Now().AddDate(0, 0, -1)
+	writer.currentDate = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 
 	// 再写入日志，应该触发切割
 	_, err = writer.Write([]byte("第二条日志消息\n"))
