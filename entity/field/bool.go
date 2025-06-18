@@ -101,3 +101,10 @@ func (i *BoolBuilder[T]) Locked() *BoolBuilder[T] {
 	i.desc.Locked = true
 	return i
 }
+
+// Unique 设置字段为唯一字段或参与联合唯一约束。
+// 相同的序号表示这些字段组成联合唯一约束。
+func (i *BoolBuilder[T]) Unique(index int) *BoolBuilder[T] {
+	i.desc.Uniques = append(i.desc.Uniques, index)
+	return i
+}

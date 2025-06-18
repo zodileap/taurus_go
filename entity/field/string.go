@@ -170,6 +170,13 @@ func (s *VarcharBuilder[T]) Locked() *VarcharBuilder[T] {
 	return s
 }
 
+// Unique 设置字段为唯一字段或参与联合唯一约束。
+// 相同的序号表示这些字段组成联合唯一约束。
+func (s *VarcharBuilder[T]) Unique(index int) *VarcharBuilder[T] {
+	s.desc.Uniques = append(s.desc.Uniques, index)
+	return s
+}
+
 // varchar 返回varchar类型的字段。
 func varchar(t any, size int64, dbType dialect.DbDriver) string {
 	switch dbType {
@@ -321,6 +328,13 @@ func (u *UUIDBuilder[T]) Locked() *UUIDBuilder[T] {
 	return u
 }
 
+// Unique 设置字段为唯一字段或参与联合唯一约束。
+// 相同的序号表示这些字段组成联合唯一约束。
+func (u *UUIDBuilder[T]) Unique(index int) *UUIDBuilder[T] {
+	u.desc.Uniques = append(u.desc.Uniques, index)
+	return u
+}
+
 // StringStorage[T] 字符串类型的字段存储。
 type StringStorage[T any] struct {
 	BaseStorage[T]
@@ -412,5 +426,12 @@ func (s *TextBuilder[T]) Default(value string) *TextBuilder[T] {
 // Locked 设置字段为只读字段。
 func (s *TextBuilder[T]) Locked() *TextBuilder[T] {
 	s.desc.Locked = true
+	return s
+}
+
+// Unique 设置字段为唯一字段或参与联合唯一约束。
+// 相同的序号表示这些字段组成联合唯一约束。
+func (s *TextBuilder[T]) Unique(index int) *TextBuilder[T] {
+	s.desc.Uniques = append(s.desc.Uniques, index)
 	return s
 }
