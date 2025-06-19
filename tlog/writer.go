@@ -135,8 +135,8 @@ func (w *LogWriter) rotate() error {
 		return err
 	}
 
-	// 获取当前日期
-	timestamp := time.Now().Format("2006-01-02")
+	// 使用日志文件的日期作为备份文件名
+	timestamp := w.currentDate
 
 	// 新的备份文件名
 	backupName := fmt.Sprintf("%s.%s.gz", w.filename, timestamp)
