@@ -1,7 +1,6 @@
 package gen
 
 import (
-	"entgo.io/ent/schema/field"
 	"github.com/zodileap/taurus_go/template"
 )
 
@@ -39,10 +38,6 @@ type Config struct {
 
 	// Hooks 可选的hook列表，用于代码生成前、后在表上执行
 	Hooks []Hook
-
-	// IDType 指定代码生成中id字段的类型
-	// 默认情况下，id字段的类型是int或者string
-	IDType *field.TypeInfo
 
 	// Templates 外部传入的template
 	Templates []ExtTemplate
