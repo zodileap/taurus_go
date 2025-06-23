@@ -29,7 +29,7 @@ var templateDir embed.FS
 
 // NewCmd 新建Schema命令, 通过运行`github.com/zodileap/taurus_go/entity/cmd new`调用。
 //
-// 例如: go run github.com/yohobala/taurus_go/entity/cmd new User Permission -e Address,Blog -t "."
+// 例如: go run github.com/zodileap/taurus_go/entity/cmd new User Permission -e Address,Blog -t "."
 //
 // Returns:
 //
