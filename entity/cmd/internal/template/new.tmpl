@@ -8,6 +8,12 @@ import (
 {{ end }}
 
 {{ define "database" }}
+
+import (
+	// 让go mod tidy时能够正确识别go gen需要的包
+	_ "github.com/zodileap/taurus_go/entity/codegen"
+)
+
 type {{ stringToFirstCap . }} struct {
     entity.Database
 }

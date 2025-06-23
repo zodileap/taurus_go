@@ -29,6 +29,8 @@ var templateDir embed.FS
 
 // NewCmd 新建Schema命令, 通过运行`github.com/zodileap/taurus_go/entity/cmd new`调用。
 //
+// 例如: go run github.com/yohobala/taurus_go/entity/cmd new User Permission -e Address,Blog -t "."
+//
 // Returns:
 //
 //	0: "github.com/spf13/cobra"的Command对象。
