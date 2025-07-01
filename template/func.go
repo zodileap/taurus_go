@@ -33,6 +33,7 @@ var (
 		"stringGetSpilceLast": stringLast,
 		"stringTrimPrefix":    strings.TrimPrefix,
 		"stringCount":         strings.Count,
+		"stringTrimSlash":     trimSlash,
 	}
 	acronyms = make(map[string]struct{})
 )
@@ -107,4 +108,9 @@ func stringLast(arr []string) string {
 		return ""
 	}
 	return arr[len(arr)-1]
+}
+
+// trimSlash 去除字符串开头和结尾的斜杠
+func trimSlash(s string) string {
+	return strings.Trim(s, "/")
 }
