@@ -1615,6 +1615,29 @@ func (p *Predicate) Like(column string, as string, v any) *Predicate {
 	})
 }
 
+// getPgArrayType 根据Go类型返回对应的PostgreSQL数组类型名
+func getPgArrayType(v interface{}) string {
+	switch v.(type) {
+	case int, int8, int16, int32:
+		return "int"
+	case int64:
+		return "bigint"
+	case uint, uint8, uint16, uint32, uint64:
+		return "bigint"
+	case float32:
+		return "real"
+	case float64:
+		return "double precision"
+	case string:
+		return "text"
+	case bool:
+		return "boolean"
+	default:
+		// 默认使用bigint，适用于大多数ID类型
+		return "bigint"
+	}
+}
+
 // Contains 添加一个@>的条件。
 //
 // Returns:
@@ -1626,27 +1649,47 @@ func (p *Predicate) Contains(column string, as string, v any) *Predicate {
 	}
 	p.lastIsLogic = false
 	return p.Append(func(b *Builder) {
-		// 使用反射判断是否为数组
-		arr := reflect.ValueOf(v)
+		// 使用反射判断是否为数组或切片
+		val := reflect.ValueOf(v)
 
-		if arr.Kind() == reflect.Array {
-			if b.IsAs && as != "" {
-				b.WriteString(b.Quote(as))
-				b.WriteByte('.')
+		if b.IsAs && as != "" {
+			b.WriteString(b.Quote(as))
+			b.WriteByte('.')
+		}
+		b.Ident(column)
+		b.WriteString(" @> ")
+
+		// 根据参数类型确定ARRAY的PostgreSQL类型
+		var pgType string
+		if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
+			// 如果传入的是数组或切片，从元素类型推断PostgreSQL类型
+			if val.Len() > 0 {
+				pgType = getPgArrayType(val.Index(0).Interface())
+			} else {
+				pgType = "bigint"  // 默认类型
 			}
-			b.Ident(column)
-			b.WriteString(" @> ")
 			b.WriteString("ARRAY[")
-			for i := 0; i < arr.Len(); i++ {
-				elem := arr.Index(i)
+			for i := 0; i < val.Len(); i++ {
+				elem := val.Index(i)
 				if i > 0 {
 					b.Comma()
 				}
 				p.arg(b, elem.Interface())
 			}
 			b.WriteByte(']')
-			b.Blank()
+		} else {
+			// 如果传入的是单个值，包装成单元素数组
+			pgType = getPgArrayType(v)
+			b.WriteString("ARRAY[")
+			p.arg(b, v)
+			b.WriteByte(']')
 		}
+		
+		// 添加类型转换
+		b.WriteString("::")
+		b.WriteString(pgType)
+		b.WriteString("[]")
+		b.Blank()
 	})
 }
 
