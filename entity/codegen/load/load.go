@@ -127,7 +127,7 @@ func (c *Config) Load() (*BuilderInfo, error) {
 	// 清理加载文件。
 	defer os.RemoveAll(".gen")
 	// 运行生成的代码，解析代码输出，得到entity。
-	out, err := cmd.RunGo(target, c.BuildFlags)
+	out, err := cmd.GoRun(target, c.BuildFlags)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (c *Config) load() (*BuilderInfo, error) {
 	}
 	if len(pkgs) < 2 {
 		// 检查数量少于2是否是因为 "Go-related"引起的错误
-		if err := cmd.List(c.Path, c.BuildFlags); err != nil {
+		if err := cmd.GoList(c.Path, c.BuildFlags); err != nil {
 			return nil, err
 		}
 		return nil, entity.Err_0100020011.Sprintf(c.Path)
