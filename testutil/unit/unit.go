@@ -61,6 +61,6 @@ func ValidRes(result interface{}, expectedResult interface{}, t *testing.T) {
 // Must 是一个工具函数，用于检查错误，如果有错误，会直接输出错误信息。
 func Must(t *testing.T, err error) {
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%v", err)
 	}
 }

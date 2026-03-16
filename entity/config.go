@@ -15,6 +15,17 @@ var config *Config
 var configMu sync.RWMutex // 嵌入一个互斥锁来保护配置
 
 func initConfig() {
+	batchSize := 65535
+	sqlConsole := false
+	sqlLogger := "entity"
+	config = &Config{
+		BatchSize:  &batchSize,
+		SqlConsole: &sqlConsole,
+		SqlLogger:  &sqlLogger,
+	}
+}
+
+func init() {
 	initConfig()
 }
 
@@ -33,5 +44,8 @@ func SetConfig(c Config) {
 	}
 	if c.SqlConsole != nil {
 		config.SqlConsole = c.SqlConsole
+	}
+	if c.SqlLogger != nil {
+		config.SqlLogger = c.SqlLogger
 	}
 }

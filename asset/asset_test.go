@@ -1,163 +1,198 @@
 package asset
 
 import (
-	"fmt"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/zodileap/taurus_go/testutil/unit"
+	terr "github.com/zodileap/taurus_go/err"
 )
 
-// TestFile 测试文件
-func TestFile(t *testing.T) {
-	type _TestFile struct {
-		Path string
-		Body []byte
+func withWorkingDir(t *testing.T, dir string) {
+	t.Helper()
+
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("获取当前目录失败: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("切换目录失败: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Fatalf("恢复目录失败: %v", err)
+		}
+	})
+}
+
+func requireErrCode(t *testing.T, got error, want string) {
+	t.Helper()
+
+	if got == nil {
+		t.Fatalf("期望错误码 %s，实际无错误", want)
 	}
 
-	tcs := []unit.TestCase[_TestFile, any]{
-		{
-			Name: "测试文件1",
-			Input: _TestFile{
-				Path: "test.txt",
-				Body: []byte("Hellow, World!"),
-			},
-		},
+	var errCode terr.ErrCode
+	if !errors.As(got, &errCode) {
+		t.Fatalf("期望 ErrCode，实际为 %T: %v", got, got)
 	}
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			var assets Assets
-			assets.Add(tc.Input.Path, tc.Input.Body)
-			if err := assets.Write(); err != nil {
-				unit.ValidErr(err, tc.ExpectedErr, t)
-			}
-		})
+	if errCode.Code() != want {
+		t.Fatalf("错误码不匹配，期望 %s，实际 %s", want, errCode.Code())
 	}
 }
 
-func TestDir(t *testing.T) {
-	tcs := []unit.TestCase[string, any]{
-		{
-			Name:  "测试文件夹1",
-			Input: "test",
-		},
-		{
-			Name:        "测试文件夹2",
-			Input:       "",
-			ExpectedErr: fmt.Errorf("code: 02-0001-0001"),
-		},
-		{
-			Name:  "测试文件夹3",
-			Input: "./-*test.go",
-		},
+func TestAssetsWrite(t *testing.T) {
+	workDir := t.TempDir()
+	withWorkingDir(t, workDir)
+
+	var assets Assets
+	assets.Add("test.txt", []byte("Hello, World!"))
+
+	if err := assets.Write(); err != nil {
+		t.Fatalf("写入文件失败: %v", err)
 	}
 
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			var assets Assets
-			assets.AddDir(tc.Input)
-			if err := assets.Write(); err != nil {
-				unit.ValidErr(err, tc.ExpectedErr, t)
-			}
-		})
+	content, err := os.ReadFile(filepath.Join(workDir, "test.txt"))
+	if err != nil {
+		t.Fatalf("读取写入结果失败: %v", err)
+	}
+	if string(content) != "Hello, World!" {
+		t.Fatalf("文件内容不匹配，实际: %q", string(content))
 	}
 }
 
-func TestFormat(t *testing.T) {
-	type _TestFile struct {
-		Path string
-		Body []byte
-	}
+func TestAssetsAddDir(t *testing.T) {
+	t.Run("创建目录", func(t *testing.T) {
+		workDir := t.TempDir()
+		withWorkingDir(t, workDir)
 
-	tcs := []unit.TestCase[_TestFile, any]{
-		{
-			Name: "测试文件1",
-			Input: _TestFile{
-				Path: "test.go",
-				Body: []byte(`
-				package main
-				func Main() {fmt.Println("Hello, World!")}
-				`),
-			},
-		},
-		{
-			Name: "测试文件2",
-			Input: _TestFile{
-				Path: "test.go",
-				Body: []byte(`
-				func Main() {fmt.Println("Hello, World!")}
-				`),
-			},
-			ExpectedErr: fmt.Errorf("code: 02-0001-0003"),
-		},
-	}
+		var assets Assets
+		if err := assets.AddDir(filepath.Join("nested", "dir")); err != nil {
+			t.Fatalf("添加目录失败: %v", err)
+		}
+		if err := assets.Write(); err != nil {
+			t.Fatalf("写入目录失败: %v", err)
+		}
 
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			var assets Assets
-			assets.Add(tc.Input.Path, tc.Input.Body)
-			if err := assets.Write(); err != nil {
-				unit.ValidErr(err, tc.ExpectedErr, t)
-			}
-			if err := assets.Format(); err != nil {
-				unit.ValidErr(err, tc.ExpectedErr, t)
-			}
-		})
-	}
+		info, err := os.Stat(filepath.Join(workDir, "nested", "dir"))
+		if err != nil {
+			t.Fatalf("检查目录失败: %v", err)
+		}
+		if !info.IsDir() {
+			t.Fatal("目标路径不是目录")
+		}
+	})
+
+	t.Run("空目录路径返回错误码", func(t *testing.T) {
+		workDir := t.TempDir()
+		withWorkingDir(t, workDir)
+
+		var assets Assets
+		if err := assets.AddDir(""); err != nil {
+			t.Fatalf("AddDir 不应在收集阶段报错: %v", err)
+		}
+
+		requireErrCode(t, assets.Write(), Err_0200030001.Code())
+	})
+}
+
+func TestAssetsFormat(t *testing.T) {
+	t.Run("格式化成功", func(t *testing.T) {
+		workDir := t.TempDir()
+		withWorkingDir(t, workDir)
+
+		var assets Assets
+		assets.Add("test.go", []byte(`
+package main
+
+func Main() {fmt.Println("Hello, World!")}
+`))
+
+		if err := assets.Write(); err != nil {
+			t.Fatalf("写入 Go 文件失败: %v", err)
+		}
+		if err := assets.Format(); err != nil {
+			t.Fatalf("格式化 Go 文件失败: %v", err)
+		}
+
+		content, err := os.ReadFile(filepath.Join(workDir, "test.go"))
+		if err != nil {
+			t.Fatalf("读取格式化结果失败: %v", err)
+		}
+		formatted := string(content)
+		if !strings.Contains(formatted, "package main") {
+			t.Fatalf("格式化结果缺少 package 声明: %s", formatted)
+		}
+		if !strings.Contains(formatted, "import \"fmt\"") {
+			t.Fatalf("格式化结果缺少 fmt 导入: %s", formatted)
+		}
+		if !strings.Contains(formatted, "fmt.Println(\"Hello, World!\")") {
+			t.Fatalf("格式化结果缺少目标调用: %s", formatted)
+		}
+	})
+
+	t.Run("缺少 package 时返回错误码", func(t *testing.T) {
+		workDir := t.TempDir()
+		withWorkingDir(t, workDir)
+
+		var assets Assets
+		assets.Add("test.go", []byte(`
+func Main() {fmt.Println("Hello, World!")}
+`))
+
+		if err := assets.Write(); err != nil {
+			t.Fatalf("写入无效 Go 文件失败: %v", err)
+		}
+
+		requireErrCode(t, assets.Format(), Err_0200020002.Code())
+	})
 }
 
 func TestCopyFile(t *testing.T) {
-	type _CopyFile struct {
-		Src string
-		Dst string
+	workDir := t.TempDir()
+	src := filepath.Join(workDir, "source.txt")
+	dst := filepath.Join(workDir, "dest.txt")
+
+	if err := os.WriteFile(src, []byte("copy me"), 0o644); err != nil {
+		t.Fatalf("创建源文件失败: %v", err)
 	}
 
-	tcs := []unit.TestCase[_CopyFile, any]{
-		{
-			Name: "测试文件1",
-			Input: _CopyFile{
-				Src: "test.go",
-				Dst: "test2.go",
-			},
-		},
-		{
-			Name: "测试文件2",
-			Input: _CopyFile{
-				Src: "test.go",
-				Dst: "./test2.go",
-			},
-		},
+	if err := CopyFile(src, dst); err != nil {
+		t.Fatalf("复制文件失败: %v", err)
 	}
 
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			if err := CopyFile(tc.Input.Src, tc.Input.Dst); err != nil {
-				unit.ValidErr(err, tc.ExpectedErr, t)
-			}
-		})
+	content, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("读取目标文件失败: %v", err)
+	}
+	if string(content) != "copy me" {
+		t.Fatalf("复制内容不匹配，实际: %q", string(content))
 	}
 }
 
 func TestCopyDir(t *testing.T) {
-	type _CopyDir struct {
-		Src string
-		Dst string
+	workDir := t.TempDir()
+	src := filepath.Join(workDir, "src")
+	dst := filepath.Join(workDir, "dst")
+
+	if err := os.MkdirAll(filepath.Join(src, "nested"), 0o755); err != nil {
+		t.Fatalf("创建源目录失败: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "nested", "file.txt"), []byte("dir copy"), 0o644); err != nil {
+		t.Fatalf("创建源目录文件失败: %v", err)
 	}
 
-	tcs := []unit.TestCase[_CopyDir, any]{
-		{
-			Name: "测试文件夹1",
-			Input: _CopyDir{
-				Src: "test",
-				Dst: "test2",
-			},
-		},
+	if err := CopyDir(src, dst); err != nil {
+		t.Fatalf("复制目录失败: %v", err)
 	}
 
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			if err := CopyDir(tc.Input.Src, tc.Input.Dst); err != nil {
-				unit.ValidErr(err, tc.ExpectedErr, t)
-			}
-		})
+	content, err := os.ReadFile(filepath.Join(dst, "nested", "file.txt"))
+	if err != nil {
+		t.Fatalf("读取复制后的目录文件失败: %v", err)
+	}
+	if string(content) != "dir copy" {
+		t.Fatalf("目录复制内容不匹配，实际: %q", string(content))
 	}
 }

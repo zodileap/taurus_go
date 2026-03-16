@@ -1,304 +1,108 @@
 package redis
 
 import (
+	"slices"
 	"testing"
-	"time"
-
-	"github.com/zodileap/taurus_go/testutil/unit"
-
-	"github.com/redis/go-redis/v9"
 )
 
-var testClientName = "test"
-var testPptions *redis.Options = &redis.Options{
-	Addr:     "localhost:6379",
-	Username: "",
-	Password: "", // no password set
-	DB:       1,  // use default DB
-}
+func TestSetSave(t *testing.T) {
+	client, _ := newTestClient(t)
 
-type (
-	stringData struct {
-		Key   string
-		Val   string
-		Field string
-		Exp   time.Duration
-	}
-
-	mstringData struct {
-		Key   string
-		Pairs map[string]string
-		Exp   time.Duration
-	}
-
-	mstringDataOpt struct {
-		Data mstringData
-		Op   string
-	}
-)
-
-func TestSet(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
+	setClient, err := client.Set()
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatalf("创建 Set 客户端失败: %v", err)
 	}
-	defer c.Close()
-	type I struct {
-		Val string
-		Exp time.Duration
-		Op  string
+
+	setClient.Add("set:key", 0, "1")
+	setClient.Add("set:key", 0, "2")
+	setClient.Add("set:key", 0, "3")
+	setClient.Del("set:key", "3")
+	setClient.Get("set:key")
+
+	res, err := client.Save()
+	if err != nil {
+		t.Fatalf("保存 Set 管道失败: %v", err)
 	}
-	type T struct {
-		Key   string
-		Items []I
+
+	setRes := res.GetSet("set:key")
+	if setRes == nil {
+		t.Fatal("缺少 set:key 的结果")
 	}
-	testCases := []unit.TestCase[T, SetRes]{
-		{
-			Name:        "测试数据1",
-			MockReturns: nil,
-			Input: T{
-				Key: "Key1",
-				Items: []I{
-					{
-						Val: "1",
-						Exp: 0,
-						Op:  "add",
-					},
-					{
-						Val: "2",
-						Exp: 0,
-						Op:  "add",
-					},
-					{
-						Val: "3",
-						Exp: 0,
-						Op:  "add",
-					},
-					{
-						Val: "3",
-						Exp: 0,
-						Op:  "del",
-					},
-					{
-						Exp: 0,
-						Op:  "get",
-					},
-				},
-			},
-			ExpectedRes: SetRes{
-				Key:    "Key1",
-				Value:  []string{"1", "2"},
-				AddNum: 3,
-				DelNum: 1,
-				Oper:   SMembers,
-			},
-			ExpectedErr: nil,
-		},
-		{
-			Name: "测试全部删除",
-			Input: T{
-				Key: "Key2",
-				Items: []I{
-					{
-						Val: "1",
-						Exp: 0,
-						Op:  "add",
-					},
-					{
-						Val: "2",
-						Exp: 0,
-						Op:  "add",
-					},
-					{
-						Op: "delall",
-					},
-				},
-			},
-			ExpectedRes: SetRes{
-				Key:    "Key2",
-				Value:  []string{},
-				AddNum: 0,
-				DelNum: 0,
-				Oper:   Del,
-			},
-			ExpectedErr: nil,
-		},
+	if setRes.AddNum != 3 {
+		t.Fatalf("AddNum 不匹配，期望 3，实际 %d", setRes.AddNum)
 	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			s, err := c.Set()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			for _, v := range tc.Input.Items {
-				switch v.Op {
-				case "add":
-					s.Add(tc.Input.Key, v.Exp, v.Val)
-				case "del":
-					s.Del(tc.Input.Key, v.Val)
-				case "get":
-					s.Get(tc.Input.Key)
-				case "delall":
-					s.DelAll(tc.Input.Key)
-				}
-			}
-			r, e := c.Save()
-			unit.ValidErr(e, tc.ExpectedErr, t)
-			data := *r.GetSet(tc.Input.Key)
-			unit.ValidRes(data, tc.ExpectedRes, t)
-		})
+	if setRes.DelNum != 1 {
+		t.Fatalf("DelNum 不匹配，期望 1，实际 %d", setRes.DelNum)
+	}
+	if setRes.Oper != SMembers {
+		t.Fatalf("最后操作不匹配，期望 %s，实际 %s", SMembers, setRes.Oper)
+	}
+	if !slices.Equal(sortedStrings(setRes.Value), []string{"1", "2"}) {
+		t.Fatalf("Set 值不匹配，实际 %v", setRes.Value)
 	}
 }
 
-func TestSetAddR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
+func TestSetDirectCommands(t *testing.T) {
+	client, _ := newTestClient(t)
+
+	setClient, err := client.Set()
 	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-
-	testCases := []unit.TestCase[stringData, int64]{
-		{
-			Name: "测试数据1",
-			Input: stringData{
-				Key: "set_key1",
-				Val: "1",
-				Exp: 0,
-			},
-			ExpectedRes: 1,
-		},
-		{
-			Name: "测试数据2",
-			Input: stringData{
-				Key: "set_key2",
-				Val: "2",
-				Exp: 0,
-			},
-			ExpectedRes: 1,
-		},
-		{
-			Name: "测试数据3",
-			Input: stringData{
-				Key: "set_key3",
-				Val: "3",
-				Exp: 0,
-			},
-			ExpectedRes: 1,
-		},
-		{
-			Name: "测试数据4",
-			Input: stringData{
-				Key: "set_key4",
-				Val: "4",
-				Exp: 1 * time.Second,
-			},
-			ExpectedRes: 1,
-		},
+		t.Fatalf("创建 Set 客户端失败: %v", err)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			s, err := c.Set()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := s.AddR(tc.Input.Key, tc.Input.Exp, tc.Input.Val)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
+	added, err := setClient.AddR("set:key", 0, "1")
+	if err != nil {
+		t.Fatalf("AddR 失败: %v", err)
+	}
+	if added != 1 {
+		t.Fatalf("首次 AddR 结果不匹配，期望 1，实际 %d", added)
+	}
+
+	added, err = setClient.AddR("set:key", 0, "1")
+	if err != nil {
+		t.Fatalf("重复 AddR 失败: %v", err)
+	}
+	if added != 0 {
+		t.Fatalf("重复 AddR 结果不匹配，期望 0，实际 %d", added)
+	}
+
+	values, err := setClient.GetR("set:key")
+	if err != nil {
+		t.Fatalf("GetR 失败: %v", err)
+	}
+	if !slices.Equal(sortedStrings(values), []string{"1"}) {
+		t.Fatalf("GetR 结果不匹配，实际 %v", values)
+	}
+
+	deleted, err := setClient.DelR("set:key", "1")
+	if err != nil {
+		t.Fatalf("DelR 失败: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("DelR 结果不匹配，期望 1，实际 %d", deleted)
+	}
+
+	if _, err := setClient.AddR("set:key2", 0, "2"); err != nil {
+		t.Fatalf("为 DelAllR 准备数据失败: %v", err)
+	}
+	deleted, err = setClient.DelAllR("set:key2")
+	if err != nil {
+		t.Fatalf("DelAllR 失败: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("DelAllR 结果不匹配，期望 1，实际 %d", deleted)
 	}
 }
 
-func TestSetGetR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
+func TestSetWrongType(t *testing.T) {
+	client, server := newTestClient(t)
+	server.Set("wrong:type", "value")
+
+	setClient, err := client.Set()
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatalf("创建 Set 客户端失败: %v", err)
 	}
-	defer c.Close()
 
-	testCases := []unit.TestCase[string, []string]{
-		{
-			Name:        "测试数据1",
-			Input:       "set_key1",
-			ExpectedRes: []string{"1"},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			s, err := c.Set()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-
-			r, e := s.GetR(tc.Input)
-			unit.ValidErr(e, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
-}
-
-func TestSetDelR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-
-	testCases := []unit.TestCase[[]string, int64]{
-		{
-			Name:        "测试数据1",
-			Input:       []string{"set_key1", "1"},
-			ExpectedRes: 1,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			s, err := c.Set()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-
-			r, e := s.DelR(tc.Input[0], tc.Input[1])
-			unit.ValidErr(e, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
-}
-
-func TestSetDelAllR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-
-	testCases := []unit.TestCase[string, int64]{
-		{
-			Name:        "测试数据1",
-			Input:       "set_key2",
-			ExpectedRes: 1,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			s, err := c.Set()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-
-			r, e := s.DelAllR(tc.Input)
-			unit.ValidErr(e, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
+	_, err = setClient.AddR("wrong:type", 0, "member")
+	requireRedisErrCode(t, err, Err_0300010004.Code())
 }

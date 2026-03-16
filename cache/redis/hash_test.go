@@ -1,631 +1,162 @@
 package redis
 
 import (
+	"slices"
 	"testing"
-	"time"
-
-	"github.com/zodileap/taurus_go/testutil/unit"
-	"github.com/zodileap/taurus_go/tlog"
 )
 
-func TestHash(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	type I struct {
-		Filed  string
-		Val    string
-		Exp    time.Duration
-		Op     string
-		Pairs  map[string]string
-		Fields []string
-	}
-	type T struct {
-		Key   string
-		Items []I
-	}
-	testCases := []unit.TestCase[T, HashRes]{
-		{
-			Name: "测试Add",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Filed: "field1",
-						Val:   "1",
-						Exp:   0,
-						Op:    HSet,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:      "han_key1",
-				Value:    []string{},
-				MapValue: map[string]string{},
-				AddNum:   1,
-				DelNum:   0,
-				Oper:     HSet,
-			},
-		},
-		{
-			Name: "测试AddMR",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Pairs: map[string]string{
-							"field2": "2",
-							"field3": "3",
-						},
-						Op: HMSet,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:      "han_key1",
-				Value:    []string{},
-				MapValue: map[string]string{},
-				AddNum:   2,
-				DelNum:   0,
-				Oper:     HSet,
-			},
-		},
-		{
-			Name: "测试Get",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Filed: "field1",
-						Op:    HGet,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key: "han_key1",
-				Value: []string{
-					"1",
-				},
-				MapValue: map[string]string{},
-				AddNum:   0,
-				DelNum:   0,
-				Oper:     HGet,
-			},
-		},
-		{
-			Name: "测试GetMR",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Fields: []string{"field1", "field2", "field3", "field4"},
-						Op:     HMGet,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key: "han_key1",
-				Value: []string{
-					"1", "2", "3", "",
-				},
-				MapValue: map[string]string{},
-				AddNum:   0,
-				DelNum:   0,
-				Oper:     HMGet,
-			},
-		},
-		{
-			Name: "测试GetVals",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Op: HVals,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key: "han_key1",
-				Value: []string{
-					"1", "2", "3",
-				},
-				MapValue: map[string]string{},
-				AddNum:   0,
-				DelNum:   0,
-				Oper:     HVals,
-			},
-		},
-		{
-			Name: "测试GetAll",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Op: HGetAll,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:   "han_key1",
-				Value: []string{},
-				MapValue: map[string]string{
-					"field1": "1",
-					"field2": "2",
-					"field3": "3",
-				},
-				AddNum: 0,
-				DelNum: 0,
-				Oper:   HGetAll,
-			},
-		},
-		{
-			Name: "测试Del",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Filed: "field1",
-						Op:    HDel,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:      "han_key1",
-				Value:    []string{},
-				MapValue: map[string]string{},
-				AddNum:   0,
-				DelNum:   1,
-				Oper:     HDel,
-			},
-		},
-		{
-			Name: "测试DelAll",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Filed: "field1",
-						Op:    Del,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:      "han_key1",
-				Value:    []string{},
-				MapValue: map[string]string{},
-				AddNum:   0,
-				DelNum:   1,
-				Oper:     Del,
-			},
-		},
-		{
-			Name: "测试最终删除",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Filed: "field2",
-						Val:   "2",
-						Exp:   0,
-						Op:    HSet,
-					},
-					{
-						Filed: "field3",
-						Val:   "3",
-						Exp:   0,
-						Op:    HSet,
-					},
-					{
-						Op: Del,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:      "han_key1",
-				Value:    []string{},
-				MapValue: map[string]string{},
-				AddNum:   0,
-				DelNum:   0, // 因为提前删除了，所以是0
-				Oper:     Del,
-			},
-		},
-		{
-			Name: "测试多次添加后得到",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Filed: "field2",
-						Val:   "2",
-						Exp:   0,
-						Op:    HSet,
-					},
-					{
-						Filed: "field3",
-						Val:   "3",
-						Exp:   0,
-						Op:    HSet,
-					},
-					{
-						Op: HGetAll,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:   "han_key1",
-				Value: []string{},
-				MapValue: map[string]string{
-					"field2": "2",
-					"field3": "3",
-				},
-				AddNum: 2,
-				DelNum: 0,
-				Oper:   HGetAll,
-			},
-		}, {
-			Name: "测试多个得到",
-			Input: T{
-				Key: "han_key1",
-				Items: []I{
-					{
-						Filed: "field2",
-						Op:    HGet,
-					},
-					{
-						Pairs: map[string]string{
-							"field2": "2",
-							"field3": "3",
-						},
-						Op: HMSet,
-					},
-					{
-						Op: HGetAll,
-					},
-				},
-			},
-			ExpectedRes: HashRes{
-				Key:   "han_key1",
-				Value: []string{},
-				MapValue: map[string]string{
-					"field2": "2",
-					"field3": "3",
-				},
-				AddNum: 0,
-				DelNum: 0,
-				Oper:   HGetAll,
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
+func TestHashSave(t *testing.T) {
+	client, _ := newTestClient(t)
 
-			if err != nil {
-				tlog.Print(err.Error())
-			}
-			for _, item := range tc.Input.Items {
-				switch item.Op {
-				case HSet:
-					h.Add(tc.Input.Key, item.Exp, item.Filed, item.Val)
-				case HMSet:
-					h.AddM(tc.Input.Key, item.Exp, item.Pairs)
-				case HGet:
-					h.Get(tc.Input.Key, item.Filed)
-				case HMGet:
-					h.GetM(tc.Input.Key, item.Fields)
-				case HVals:
-					h.GetVals(tc.Input.Key)
-				case HGetAll:
-					h.GetAll(tc.Input.Key)
-				case HDel:
-					h.Del(tc.Input.Key, item.Filed)
-				case Del:
-					h.DelAll(tc.Input.Key)
-				}
-			}
-			r, err := c.Save()
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			data := *r.GetHash(tc.Input.Key)
-			unit.ValidRes(data, tc.ExpectedRes, t)
-		})
+	hashClient, err := client.Hash()
+	if err != nil {
+		t.Fatalf("创建 Hash 客户端失败: %v", err)
+	}
+
+	hashClient.Add("hash:key", 0, "field1", "1")
+	hashClient.AddM("hash:key", 0, map[string]string{
+		"field2": "2",
+		"field3": "3",
+	})
+	hashClient.GetAll("hash:key")
+
+	res, err := client.Save()
+	if err != nil {
+		t.Fatalf("保存 Hash 管道失败: %v", err)
+	}
+
+	hashRes := res.GetHash("hash:key")
+	if hashRes == nil {
+		t.Fatal("缺少 hash:key 的结果")
+	}
+	if hashRes.AddNum != 3 {
+		t.Fatalf("AddNum 不匹配，期望 3，实际 %d", hashRes.AddNum)
+	}
+	if hashRes.Oper != HGetAll {
+		t.Fatalf("最后操作不匹配，期望 %s，实际 %s", HGetAll, hashRes.Oper)
+	}
+	expected := map[string]string{
+		"field1": "1",
+		"field2": "2",
+		"field3": "3",
+	}
+	if !slices.Equal(sortedStrings(mapKeys(hashRes.MapValue)), sortedStrings(mapKeys(expected))) {
+		t.Fatalf("Hash 字段集合不匹配，实际 %v", hashRes.MapValue)
+	}
+	for key, value := range expected {
+		if hashRes.MapValue[key] != value {
+			t.Fatalf("Hash 字段 %s 的值不匹配，期望 %s，实际 %s", key, value, hashRes.MapValue[key])
+		}
 	}
 }
 
-func TestHashAddR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
+func TestHashDirectCommands(t *testing.T) {
+	client, _ := newTestClient(t)
+
+	hashClient, err := client.Hash()
 	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	testCases := []unit.TestCase[stringData, int64]{
-		{
-			Name: "测试数据1",
-			Input: stringData{
-				Key:   "han_key1",
-				Field: "field1",
-				Val:   "1",
-				Exp:   0,
-			},
-			ExpectedRes: 1,
-		},
-		{
-			Name: "测试数据2",
-			Input: stringData{
-				Key:   "han_key1",
-				Field: "field2",
-				Val:   "2",
-				Exp:   0,
-			},
-			ExpectedRes: 1,
-		},
-		{
-			Name: "测试数据3",
-			Input: stringData{
-				Key:   "han_key1",
-				Field: "field3",
-				Val:   "3",
-				Exp:   0,
-			},
-			ExpectedRes: 1,
-		},
-		{
-			Name: "测试数据4",
-			Input: stringData{
-				Key:   "han_key1",
-				Field: "field4",
-				Val:   "4",
-				Exp:   0,
-			},
-			ExpectedRes: 1,
-		},
+		t.Fatalf("创建 Hash 客户端失败: %v", err)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := h.AddR(tc.Input.Key, tc.Input.Exp, tc.Input.Field, tc.Input.Val)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
+	added, err := hashClient.AddR("hash:key", 0, "field1", "1")
+	if err != nil {
+		t.Fatalf("AddR 失败: %v", err)
+	}
+	if added != 1 {
+		t.Fatalf("AddR 结果不匹配，期望 1，实际 %d", added)
+	}
+
+	added, err = hashClient.AddMR("hash:key", 0, map[string]string{
+		"field2": "2",
+		"field3": "3",
+	})
+	if err != nil {
+		t.Fatalf("AddMR 失败: %v", err)
+	}
+	if added != 2 {
+		t.Fatalf("AddMR 结果不匹配，期望 2，实际 %d", added)
+	}
+
+	value, err := hashClient.GetR("hash:key", "field1")
+	if err != nil {
+		t.Fatalf("GetR 失败: %v", err)
+	}
+	if value != "1" {
+		t.Fatalf("GetR 结果不匹配，期望 1，实际 %q", value)
+	}
+
+	values, err := hashClient.GetMR("hash:key", "field1", "field2", "missing")
+	if err != nil {
+		t.Fatalf("GetMR 失败: %v", err)
+	}
+	if len(values) != 3 || values[0] != "1" || values[1] != "2" || values[2] != nil {
+		t.Fatalf("GetMR 结果不匹配，实际 %v", values)
+	}
+
+	allValues, err := hashClient.GetValsR("hash:key")
+	if err != nil {
+		t.Fatalf("GetValsR 失败: %v", err)
+	}
+	if !slices.Equal(sortedStrings(allValues), []string{"1", "2", "3"}) {
+		t.Fatalf("GetValsR 结果不匹配，实际 %v", allValues)
+	}
+
+	allFields, err := hashClient.GetAllR("hash:key")
+	if err != nil {
+		t.Fatalf("GetAllR 失败: %v", err)
+	}
+	if len(allFields) != 3 || allFields["field1"] != "1" || allFields["field2"] != "2" || allFields["field3"] != "3" {
+		t.Fatalf("GetAllR 结果不匹配，实际 %v", allFields)
+	}
+
+	deleted, err := hashClient.DelR("hash:key", "field1")
+	if err != nil {
+		t.Fatalf("DelR 失败: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("DelR 结果不匹配，期望 1，实际 %d", deleted)
+	}
+
+	deleted, err = hashClient.DelAllR("hash:key")
+	if err != nil {
+		t.Fatalf("DelAllR 失败: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("DelAllR 结果不匹配，期望 1，实际 %d", deleted)
 	}
 }
 
-func TestHashAddMR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	testCases := []unit.TestCase[mstringData, int64]{
-		{
-			Name: "测试数据1",
-			Input: mstringData{
-				Key: "han_key1",
-				Pairs: map[string]string{
-					"field5": "1",
-					"field6": "2",
-					"field7": "3",
-					"field8": "4",
-				},
-			},
-			ExpectedRes: 4,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			l, err := h.AddMR(tc.Input.Key, tc.Input.Exp, tc.Input.Pairs)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(l, tc.ExpectedRes, t)
-		})
-	}
+func TestHashMissingAndWrongType(t *testing.T) {
+	t.Run("缺失字段返回错误码", func(t *testing.T) {
+		client, _ := newTestClient(t)
+
+		hashClient, err := client.Hash()
+		if err != nil {
+			t.Fatalf("创建 Hash 客户端失败: %v", err)
+		}
+
+		_, err = hashClient.GetR("hash:key", "missing")
+		requireRedisErrCode(t, err, Err_0300010003.Code())
+	})
+
+	t.Run("错误类型返回错误码", func(t *testing.T) {
+		client, server := newTestClient(t)
+		server.Set("wrong:type", "value")
+
+		hashClient, err := client.Hash()
+		if err != nil {
+			t.Fatalf("创建 Hash 客户端失败: %v", err)
+		}
+
+		_, err = hashClient.AddR("wrong:type", 0, "field", "value")
+		requireRedisErrCode(t, err, Err_0300010004.Code())
+	})
 }
 
-func TestHashGetR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
+func mapKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
 	}
-	defer c.Close()
-	testCases := []unit.TestCase[stringData, string]{
-		{
-			Name: "测试数据1",
-			Input: stringData{
-				Key:   "han_key1",
-				Field: "field1",
-			},
-			ExpectedRes: "1",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := h.GetR(tc.Input.Key, tc.Input.Field)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
-}
-
-func TestHashGetMR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	type T struct {
-		Key   string
-		Field []string
-	}
-	testCases := []unit.TestCase[T, []interface{}]{
-		{
-			Name: "测试数据1",
-			Input: T{
-				Key:   "han_key1",
-				Field: []string{"field1", "field2", "field3", "field4"},
-			},
-			ExpectedRes: []interface{}{"1", "2", "3", "4"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := h.GetMR(tc.Input.Key, tc.Input.Field...)
-			tlog.Print(r)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
-}
-
-func TestHashGetValsR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	testCases := []unit.TestCase[string, []string]{
-		{
-			Name:        "测试数据1",
-			Input:       "han_key1",
-			ExpectedRes: []string{"1", "2", "3", "4", "1", "2", "3", "4"},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := h.GetValsR(tc.Input)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
-}
-
-func TestHashGetAllR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	testCases := []unit.TestCase[string, map[string]string]{
-		{
-			Name:  "测试数据1",
-			Input: "han_key1",
-			ExpectedRes: map[string]string{
-				"field1": "1",
-				"field2": "2",
-				"field3": "3",
-				"field4": "4",
-				"field5": "1",
-				"field6": "2",
-				"field7": "3",
-				"field8": "4",
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := h.GetAllR(tc.Input)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
-}
-
-func TestHashDelR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	testCases := []unit.TestCase[stringData, int64]{
-		{
-			Name: "测试数据1",
-			Input: stringData{
-				Key:   "han_key1",
-				Field: "field1",
-				Val:   "1",
-				Exp:   0,
-			},
-			ExpectedRes: 1,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := h.DelR(tc.Input.Key, tc.Input.Field)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
-}
-
-func TestHashDelAllR(t *testing.T) {
-	SetClient(testClientName, testPptions)
-	defer ClearClient()
-	c, err := GetClient(testClientName)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Close()
-	testCases := []unit.TestCase[string, int64]{
-		{
-			Name:        "测试数据1",
-			Input:       "han_key1",
-			ExpectedRes: 1,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			h, err := c.Hash()
-			if err != nil {
-				t.Errorf(err.Error())
-			}
-			r, err := h.DelAllR(tc.Input)
-			unit.ValidErr(err, tc.ExpectedErr, t)
-			unit.ValidRes(r, tc.ExpectedRes, t)
-		})
-	}
+	return keys
 }

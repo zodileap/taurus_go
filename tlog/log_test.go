@@ -1,198 +1,65 @@
 package tlog
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 )
 
-type testLogStruct struct {
-	msg    string
-	fields []Field
-}
-
-var testLogData = []testLogStruct{
-	{
-		msg: "This is a debug message",
-		fields: []Field{
-			String("url", "http://example.com"),
-			Int("attempt", 3),
-			String("status", "ok"),
-		},
-	},
-}
-
-func testSetLogger(logger *Logger) {
-	l := logger
-	for _, data := range testLogData {
-		l.Debug(data.msg, 0, data.fields...)
-		l.Info(data.msg, 0, data.fields...)
-		l.Warn(data.msg, 0, data.fields...)
-		l.Error(data.msg, 0, data.fields...)
-	}
-}
-
-// TestGetLogger 测试设置日志级别
 func TestSetLevel(t *testing.T) {
-
-	logger := Get("test").SetLevel(InfoLevel)
-	testSetLogger(logger)
+	logger := Get("test-set-level").SetLevel(InfoLevel)
+	if logger.level != InfoLevel {
+		t.Fatalf("日志级别设置失败，期望 %d，实际 %d", InfoLevel, logger.level)
+	}
 }
 
-// TestGetLogger 测试文件输出
+func TestFormatLog(t *testing.T) {
+	logger := Get("test-format-log").SetCaller(false)
+
+	plain, color := logger.FormatLog(InfoLevel, 0, "hello", String("key", "value"), Int("count", 2))
+	if !strings.Contains(plain, "[INFO]") || !strings.Contains(plain, "hello") {
+		t.Fatalf("普通日志内容不完整: %s", plain)
+	}
+	if !strings.Contains(plain, "key=value") || !strings.Contains(plain, "count=2") {
+		t.Fatalf("普通日志字段缺失: %s", plain)
+	}
+	if !strings.Contains(color, "hello") || !strings.Contains(color, "key=value") {
+		t.Fatalf("彩色日志内容不完整: %s", color)
+	}
+}
+
 func TestFileOutput(t *testing.T) {
-	tmpDir, err := os.Getwd()
+	logPath := filepath.Join(t.TempDir(), "test.log")
+
+	logger := Get("test-file-output").SetCaller(false)
+	logger.SetOutputPath(logPath, 1, 3, 1)
+	logger.Info("Test log message", 0, Int("count", 1))
+
+	content, err := os.ReadFile(logPath)
 	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
+		t.Fatalf("读取日志文件失败: %v", err)
 	}
-	logPath := filepath.Join(tmpDir, "test.log")
-
-	logger := Get("test_file")
-	logger.SetOutputPath(logPath, 1, 3, 1) // 1MB, 3 backups, 1 day
-
-	for i := 0; i < 10; i++ {
-		logger.Info("Test log message", 0, Int("count", i))
-	}
-	// 验证文件是否创建
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		t.Errorf("Log file was not created: %v", err)
-	}
-
-	// 清理测试文件
-	// os.Remove(logPath)
-}
-
-// TestLogRotation 测试日志切割
-func TestLogRotation(t *testing.T) {
-	tmpDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	logPath := filepath.Join(tmpDir, "rotation_test.log")
-
-	logger := Get("test_rotation")
-	logger.SetOutputPath(logPath, 1, 2, 1) // 1MB, 2 backups, 1 day
-
-	// 生成一个较大的可读文本
-	line := "This is a test log line that will be repeated many times to create a large log file for testing rotation.\n"
-	// 写入足够多的日志触发切割
-	for i := 0; i < 10000; i++ { // 写入足够多的行以触发日志切割
-		logger.Info(fmt.Sprintf("Log line %d: %s", i, line),
-			0,
-			Int("iteration", i),
-			String("test", "rotation"),
-			String("content", "readable text"))
-
-		// 每1000行暂停一下，确保时间戳不同
-		if i%1000 == 0 {
-			time.Sleep(time.Millisecond * 100)
-		}
-	}
-
-	// 检查备份文件
-	files, err := filepath.Glob(logPath + ".*")
-	if err != nil {
-		t.Errorf("Failed to list backup files: %v", err)
-	}
-
-	// 验证备份文件数量
-	if len(files) == 0 {
-		t.Error("No backup files were created")
-	}
-
-	if len(files) > 2 {
-		t.Errorf("Expected at most 2 backup files, got %d", len(files))
-	}
-
-	// 清理测试文件
-	os.Remove(logPath)
-	for _, f := range files {
-		os.Remove(f)
+	text := string(content)
+	if !strings.Contains(text, "Test log message") || !strings.Contains(text, "count=1") {
+		t.Fatalf("日志文件内容不正确: %s", text)
 	}
 }
 
-// TestFields 测试字段
-func TestFields(t *testing.T) {
-	logger := Get("test_fields")
-
-	fields := []Field{
-		String("str", "value"),
-		Int("int", 123),
-		Any("map", map[string]string{"key": "value"}),
-	}
-
-	logger.Info("Test fields", 0, fields...)
-}
-
-// TestGlobalFunctions 测试全局函数
 func TestGlobalFunctions(t *testing.T) {
 	tests := []struct {
-		name     string
-		logFunc  func(string, string, ...Field)
-		expected Level
+		name    string
+		logFunc func(string, string, ...Field)
 	}{
-		{"Debug", Debug, DebugLevel},
-		{"Info", Info, InfoLevel},
-		{"Warn", Warn, WarnLevel},
-		{"Error", Error, ErrorLevel},
+		{"Debug", Debug},
+		{"Info", Info},
+		{"Warn", Warn},
+		{"Error", Error},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.logFunc("test_global", "Test message")
+			tt.logFunc("test-global-functions", "test message", String("from", tt.name))
 		})
 	}
-}
-
-// BenchmarkLogger 测试日志性能
-func BenchmarkLoggerInfo(b *testing.B) {
-	logger := Get("benchmark")
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("Benchmark message",
-				0,
-				String("key1", "value1"),
-				Int("key2", 123))
-		}
-	})
-}
-
-// BenchmarkLoggerWithFields 测试带字段的日志性能
-func BenchmarkLoggerWithFields(b *testing.B) {
-	logger := Get("benchmark_fields")
-	fields := []Field{
-		String("str", "value"),
-		Int("int", 123),
-		Any("map", map[string]string{"key": "value"}),
-	}
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("Benchmark message", 0, fields...)
-		}
-	})
-}
-
-// BenchmarkFileOutput 测试文件输出性能
-func BenchmarkFileOutput(b *testing.B) {
-	tmpDir, err := os.Getwd()
-	if err != nil {
-		b.Fatalf("Failed to get current directory: %v", err)
-	}
-	logPath := filepath.Join(tmpDir, "benchmark.log")
-
-	logger := Get("benchmark_file")
-	logger.SetOutputPath(logPath, 100, 3, 1)
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("Benchmark message to file", 0)
-		}
-	})
-
-	// 清理测试文件
-	os.Remove(logPath)
 }

@@ -17,6 +17,9 @@ var (
 
 // AddConnection 在添加一个数据库连接配置。
 func AddConnection(conn ConnectionConfig) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if conn.Tag == "" {
 		return Err_0100010001
 	}

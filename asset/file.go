@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/zodileap/taurus_go/tlog"
 	"golang.org/x/tools/imports"
 )
 
@@ -257,7 +256,6 @@ func (fo *FileOperator) Insert(pos int, content string) (nextPos int, err error)
 		return pos + 1, nil
 	} else {
 		newLines = append(newLines, fo.lines[:pos-1]...)
-		tlog.Print(newLines, pos)
 		newLines = append(newLines, content)
 		newLines = append(newLines, fo.lines[pos-1:]...)
 		fo.lines = newLines

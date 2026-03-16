@@ -2,7 +2,8 @@ package stringutil
 
 import (
 	"crypto/rand"
-	"fmt"
+	"encoding/hex"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -31,7 +32,7 @@ func GenerateKey() (string, error) {
 	}
 
 	// 将时间和随机字节转换为字符串
-	key := fmt.Sprintf("%x-%x", currentTime, randomBytes)
+	key := strconv.FormatInt(currentTime, 16) + "-" + hex.EncodeToString(randomBytes)
 	return key, nil
 }
 
@@ -68,7 +69,6 @@ func LengthOfLongestSubstring(s string) int {
 	count := -1
 	for _, v := range s {
 		count++
-		fmt.Printf("%v , %v \n", string(runes[start:count]), string(v))
 		index := strings.Index(string(runes[start:count]), string(v))
 		if index == -1 {
 			if count+1 > end {
@@ -79,11 +79,6 @@ func LengthOfLongestSubstring(s string) int {
 			start += index + 1
 			end += index + 1
 		}
-
-		fmt.Printf("index: %v \n", index)
-		fmt.Printf("start: %v \n", start)
-		fmt.Printf("end: %v \n", end)
-		fmt.Printf("count: %v \n", count)
 	}
 
 	return end - start

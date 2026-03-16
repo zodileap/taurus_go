@@ -73,16 +73,36 @@ func TestLengthOfLongestSubstring(t *testing.T) {
 	}
 }
 
-func TestIsUUIDValid(t *testing.T) {
-	testUUIDs := []string{
-		"123e4567-e89b-12d3-a456",
-		"invalid-uuid",
-		"123e4567e89b12d3a456426614174000",
+func TestIsUUID(t *testing.T) {
+	tests := []struct {
+		input string
+		valid bool
+	}{
+		{
+			input: "123e4567-e89b-12d3-a456-426614174000",
+			valid: true,
+		},
+		{
+			input: "123e4567-e89b-12d3-a456",
+			valid: false,
+		},
+		{
+			input: "invalid-uuid",
+			valid: false,
+		},
+		{
+			input: "123e4567e89b12d3a456426614174000",
+			valid: true,
+		},
 	}
 
-	for _, uuid := range testUUIDs {
-		if err := IsUUID(uuid); err != nil {
-			t.Errorf("isUUIDValid(%s) = true, want false", uuid)
+	for _, tc := range tests {
+		err := IsUUID(tc.input)
+		if tc.valid && err != nil {
+			t.Errorf("IsUUID(%s) unexpected error: %v", tc.input, err)
+		}
+		if !tc.valid && err == nil {
+			t.Errorf("IsUUID(%s) = nil, want error", tc.input)
 		}
 	}
 }

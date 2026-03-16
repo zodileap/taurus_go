@@ -13,14 +13,14 @@ import (
 
 // LogWriter 日志写入器，支持文件大小切割、按日期切割、自动压缩和备份清理
 type LogWriter struct {
-	filename    string    // 日志文件完整路径
-	maxSize     int64     // 单个日志文件最大大小，超过此大小将触发切割(单位:字节)
-	maxBackups  int       // 保留的备份文件最大数量，超过将删除最旧的备份
-	maxAge      int       // 备份文件最大保留天数，超过此天数的文件将被删除
-	maxDays     int       // 按日期切割的天数间隔，默认1天切割一次
-	size        int64     // 当前日志文件已写入的字节数
-	file        *os.File  // 当前打开的日志文件句柄
-	currentDate string    // 当前日期(YYYY-MM-DD格式)
+	filename    string   // 日志文件完整路径
+	maxSize     int64    // 单个日志文件最大大小，超过此大小将触发切割(单位:字节)
+	maxBackups  int      // 保留的备份文件最大数量，超过将删除最旧的备份
+	maxAge      int      // 备份文件最大保留天数，超过此天数的文件将被删除
+	maxDays     int      // 按日期切割的天数间隔，默认1天切割一次
+	size        int64    // 当前日志文件已写入的字节数
+	file        *os.File // 当前打开的日志文件句柄
+	currentDate string   // 当前日期(YYYY-MM-DD格式)
 }
 
 // newLogWriter 创建新的LogWriter
@@ -49,6 +49,10 @@ func newLogWriterWithDays(filename string, maxSize, maxBackups, maxAge, maxDays 
 
 // openFile 打开文件
 func (w *LogWriter) openFile() error {
+	if err := os.MkdirAll(filepath.Dir(w.filename), 0755); err != nil {
+		return err
+	}
+
 	info, err := os.Stat(w.filename)
 	if err == nil {
 		w.size = info.Size()
@@ -108,10 +112,10 @@ func (w *LogWriter) shouldRotateByDate() bool {
 	if w.maxDays <= 0 {
 		return false
 	}
-	
+
 	// 获取当前日期字符串(YYYY-MM-DD格式)
 	nowDateStr := time.Now().Format("2006-01-02")
-	
+
 	// 如果日期字符串不同，说明跨日了
 	if nowDateStr != w.currentDate {
 		// 解析两个日期
@@ -120,12 +124,12 @@ func (w *LogWriter) shouldRotateByDate() bool {
 		if err1 != nil || err2 != nil {
 			return false
 		}
-		
+
 		// 计算日期差异的天数
 		daysDiff := int(nowDate.Sub(fileDate).Hours() / 24)
 		return daysDiff >= w.maxDays
 	}
-	
+
 	return false
 }
 

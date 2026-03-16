@@ -1,24 +1,24 @@
 package redis
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/zodileap/taurus_go/tlog"
-)
+func TestGetClientRequiresConfig(t *testing.T) {
+	ClearClient()
 
-func TestDel(t *testing.T) {
-	t.Run("测试删除", func(t *testing.T) {
-		SetClient(testClientName, testPptions)
-		defer ClearClient()
-		c, err := GetClient(testClientName)
-		if err != nil {
-			t.Errorf(err.Error())
-		}
-		defer c.Close()
-		l, err := c.Del("key1", "key2")
-		if err != nil {
-			t.Errorf(err.Error())
-		}
-		tlog.Print(l)
-	})
+	_, err := GetClient("missing")
+	requireRedisErrCode(t, err, Err_0300010001.Code())
+}
+
+func TestClientDel(t *testing.T) {
+	client, server := newTestClient(t)
+	server.Set("key1", "1")
+	server.Set("key2", "2")
+
+	deleted, err := client.Del("key1", "key2")
+	if err != nil {
+		t.Fatalf("删除键失败: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("删除数量不匹配，期望 2，实际 %d", deleted)
+	}
 }
