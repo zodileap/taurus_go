@@ -8,7 +8,7 @@
 - 模块路径：`github.com/zodileap/taurus_go`。
 - Go 版本要求：`1.24.1`。
 - 这是基础能力仓库，不承载具体业务应用逻辑。
-- 常见能力集中在 `entity`、`notify/telegram`、`cache/redis`、`tlog`、`asset`、`template`、`err`、`datautil`、`testutil`。
+- 常见能力集中在 `entity`、`notify/telegram`、`cache/redis`、`tlog`、`asset`、`template`、`err`、`byteutil`、`maputil`、`sliceutil`、`stringutil`、`structutil`、`geo`。
 
 ## Git 规范
 
@@ -60,7 +60,7 @@
 
 - 修改任何包之前，先阅读该包当前实现和测试，确认真实对外 API。
 - 新增能力优先在现有包体系中扩展；只有职责边界明确时才新增新包。
-- 优先复用仓库内已有能力，例如 `err`、`asset`、`template`、`datautil`、`testutil`；确认不足后再评估第三方依赖。
+- 优先复用仓库内已有能力，例如 `err`、`asset`、`template`、`byteutil`、`maputil`、`sliceutil`、`stringutil`、`structutil`、`geo`；确认不足后再评估第三方依赖。
 - 新增公共函数时优先保持清晰一致的返回风格，通常使用 `(T, error)`，但不要为了机械统一破坏已有 API 兼容性。
 - 错误处理优先沿用当前风格，例如 `err.ErrCode`、各子包内的 `Err_xxx` 定义和已有包装方式；已有错误码优先复用。
 - 补充错误上下文时优先包含关键调用位置、对象标识或输入边界信息，但不要泄露敏感数据。

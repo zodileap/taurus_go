@@ -31,7 +31,7 @@ type FeatureCollection[P interface{}, C Coordinate] struct {
 //
 // Example:
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath: geo/feature_collection_test.go - TestNewFeatureCollection
 func NewFeatureCollection[P interface{}, C Coordinate](features []Feature[P, C]) FeatureCollection[P, C] {
 	featureCollection := FeatureCollection[P, C]{
 		Type:     "FeatureCollection",

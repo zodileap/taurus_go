@@ -31,7 +31,7 @@ func GenerateCmd() *cobra.Command {
 				}
 				config.PackageName = packageName
 
-				// TODO: 目前只需要路径，没有别的flags
+				// 当前只使用位置参数中的 path，其他生成选项通过 flags 组装到 exts 中。
 				exts := []codegen.Extra{}
 				for _, tmpl := range templates {
 					typ := "dir"

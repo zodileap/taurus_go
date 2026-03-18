@@ -3,12 +3,15 @@ package entitysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/zodileap/taurus_go/entity"
 	"github.com/zodileap/taurus_go/entity/dialect"
 	"github.com/zodileap/taurus_go/tlog"
 )
+
+var ErrReturningUnsupported = errors.New("entitysql RETURNING is not supported by this dialect")
 
 // CreateSpec 用于生成创建语句。
 type CreateSpec struct {
@@ -20,7 +23,7 @@ type CreateSpec struct {
 	Fields [][]*FieldSpec
 	// Returning 用于返回的字段。
 	Returning []FieldName
-	// TODO
+	// Schema 可选 schema 名称，不设置时使用数据库默认 schema。
 	Schema string
 }
 
@@ -103,9 +106,9 @@ func (b *createBuilder) create(ctx context.Context, drv dialect.Tx) error {
 			}
 		}
 		return nil
-	} else {
-		return b.insertLastID(ctx, inserter)
 	}
+
+	return b.insertReturning(ctx, inserter)
 }
 
 // inserter 从CreateSpec提取Inserter生成sql需要的信息。
@@ -130,8 +133,7 @@ func (b *createBuilder) inserter(ctx context.Context) (*Inserter, error) {
 	return inserter, nil
 }
 
-// insertLastID 用于有RETURNING子句的查询。
-// 如果数据库不支持RETURNING子句，会使用LastInsertId，比如MySQL。
+// insertReturning 用于执行包含 RETURNING 字段的插入。
 //
 // Params:
 //
@@ -141,51 +143,37 @@ func (b *createBuilder) inserter(ctx context.Context) (*Inserter, error) {
 // Returns:
 //
 //	0: 错误信息。
-func (b *createBuilder) insertLastID(ctx context.Context, insert *Inserter) error {
+func (b *createBuilder) insertReturning(ctx context.Context, insert *Inserter) error {
+	if insert.Dialect() == dialect.MySQL {
+		return fmt.Errorf("%w: %s", ErrReturningUnsupported, insert.Dialect())
+	}
+
 	specs, err := insert.Insert()
 	if err != nil {
 		return err
 	}
 	for _, spec := range specs {
-		// MySQL 不支持 RETURNING 子句。
-		if insert.Dialect() != dialect.MySQL {
-			rows := dialect.Rows{}
-			config := entity.GetConfig()
-			if *(config.SqlConsole) {
-				tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
-				tlog.Debug(*config.SqlLogger, fmt.Sprintf("args: %v", spec.Args))
+		rows := dialect.Rows{}
+		config := entity.GetConfig()
+		if *(config.SqlConsole) {
+			tlog.Debug(*config.SqlLogger, fmt.Sprintf("sql: %s", spec.Query))
+			tlog.Debug(*config.SqlLogger, fmt.Sprintf("args: %v", spec.Args))
+		}
+		if err := b.drv.Query(ctx, spec.Query, spec.Args, &rows); err != nil {
+			return err
+		}
+		for rows.Next() {
+			scannerFields := make([]ScannerField, len(b.Returning))
+			for i, name := range b.Returning {
+				scannerFields[i] = ScannerField(name)
 			}
-			if err := b.drv.Query(ctx, spec.Query, spec.Args, &rows); err != nil {
-				return err
-			}
-			for rows.Next() {
-				ScannerFields := make([]ScannerField, len(b.Returning))
-				for i, name := range b.Returning {
-					ScannerFields[i] = ScannerField(name)
-				}
-				err := b.Scan(rows, ScannerFields)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			// MySQL.
-			var res sql.Result
-			if err := b.drv.Exec(ctx, spec.Query, spec.Args, &res); err != nil {
+			if err := b.Scan(rows, scannerFields); err != nil {
 				return err
 			}
 		}
-
-		// 如果是数字类型，可以使用LastInsertId。
-		// 如果没有自增主键会报错，同时只可能有一个自增主键。
-		// TODO 还没有完成
-		// if c.Id.Type.Numeric() {
-		// 	id, err := res.LastInsertId()
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// 	c.Id.Value = id
-		// }
+		if err := rows.Close(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	stringutil "github.com/zodileap/taurus_go/datautil/string"
 	"github.com/zodileap/taurus_go/entity"
 	"github.com/zodileap/taurus_go/entity/dialect"
+	stringutil "github.com/zodileap/taurus_go/stringutil"
 )
 
 type (

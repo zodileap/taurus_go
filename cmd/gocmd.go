@@ -17,8 +17,8 @@ import (
 //
 // Returns:
 //
-//   string: 命令执行的标准输出。
-//   error: 如果执行过程中发生错误，返回相应的错误信息。
+//	string: 命令执行的标准输出。
+//	error: 如果执行过程中发生错误，返回相应的错误信息。
 //
 // Example:
 //
@@ -32,7 +32,7 @@ func GoRun(target string, buildFlags []string) (string, error) {
 	args := []string{"run"}
 	args = append(args, buildFlags...)
 	args = append(args, target)
-	
+
 	cmd := New(append([]string{"go"}, args...)...)
 	output, err := cmd.Run()
 	if err != nil {
@@ -52,7 +52,7 @@ func GoRun(target string, buildFlags []string) (string, error) {
 //
 // Returns:
 //
-//   error: 如果执行过程中发生错误，返回相应的错误信息。
+//	error: 如果执行过程中发生错误，返回相应的错误信息。
 //
 // Example:
 //
@@ -64,7 +64,7 @@ func GoList(target string, buildFlags []string) error {
 	args := []string{"list"}
 	args = append(args, buildFlags...)
 	args = append(args, target)
-	
+
 	cmd := New(append([]string{"go"}, args...)...)
 	_, err := cmd.Run()
 	return err
@@ -80,7 +80,7 @@ func GoList(target string, buildFlags []string) error {
 //
 // Returns:
 //
-//   bool: 如果目录已经初始化为Go模块则返回true，否则返回false。
+//	bool: 如果目录已经初始化为Go模块则返回true，否则返回false。
 //
 // Example:
 //
@@ -183,7 +183,7 @@ func GoInitModule(repoPath string, moduleName string) (bool, error) {
 	if IsGoModuleInitialized(repoPath) {
 		return true, nil
 	}
-	
+
 	output, err := New("go", "mod", "init", moduleName).SetDir(repoPath).Run()
 	if err != nil {
 		return false, fmt.Errorf("go mod init 执行失败: %s, output: %s", err.Error(), string(output))

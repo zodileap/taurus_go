@@ -86,7 +86,7 @@ var (
 //		DB:       1,
 //	})
 //
-// ExamplePath:  taurus_go_demo/cache/redis/client_test.go - TestSetClient
+// ExamplePath: cache/redis/redis_test.go - TestSetClient
 func SetClient(clientName string, options *redis.Options) {
 	clientOptions[clientName] = options
 }
@@ -118,7 +118,7 @@ func SetClient(clientName string, options *redis.Options) {
 //		fmt.Print(err.Error())
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/client_test.go - TestGetClient
+// ExamplePath: cache/redis/redis_test.go - TestGetClient
 //
 // ErrCodes:
 //
@@ -146,7 +146,7 @@ func GetClient(clientName string) (*Client, error) {
 //	})
 //	defer redis.ClearClient()
 //
-// ExamplePath:  taurus_go_demo/cache/redis/client_test.go - TestClearClient
+// ExamplePath: cache/redis/redis_test.go - TestClearClient
 func ClearClient() {
 	clientOptions = make(map[string]*Options)
 }
@@ -166,7 +166,7 @@ func ClearClient() {
 //	c, err := redis.GetClient("test")
 //	defer c.Close()
 //
-// ExamplePath:  taurus_go_demo/cache/redis/client_test.go - TestClose
+// ExamplePath: cache/redis/redis_test.go - TestClose
 //
 // ErrCodes:
 //
@@ -199,7 +199,7 @@ func (c *Client) Close() error {
 //	}
 //	fmt.Println(l)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/client_test.go - TestDel
+// ExamplePath: cache/redis/redis_test.go - TestClientDel
 //
 // ErrCodes:
 //
@@ -240,7 +240,7 @@ func (c *Client) Del(keys ...string) (int64, error) {
 //	s.Add("key", 0, "value3")
 //	c.Save()
 //
-// ExamplePath:  taurus_go_demo/cache/redis/client_test.go - TestSave
+// ExamplePath: cache/redis/redis_test.go - TestSave
 //
 // ErrCodes:
 //
@@ -282,7 +282,7 @@ func (c *Client) Save() (*Res, error) {
 //	...初始化redis客户端
 //	c.SetExpire("key", 10*time.Second)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/client_test.go - TestSetExpire
+// ExamplePath: cache/redis/redis_test.go - TestSetExpire
 func (c *Client) SetExpire(key string, expiration time.Duration) {
 	if expiration > 0 {
 		c.Expire(ctx, key, expiration)

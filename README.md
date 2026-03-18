@@ -24,19 +24,28 @@ go get github.com/zodileap/taurus_go@latest
 go get github.com/zodileap/taurus_go@v0.9.23
 ```
 
+## 示例与测试
+
+`taurus_go` 不再维护单独的 `taurus_go_demo` 模块。公共能力示例直接放在各包的 `*_test.go` 和本 README 中，避免示例与实现分仓后逐步漂移。
+
+像 `asset`、`cmd`、`cache/redis` 这类纯库能力，优先查看对应包下的测试文件；需要真实数据库、外部服务或生成产物配合的场景，则在 README 和源码注释中保留最小可用说明，把完整集成用例留在使用方仓库按实际环境编写。
+
 ## 适用范围
 
 `taurus_go` 更像一个“基础能力仓库”，不是单一框架。不同子包的定位大致如下：
 
 | 包路径 | 说明 |
 | --- | --- |
+| `grpc` | gRPC server/client 注册与连接管理 |
+| `console` | CLI 输出辅助函数 |
 | `entity` | 实体 schema DSL、连接配置、SQL 构造、代码生成 |
 | `entity/cmd` | `entity` 的初始化和生成命令 |
 | `notify` | 统一通知模型与发送接口 |
 | `notify/telegram` | Telegram Bot API 的通知实现 |
+| `cache/lru` | 泛型 LRU 缓存 |
 | `cache/redis` | 基于 `go-redis/v9` 的客户端管理、事务管道与结果聚合 |
 | `tlog` | 控制台输出 + 文件轮转日志 |
-| `datautil/*` | 字符串、切片、字节、结构体、地理数据等工具函数 |
+| `byteutil`、`maputil`、`sliceutil`、`stringutil`、`structutil`、`geo` | 字符串、切片、字节、结构体、地理数据等工具函数 |
 | `asset` | 文件与目录资产写入、格式化、复制 |
 | `template` | `text/template` 的轻量封装 |
 | `err` | 统一错误码结构 |
@@ -292,7 +301,12 @@ taurus_go/
 ├── asset
 ├── cache/redis
 ├── cmd
-├── datautil/{byte,geo,map,slice,string,struct}
+├── byteutil
+├── geo
+├── maputil
+├── sliceutil
+├── stringutil
+├── structutil
 ├── entity/{cmd,codegen,dialect,entitysql,field}
 ├── err
 ├── listnode
@@ -300,7 +314,6 @@ taurus_go/
 ├── rand
 ├── security/rsa
 ├── template
-├── testutil/unit
 └── tlog
 ```
 

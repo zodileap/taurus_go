@@ -150,6 +150,46 @@ func Main() {fmt.Println("Hello, World!")}
 	})
 }
 
+func TestAssetsCopyFile(t *testing.T) {
+	workDir := t.TempDir()
+	src := filepath.Join(workDir, "source.txt")
+	dst := filepath.Join(workDir, "dest.txt")
+
+	if err := os.WriteFile(src, []byte("copy via assets"), 0o644); err != nil {
+		t.Fatalf("创建源文件失败: %v", err)
+	}
+
+	var assets Assets
+	if err := assets.CopyFile(src, dst); err != nil {
+		t.Fatalf("Assets.CopyFile 失败: %v", err)
+	}
+	if err := assets.Write(); err != nil {
+		t.Fatalf("写入复制文件失败: %v", err)
+	}
+
+	content, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("读取复制结果失败: %v", err)
+	}
+	if string(content) != "copy via assets" {
+		t.Fatalf("复制内容不匹配，实际: %q", string(content))
+	}
+}
+
+func TestAssetsClear(t *testing.T) {
+	var assets Assets
+	assets.Add("test.txt", []byte("value"))
+	if err := assets.AddDir("nested"); err != nil {
+		t.Fatalf("添加目录失败: %v", err)
+	}
+
+	assets.Clear()
+
+	if assets.Files != nil || assets.Dirs != nil {
+		t.Fatalf("Clear 后应清空全部内容，实际 Files=%v Dirs=%v", assets.Files, assets.Dirs)
+	}
+}
+
 func TestCopyFile(t *testing.T) {
 	workDir := t.TempDir()
 	src := filepath.Join(workDir, "source.txt")

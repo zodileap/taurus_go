@@ -84,6 +84,8 @@ func Error(name string, msg string, fields ...Field) {
 	logger.log(ErrorLevel, 3, msg, fields...)
 }
 
+// Fatal 输出 Fatal 级别日志并终止当前进程。
+// 这个方法适合应用入口或 CLI 主流程，不适合作为公共库内部的默认错误处理方式。
 func Fatal(name string, msg string, fields ...Field) {
 	logger := Get(name)
 	logger.log(FatalLevel, 3, msg, fields...)

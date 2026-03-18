@@ -1666,7 +1666,7 @@ func (p *Predicate) Contains(column string, as string, v any) *Predicate {
 			if val.Len() > 0 {
 				pgType = getPgArrayType(val.Index(0).Interface())
 			} else {
-				pgType = "bigint"  // 默认类型
+				pgType = "bigint" // 默认类型
 			}
 			b.WriteString("ARRAY[")
 			for i := 0; i < val.Len(); i++ {
@@ -1684,7 +1684,7 @@ func (p *Predicate) Contains(column string, as string, v any) *Predicate {
 			p.arg(b, v)
 			b.WriteByte(']')
 		}
-		
+
 		// 添加类型转换
 		b.WriteString("::")
 		b.WriteString(pgType)

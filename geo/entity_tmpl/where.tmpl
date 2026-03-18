@@ -7,7 +7,7 @@
 {{ $importPkgs := dict "ImportPkgs" $.Entity.ImportPkgs "Package" $.Config.Package }}
 {{ template "import/load" $importPkgs }}
 import (
-	"github.com/zodileap/taurus_go/datautil/geo"
+	"github.com/zodileap/taurus_go/geo"
 	"github.com/zodileap/taurus_go/entity/entitysql"
 )
 
@@ -45,7 +45,7 @@ import (
 // In this example, the ST_Contains query is wrapped by the Geo function to determine whether a specific geospatial coordinate contains a point.
 // Sql: `SELECT "id", ST_AsText("point"), ST_AsText("line_string") FROM "geo_demo" AS "t1" WHERE ST_Contains("point", ST_SetSRID(ST_MakePoint(3, 4), 4326)) LIMIT 1`
 //
-// ExamplePath taurus_go_demo/entity/use/geo_test.go
+// Example usage is shown above; wrap the PostGIS expression with Geo(...) and pass it into Where(...).
 func (p *{{ $fieldName }}) Geo(f geo.PostGISFunc) entitysql.PredicateFunc {
 	return func(p *entitysql.Predicate) {
 		f.Pred(p, p.Builder.FindAs(Entity))

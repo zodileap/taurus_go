@@ -40,7 +40,7 @@ type Set struct {
 //	keyRes := r.GetSet("key")
 //	fmt.Println(keyRes.AddNum)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetAdd
+// ExamplePath: cache/redis/set_test.go - TestSetSave
 func (s *Set) Add(key string, expiration time.Duration, value string) *Set {
 	s.tracker.Add(key, expiration, value)
 	return s
@@ -69,7 +69,7 @@ func (s *Set) Add(key string, expiration time.Duration, value string) *Set {
 //	keyRes := r.GetSet("key")
 //	fmt.Println(keyRes.Value)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetGet
+// ExamplePath: cache/redis/set_test.go - TestSetSave
 func (s *Set) Get(key string) *Set {
 	s.tracker.Get(key)
 	return s
@@ -100,7 +100,7 @@ func (s *Set) Get(key string) *Set {
 //	keyRes := r.GetSet("key")
 //	fmt.Println(keyRes.DelNum)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetDel
+// ExamplePath: cache/redis/set_test.go - TestSetSave
 func (s *Set) Del(key string, value string) *Set {
 	s.tracker.Del(key, value)
 	return s
@@ -134,7 +134,7 @@ func (s *Set) Del(key string, value string) *Set {
 //	keyRes := r.GetSet("key")
 //	fmt.Println(keyRes.DelNum)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetDelAll
+// ExamplePath: cache/redis/set_test.go - TestSetDirectCommands
 func (s *Set) DelAll(key string) *Set {
 	s.tracker.DelAll(key)
 	return s
@@ -165,7 +165,7 @@ func (s *Set) DelAll(key string) *Set {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetAddR
+// ExamplePath: cache/redis/set_test.go - TestSetDirectCommands
 //
 // ErrCodes:
 //
@@ -203,7 +203,7 @@ func (s *Set) AddR(key string, expiration time.Duration, value string) (int64, e
 //	}
 //	fmt.Println(r)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetGetR
+// ExamplePath: cache/redis/set_test.go - TestSetDirectCommands
 //
 // ErrCodes:
 //
@@ -239,7 +239,7 @@ func (s *Set) GetR(key string) ([]string, error) {
 //	}
 //	fmt.Println(r)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetDelR
+// ExamplePath: cache/redis/set_test.go - TestSetDirectCommands
 //
 // ErrCodes:
 //
@@ -274,7 +274,7 @@ func (s *Set) DelR(key string, value string) (int64, error) {
 //	}
 //	fmt.Println(r)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/set_test.go - TestSetDelAllR
+// ExamplePath: cache/redis/set_test.go - TestSetDirectCommands
 //
 // ErrCodes:
 //

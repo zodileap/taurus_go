@@ -28,7 +28,7 @@ type Assets struct {
 //
 // Example:
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath: asset/asset_test.go - TestAssetsAddDir
 //
 // ErrCodes:
 //   - Err_0200010001
@@ -56,7 +56,7 @@ type Assets struct {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestAdd
+// ExamplePath: asset/asset_test.go - TestAssetsWrite
 func (a *Assets) Add(path string, b []byte) {
 	if a.Files == nil {
 		a.Files = make(map[string][]byte)
@@ -85,7 +85,7 @@ func (a *Assets) Add(path string, b []byte) {
 //	 fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestAddDir
+// ExamplePath: asset/asset_test.go - TestAssetsAddDir
 func (a *Assets) AddDir(path string) error {
 	if a.Dirs == nil {
 		a.Dirs = make(map[string]struct{})
@@ -108,7 +108,7 @@ func (a *Assets) AddDir(path string) error {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestWrite
+// ExamplePath: asset/asset_test.go - TestAssetsWrite
 //
 // ErrCodes:
 //   - Err_0200010001
@@ -148,7 +148,7 @@ func (a Assets) Write() error {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestFormat
+// ExamplePath: asset/asset_test.go - TestAssetsFormat
 //
 // ErrCodes:
 //   - Err_0200010002
@@ -189,7 +189,7 @@ func (a Assets) Format() error {
 //		fmt.Print(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go
+// ExamplePath: asset/asset_test.go - TestAssetsCopyFile
 //
 // ErrCodes:
 //   - Err_0200010001
@@ -217,7 +217,7 @@ func (a *Assets) CopyFile(srcPath, dstPath string) error {
 //	assets.Clear()
 //	fmt.Print(assets)
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go - TestClear
+// ExamplePath: asset/asset_test.go - TestAssetsClear
 func (a *Assets) Clear() {
 	a.Dirs = nil
 	a.Files = nil

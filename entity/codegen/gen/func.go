@@ -5,9 +5,9 @@ import (
 	"sort"
 	"strings"
 
-	stringutil "github.com/zodileap/taurus_go/datautil/string"
 	"github.com/zodileap/taurus_go/entity"
 	"github.com/zodileap/taurus_go/entity/codegen/load"
+	stringutil "github.com/zodileap/taurus_go/stringutil"
 	"github.com/zodileap/taurus_go/template"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

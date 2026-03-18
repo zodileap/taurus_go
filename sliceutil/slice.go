@@ -14,6 +14,8 @@ import (
 //	result, _ := MoveElementToEndAndRemovePrevious(arr, 2)
 //	// result = [4, 5, 1, 2, 3]
 //
+// ExamplePath: sliceutil/slice_test.go - TestMoveElementToEndAndRemovePrevious
+//
 // ErrCodes:
 //   - text_err_index_out_of_range
 func MoveElementToEndAndRemovePrevious[T any](arr []T, elementIndex int) ([]T, error) {
@@ -35,6 +37,8 @@ func MoveElementToEndAndRemovePrevious[T any](arr []T, elementIndex int) ([]T, e
 //	arr := []int{1, 2, 3, 4, 5}
 //	exists := ContainByInt(arr, 3)
 //	// exists = true
+//
+// ExamplePath: sliceutil/slice_test.go - TestContainByInt
 func ContainByInt(arr []int, element int) bool {
 	for _, v := range arr {
 		if v == element {
@@ -51,6 +55,8 @@ func ContainByInt(arr []int, element int) bool {
 //	arr := []int{1, 2, 3}
 //	isSlice := IsSliceOrArray(arr)
 //	// isSlice = true
+//
+// ExamplePath: sliceutil/slice_test.go - TestIsSliceOrArray
 func IsSliceOrArray(x interface{}) bool {
 	kind := reflect.TypeOf(x).Kind()
 	return kind == reflect.Slice || kind == reflect.Array
@@ -66,6 +72,8 @@ func IsSliceOrArray(x interface{}) bool {
 //	    return n%2 == 0
 //	})
 //	// even = [2, 4]
+//
+// ExamplePath: sliceutil/slice_test.go - TestFilter
 func Filter[T any](slice []T, f func(T) bool) []T {
 	filtered := make([]T, 0)
 	for _, v := range slice {
@@ -86,6 +94,8 @@ func Filter[T any](slice []T, f func(T) bool) []T {
 //	    return n > 3
 //	})
 //	// found = &4
+//
+// ExamplePath: sliceutil/slice_test.go - TestFind
 func Find[T any](slice []T, f func(T) bool) (*T, error) {
 	for _, v := range slice {
 		if f(v) {

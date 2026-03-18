@@ -32,7 +32,7 @@ type String struct {
 //	s.Add("string_key", 0, "value")
 //	r, err := c.Save()
 //
-// ExamplePath:  taurus_go_demo/cache/redis/string_test.go - TestStringAdd
+// ExamplePath: cache/redis/string_test.go - TestStringSave
 func (s *String) Add(key string, expiration time.Duration, value string) *String {
 	s.tracker.Add(key, expiration, value)
 	return s
@@ -61,7 +61,7 @@ func (s *String) Add(key string, expiration time.Duration, value string) *String
 //	keyRes := r.GetString("string_key")
 //	fmt.Println(keyRes.Value)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/string_test.go - TestStringGet
+// ExamplePath: cache/redis/string_test.go - TestStringSave
 func (s *String) Get(key string) *String {
 	s.tracker.Get(key)
 	return s
@@ -84,7 +84,7 @@ func (s *String) Get(key string) *String {
 //	s.Del("string_key")
 //	_, err = c.Save()
 //
-// ExamplePath:  taurus_go_demo/cache/redis/string_test.go - TestStringDel
+// ExamplePath: cache/redis/string_test.go - TestStringSaveDelOverridesOtherOps
 func (s *String) Del(key string) *String {
 	s.tracker.Del(key)
 	return s
@@ -110,7 +110,7 @@ func (s *String) Del(key string) *String {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/string_test.go - TestStringAddR
+// ExamplePath: cache/redis/string_test.go - TestStringDirectCommands
 //
 // ErrCodes:
 //
@@ -145,7 +145,7 @@ func (s *String) AddR(key string, expiration time.Duration, value string) error 
 //	}
 //	fmt.Println(r)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/string_test.go - TestStringGetR
+// ExamplePath: cache/redis/string_test.go - TestStringDirectCommands
 //
 // ErrCodes:
 //
@@ -178,7 +178,7 @@ func (s *String) GetR(key string) (string, error) {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/string_test.go - TestStringDelR
+// ExamplePath: cache/redis/string_test.go - TestStringDirectCommands
 //
 // ErrCodes:
 //

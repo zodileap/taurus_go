@@ -5,6 +5,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"io"
+)
+
+var (
+	generatePrivateKey  = func(reader io.Reader, bits int) (*rsa.PrivateKey, error) { return rsa.GenerateKey(reader, bits) }
+	marshalPublicKeyDER = x509.MarshalPKIXPublicKey
 )
 
 // 生成公钥和私钥
@@ -12,11 +18,12 @@ import (
 // 返回：
 //   - private：私钥
 //   - public：公钥
-func GenerateKey() (private string, public string) {
+//   - err：错误信息
+func GenerateKey() (private string, public string, err error) {
 	// Generate private key
-	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+	privateKey, err := generatePrivateKey(rand.Reader, 1024)
 	if err != nil {
-		panic(err)
+		return "", "", err
 	}
 
 	// Encode private key to PEM format
@@ -29,9 +36,9 @@ func GenerateKey() (private string, public string) {
 	publicKey := &privateKey.PublicKey
 
 	// Encode public key to PEM format
-	publicKeyDER, err := x509.MarshalPKIXPublicKey(publicKey)
+	publicKeyDER, err := marshalPublicKeyDER(publicKey)
 	if err != nil {
-		panic(err)
+		return "", "", err
 	}
 
 	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
@@ -39,5 +46,5 @@ func GenerateKey() (private string, public string) {
 		Bytes: publicKeyDER,
 	})
 
-	return string(privateKeyPEM), string(publicKeyPEM)
+	return string(privateKeyPEM), string(publicKeyPEM), nil
 }

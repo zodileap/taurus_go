@@ -9,15 +9,6 @@ import (
 	"unicode"
 )
 
-func MoveElementToEndAndRemovePrevious[T any](arr []T, elementIndex int) ([]T, error) {
-	arr = arr[elementIndex:]
-	elementIndex = 0
-	element := arr[elementIndex]
-	arr = append(arr[elementIndex+1:], element)
-
-	return arr, nil
-}
-
 // GenerateKey 生成一个唯一的字符串key。
 // 类似于"github.com/google/uuid"，
 // 但不具备像UUID那样的强大的唯一性保证和标准格式。

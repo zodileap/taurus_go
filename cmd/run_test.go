@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -11,6 +12,36 @@ func TestSplit(t *testing.T) {
 	got := Split("mkdir dir")
 	if len(got) != 2 || got[0] != "mkdir" || got[1] != "dir" {
 		t.Fatalf("Split 结果不正确: %v", got)
+	}
+}
+
+func TestSetBaseCmd(t *testing.T) {
+	old := append([]string(nil), baseCmd...)
+	t.Cleanup(func() {
+		baseCmd = old
+	})
+
+	SetBaseCmd("env", "FOO=bar")
+
+	got := New("mkdir", "dir").cmd.Args
+	want := []string{"env", "FOO=bar", "mkdir", "dir"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("基础命令拼接不正确，期望 %v，实际 %v", want, got)
+	}
+}
+
+func TestNewUser(t *testing.T) {
+	old := append([]string(nil), baseCmd...)
+	t.Cleanup(func() {
+		baseCmd = old
+	})
+
+	SetBaseCmd("env", "IGNORED=1")
+
+	got := NewUser("root").AddCmd("mkdir", "dir").cmd.Args
+	want := []string{"sudo", "-i", "-u", "root", "mkdir", "dir"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("NewUser 生成命令不正确，期望 %v，实际 %v", want, got)
 	}
 }
 
@@ -37,6 +68,16 @@ func TestSetEnv(t *testing.T) {
 	}
 	if string(output) != "hello" {
 		t.Fatalf("SetEnv 未生效，实际输出: %q", string(output))
+	}
+}
+
+func TestSetStdin(t *testing.T) {
+	output, err := New("cat").SetStdin(strings.NewReader("hello-from-stdin")).Run()
+	if err != nil {
+		t.Fatalf("带标准输入执行命令失败: %v", err)
+	}
+	if string(output) != "hello-from-stdin" {
+		t.Fatalf("SetStdin 未生效，实际输出: %q", string(output))
 	}
 }
 

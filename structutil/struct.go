@@ -2,17 +2,19 @@ package structutil
 
 import "reflect"
 
-//	获取结构体的字段名
+// GetFields 返回结构体的字段名列表。
 //
-// 示例:
+// Example:
 //
 //	type Employee struct {
 //		Id   int
-//	 Name string
+//		Name string
 //	}
 //
-// fields := getFields(Employee{})
-// 输出：[Id Name]
+//	fields := structutil.GetFields(Employee{})
+//	// [Id Name]
+//
+// ExamplePath: structutil/struct_test.go - TestGetFields
 func GetFields(input interface{}) []string {
 	val := reflect.TypeOf(input)
 	if val.Kind() == reflect.Ptr {

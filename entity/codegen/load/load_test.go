@@ -20,3 +20,19 @@ func TestContains(t *testing.T) {
 		t.Fatal("contains 误判不存在元素为存在")
 	}
 }
+
+func TestEntityTemplates(t *testing.T) {
+	tmpls, err := entityTemplates()
+	if err != nil {
+		t.Fatalf("entityTemplates 执行失败: %v", err)
+	}
+	if len(tmpls) != 2 {
+		t.Fatalf("entityTemplates 返回数量不正确: %d", len(tmpls))
+	}
+	if !strings.Contains(tmpls[0], `define "entity"`) {
+		t.Fatalf("实体模板定义缺失: %s", tmpls[0])
+	}
+	if !strings.Contains(tmpls[1], `define "imports"`) {
+		t.Fatalf("导入模板定义缺失: %s", tmpls[1])
+	}
+}

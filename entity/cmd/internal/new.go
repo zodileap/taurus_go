@@ -13,9 +13,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/zodileap/taurus_go/asset"
-	stringutil "github.com/zodileap/taurus_go/datautil/string"
 	entity "github.com/zodileap/taurus_go/entity"
 	"github.com/zodileap/taurus_go/entity/codegen/gen"
+	stringutil "github.com/zodileap/taurus_go/stringutil"
 	"github.com/zodileap/taurus_go/template"
 )
 

@@ -54,7 +54,7 @@ func templates() *template.Template {
 //
 // Example:
 //
-// ExamplePath:  taurus_go_demo/asset/asset_test.go。
+// ExamplePath: entity/codegen/load/load_test.go - TestEntityTemplates
 //
 // ErrCodes:
 //

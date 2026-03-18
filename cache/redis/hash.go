@@ -41,7 +41,7 @@ type Hash struct {
 //	keyRes := r.GetHash("hash_key")
 //	fmt.Println(keyRes.AddNum)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashAdd
+// ExamplePath: cache/redis/hash_test.go - TestHashSave
 func (h *Hash) Add(key string, expiration time.Duration, field string, value string) *Hash {
 	h.tracker.Add(key, expiration, field, value)
 	return h
@@ -72,7 +72,7 @@ func (h *Hash) Add(key string, expiration time.Duration, field string, value str
 //	keyRes := r.GetHash("hash_key")
 //	fmt.Println(keyRes.AddNum)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashAddM
+// ExamplePath: cache/redis/hash_test.go - TestHashSave
 func (h *Hash) AddM(key string, expiration time.Duration, pairs map[string]string) *Hash {
 	h.tracker.AddM(key, expiration, pairs)
 	return h
@@ -103,7 +103,7 @@ func (h *Hash) AddM(key string, expiration time.Duration, pairs map[string]strin
 // keyRes := r.GetHash("hash_key")
 // fmt.Println(keyRes.Value)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGet
+// ExamplePath: cache/redis/hash_test.go - TestHashSave
 func (h *Hash) Get(key string, field string) *Hash {
 	h.tracker.Get(key, field)
 	return h
@@ -135,7 +135,7 @@ func (h *Hash) Get(key string, field string) *Hash {
 //	keyRes := r.GetHash("hash_key")
 //	fmt.Println(keyRes.Value)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGetM
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 func (h *Hash) GetM(key string, fields []string) *Hash {
 	h.tracker.GetM(key, fields)
 	return h
@@ -166,7 +166,7 @@ func (h *Hash) GetM(key string, fields []string) *Hash {
 //	keyRes := r.GetHash("hash_key")
 //	fmt.Println(keyRes.Value)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGetVals
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 func (h *Hash) GetVals(key string) *Hash {
 	h.tracker.GetVals(key)
 	return h
@@ -197,7 +197,7 @@ func (h *Hash) GetVals(key string) *Hash {
 //	keyRes := r.GetHash("hash_key")
 //	fmt.Println(keyRes.MapValue)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGetAll
+// ExamplePath: cache/redis/hash_test.go - TestHashSave
 func (h *Hash) GetAll(key string) *Hash {
 	h.tracker.GetAll(key)
 	return h
@@ -228,7 +228,7 @@ func (h *Hash) GetAll(key string) *Hash {
 //	keyRes := r.GetHash("hash_key")
 //	fmt.Println(keyRes.DelNum)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashDel
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 func (h *Hash) Del(key string, fields ...string) *Hash {
 	h.tracker.Del(key, fields)
 	return h
@@ -256,7 +256,7 @@ func (h *Hash) Del(key string, fields ...string) *Hash {
 //	keyRes := r.GetHash("hash_key")
 //	fmt.Println(keyRes.DelNum)
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashDelAll
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 func (h *Hash) DelAll(key string) *Hash {
 	h.tracker.DelAll(key)
 	return h
@@ -288,7 +288,7 @@ func (h *Hash) DelAll(key string) *Hash {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashAddR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
@@ -330,7 +330,7 @@ func (h *Hash) AddR(key string, expiration time.Duration, field string, value st
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashAddMR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
@@ -371,7 +371,7 @@ func (h *Hash) AddMR(key string, expiration time.Duration, pairs map[string]stri
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGetR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
@@ -406,7 +406,7 @@ func (h *Hash) GetR(key string, field string) (string, error) {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGetMR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
@@ -440,7 +440,7 @@ func (h *Hash) GetMR(key string, fields ...string) ([]interface{}, error) {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGetValsR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
@@ -474,7 +474,7 @@ func (h *Hash) GetValsR(key string) ([]string, error) {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashGetAllR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
@@ -509,7 +509,7 @@ func (h *Hash) GetAllR(key string) (map[string]string, error) {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashDelR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
@@ -543,7 +543,7 @@ func (h *Hash) DelR(key string, field string) (int64, error) {
 //		fmt.Println(err)
 //	}
 //
-// ExamplePath:  taurus_go_demo/cache/redis/hash_test.go - TestHashDelAllR
+// ExamplePath: cache/redis/hash_test.go - TestHashDirectCommands
 //
 // ErrCodes:
 //
