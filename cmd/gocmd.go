@@ -164,7 +164,7 @@ func GoTidyModules(repoPath string) (bool, error) {
 // Params:
 //
 //   - repoPath: 要初始化模块的路径。
-//   - moduleName: 模块名称，例如 git.zodileap.com/entity/database_v1。
+//   - moduleName: 模块名称，例如 github.com/zodileap/database_v1。
 //
 // Returns:
 //
@@ -173,7 +173,7 @@ func GoTidyModules(repoPath string) (bool, error) {
 //
 // Example:
 //
-//	success, err := GoInitModule("/path/to/repo", "git.zodileap.com/entity/database_v1")
+//	success, err := GoInitModule("/path/to/repo", "github.com/zodileap/database_v1")
 //	if err != nil {
 //	    log.Printf("Init failed: %v", err)
 //	    return
